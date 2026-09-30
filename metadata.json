@@ -1,0 +1,6 @@
+{
+  "name": "IPME Eusébio - Licenças & Readaptações",
+  "description": "Sistema de Gestão de Licença Saúde, Readaptação Funcional e Servidores Ativos do Instituto de Previdência do Município de Eusébio (IPME).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
