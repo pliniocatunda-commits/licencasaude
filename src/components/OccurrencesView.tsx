@@ -538,10 +538,11 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                           {/* View Extension and Modification History */}
                           <button
                             onClick={() => setHistoryModalOccurrence(occ)}
-                            className="p-1.5 text-purple-700 hover:text-purple-900 hover:bg-purple-100 rounded transition-colors cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] font-semibold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
                             title="Ver Histórico Cronológico, Prorrogações e Trilha desta Ocorrência"
                           >
-                            <History className="w-4 h-4" />
+                            <History className="w-3.5 h-3.5 text-purple-700" />
+                            <span>Histórico</span>
                           </button>
 
                           {/* Quick Lifecycle Controls */}

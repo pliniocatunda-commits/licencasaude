@@ -19,6 +19,7 @@ import { AuditTrailView } from './components/AuditTrailView.tsx';
 import { UsersView } from './components/UsersView.tsx';
 import { EmployeeModal } from './components/EmployeeModal.tsx';
 import { EmployeeDetailModal } from './components/EmployeeDetailModal.tsx';
+import { ProrrogacoesHistoryModal } from './components/ProrrogacoesHistoryModal.tsx';
 import { SecretariaModal } from './components/SecretariaModal.tsx';
 import { DoctorModal } from './components/DoctorModal.tsx';
 import { OccurrenceModal } from './components/OccurrenceModal.tsx';
@@ -77,6 +78,7 @@ export default function App() {
   const [converterDefinitivaModalOpen, setConverterDefinitivaModalOpen] = useState(false);
   const [targetOccurrence, setTargetOccurrence] = useState<Occurrence | null>(null);
   const [occurrenceToConvert, setOccurrenceToConvert] = useState<Occurrence | null>(null);
+  const [historyModalOccurrence, setHistoryModalOccurrence] = useState<Occurrence | null>(null);
 
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [printOccurrence, setPrintOccurrence] = useState<Occurrence | null>(null);
@@ -631,6 +633,7 @@ export default function App() {
         onOpenProrrogar={handleOpenProrrogar}
         onOpenConcluir={handleOpenConcluir}
         onOpenConverterDefinitiva={handleOpenConverterDefinitiva}
+        onOpenHistory={occ => setHistoryModalOccurrence(occ)}
         onDeleteOccurrence={handleDeleteOccurrence}
         userRole={currentUser.role}
       />
@@ -699,6 +702,19 @@ export default function App() {
         secretarias={secretarias}
         metrics={metrics}
         doctors={doctors}
+      />
+
+      <ProrrogacoesHistoryModal
+        isOpen={Boolean(historyModalOccurrence)}
+        onClose={() => setHistoryModalOccurrence(null)}
+        occurrence={historyModalOccurrence}
+        onOpenPrint={handlePrintOccurrence}
+        onOpenNewProrrogacao={handleOpenProrrogar}
+        onOpenAuditTrail={() => {
+          setHistoryModalOccurrence(null);
+          setActiveTab('audit');
+        }}
+        canEdit={currentUser.role === 'admin' || currentUser.role === 'operator'}
       />
 
       <LoginModal
