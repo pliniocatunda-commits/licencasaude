@@ -159,3 +159,39 @@ export function exportarCSV(nomeArquivo: string, cabecalhos: string[], linhas: (
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Verifica se a previsão de retorno de um afastamento está em atraso baseado na data do dia atual.
+ * Critério: Afastamento não-definitivo, não arquivado/concluído/cancelado, com data de término anterior ao dia de hoje.
+ */
+export function isPrevisaoRetornoEmAtraso(
+  dataTermino?: string,
+  status?: string,
+  tipo?: string
+): boolean {
+  if (!dataTermino || tipo === 'Licença Definitiva') return false;
+  if (status === 'Arquivado' || status === 'Concluída' || status === 'Cancelada') return false;
+
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  const hojeStr = `${ano}-${mes}-${dia}`;
+
+  const terminoStr = dataTermino.split('T')[0];
+  return terminoStr < hojeStr;
+}
+
+/**
+ * Calcula a quantidade de dias corridos em atraso em relação à data do dia.
+ */
+export function calcularDiasAtraso(dataTermino?: string): number {
+  if (!dataTermino) return 0;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const termino = new Date(dataTermino.split('T')[0] + 'T00:00:00');
+  if (isNaN(termino.getTime())) return 0;
+  const diffMs = hoje.getTime() - termino.getTime();
+  if (diffMs <= 0) return 0;
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}

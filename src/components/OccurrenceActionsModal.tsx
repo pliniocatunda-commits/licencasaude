@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Occurrence, Doctor } from '../types/index.ts';
 import { formatarDataBR, calcularQuantidadeDias, calcularDiasPagos } from '../utils/validation.ts';
-import { X, Clock, CheckCircle2, AlertTriangle, Calendar, Save, History, FileBadge, Award, ShieldCheck, AlertCircle } from 'lucide-react';
+import { 
+  X, 
+  Clock, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Calendar, 
+  Save, 
+  History, 
+  FileBadge, 
+  Award, 
+  ShieldCheck, 
+  AlertCircle,
+  Archive,
+  Undo2,
+  UserCheck,
+  Stethoscope
+} from 'lucide-react';
 
 interface ProrrogarModalProps {
   isOpen: boolean;
@@ -186,7 +202,7 @@ interface ConcluirModalProps {
   isOpen: boolean;
   onClose: () => void;
   occurrence: Occurrence | null;
-  onConfirm: (parecerFinal: string) => Promise<void>;
+  onConfirm: (parecerFinal: string, dataConcessao?: string, atoConcessao?: string) => Promise<void>;
 }
 
 export const ConcluirModal: React.FC<ConcluirModalProps> = ({
@@ -196,12 +212,24 @@ export const ConcluirModal: React.FC<ConcluirModalProps> = ({
   onConfirm,
 }) => {
   const [parecerFinal, setParecerFinal] = useState('');
+  const [dataConcessao, setDataConcessao] = useState('');
+  const [atoConcessao, setAtoConcessao] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isDefinitiva = occurrence?.tipo === 'Licença Definitiva';
+
   useEffect(() => {
     if (occurrence) {
-      setParecerFinal('Perícia de retorno realizada pela Junta Médica Oficial do IPME. Servidor avaliado clinicamente e considerado apto para retorno às atividades funcionais regulares.');
+      if (occurrence.tipo === 'Licença Definitiva') {
+        setParecerFinal('Perícia médica conclusiva homologada pela Junta Médica Oficial do IPME. Servidor considerado permanentemente incapacitado para o exercício das atribuições do cargo público, sendo deferida sua aposentadoria por incapacidade definitiva. Processo pericial homologado e arquivado em definitivo.');
+        setDataConcessao(occurrence.data_concessao || new Date().toISOString().split('T')[0]);
+        setAtoConcessao(occurrence.ato_concessao || 'Portaria IPME de Aposentadoria');
+      } else {
+        setParecerFinal('Perícia de retorno realizada pela Junta Médica Oficial do IPME. Servidor avaliado clinicamente e considerado apto para retorno às atividades funcionais regulares.');
+        setDataConcessao('');
+        setAtoConcessao('');
+      }
       setError('');
     }
   }, [occurrence, isOpen]);
@@ -210,9 +238,13 @@ export const ConcluirModal: React.FC<ConcluirModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDefinitiva && (!dataConcessao || !dataConcessao.trim())) {
+      setError('A Data de Concessão da aposentadoria/afastamento definitivo é obrigatória.');
+      return;
+    }
     setLoading(true);
     try {
-      await onConfirm(parecerFinal);
+      await onConfirm(parecerFinal, isDefinitiva ? dataConcessao : undefined, isDefinitiva ? atoConcessao : undefined);
       onClose();
     } catch (err) {
       setError((err as Error).message || 'Erro ao concluir afastamento.');
@@ -224,14 +256,22 @@ export const ConcluirModal: React.FC<ConcluirModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="px-6 py-4 bg-emerald-950 text-white flex items-center justify-between border-b border-emerald-900">
+        <div className={`px-6 py-4 text-white flex items-center justify-between border-b ${
+          isDefinitiva ? 'bg-purple-950 border-purple-900' : 'bg-emerald-950 border-emerald-900'
+        }`}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            {isDefinitiva ? (
+              <Archive className="w-5 h-5 text-purple-400" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            )}
             <h2 className="text-sm font-bold">
-              Concluir Perícia e Encerrar Afastamento
+              {isDefinitiva 
+                ? 'Concluir Licença Definitiva (Aposentadoria / Arquivamento)' 
+                : 'Concluir Perícia e Encerrar Afastamento'}
             </h2>
           </div>
-          <button onClick={onClose} className="text-emerald-300 hover:text-white">
+          <button onClick={onClose} className="text-slate-300 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -243,17 +283,69 @@ export const ConcluirModal: React.FC<ConcluirModalProps> = ({
             </div>
           )}
 
-          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
-            <div className="font-semibold text-emerald-900">
-              {occurrence.employee_nome} · Matrícula {occurrence.matricula}
+          {isDefinitiva ? (
+            /* Banner para Licença Definitiva (Aposentadoria / Arquivamento) */
+            <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-xl space-y-1.5 text-purple-950">
+              <div className="flex items-center justify-between font-bold">
+                <span>{occurrence.employee_nome} · Matrícula {occurrence.matricula}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] bg-purple-200 text-purple-900 font-mono">
+                  Licença Definitiva
+                </span>
+              </div>
+              <p className="text-[11px] text-purple-900 leading-relaxed">
+                A conclusão da Licença Definitiva significa que o servidor <strong>se afastou em definitivo (aposentou-se por incapacidade permanente)</strong>, não retornando mais à atividade regular.
+              </p>
+              <div className="p-2 bg-purple-100/70 border border-purple-200/80 rounded-lg text-[11px] font-medium text-purple-950 flex items-start gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
+                <span>
+                  O registro ganhará status <strong>ARQUIVADO</strong> e o servidor passará para <strong>APOSENTADO</strong>. Não aparecerá mais nos relatórios executivos de rotina (salvo se filtrado especificamente por "Licença Definitiva").
+                </span>
+              </div>
             </div>
-            <div className="text-emerald-800 text-[11px]">
-              Ocorrência {occurrence.id} ({occurrence.tipo}) · {occurrence.quantidade_dias} dias totais.
+          ) : (
+            /* Banner para Licença Padrão / Readaptação */
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+              <div className="font-semibold text-emerald-900">
+                {occurrence.employee_nome} · Matrícula {occurrence.matricula}
+              </div>
+              <div className="text-emerald-800 text-[11px]">
+                Ocorrência {occurrence.id} ({occurrence.tipo}) · {occurrence.quantidade_dias} dias totais.
+              </div>
+              <div className="text-[11px] text-emerald-700 font-medium pt-1">
+                Ao concluir esta perícia, o status funcional do servidor será <strong>restaurado automaticamente para "Ativo"</strong> na folha do município.
+              </div>
             </div>
-            <div className="text-[11px] text-emerald-700 font-medium pt-1">
-              Ao concluir esta perícia, o status funcional do servidor será <strong>restaurado automaticamente para "Ativo"</strong> na folha do município.
+          )}
+
+          {isDefinitiva && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Data de Concessão da Aposentadoria <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={dataConcessao}
+                  onChange={e => setDataConcessao(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-slate-900 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Ato Concessório (Portaria / Decreto)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Portaria IPME nº 098/2026"
+                  value={atoConcessao}
+                  onChange={e => setAtoConcessao(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 font-medium"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block font-semibold text-slate-700 mb-1">
@@ -264,7 +356,9 @@ export const ConcluirModal: React.FC<ConcluirModalProps> = ({
               required
               value={parecerFinal}
               onChange={e => setParecerFinal(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={`w-full px-3 py-2 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 ${
+                isDefinitiva ? 'border-purple-300 focus:ring-purple-500' : 'border-slate-200 focus:ring-emerald-500'
+              }`}
             />
           </div>
 
@@ -272,16 +366,28 @@ export const ConcluirModal: React.FC<ConcluirModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 rounded-lg"
+              className="px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm transition-colors disabled:opacity-50"
+              className={`px-4 py-2 font-bold text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer ${
+                isDefinitiva ? 'bg-purple-800 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
             >
-              {loading ? 'Salvando...' : 'Confirmar Conclusão e Retorno'}
+              {isDefinitiva ? (
+                <>
+                  <Archive className="w-4 h-4" />
+                  <span>{loading ? 'Arquivando...' : 'Homologar Aposentadoria e Arquivar'}</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{loading ? 'Salvando...' : 'Confirmar Conclusão e Retorno'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -723,6 +829,208 @@ export const ConverterDefinitivaModal: React.FC<ConverterDefinitivaModalProps> =
             >
               <FileBadge className="w-4 h-4" />
               <span>{loading ? 'Processando...' : 'Confirmar Licença Definitiva'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface RetornoTrabalhoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  occurrence: Occurrence | null;
+  doctors?: Doctor[];
+  onConfirm: (data: {
+    dataRetorno: string;
+    motivoRetorno: string;
+    medico?: string;
+    crm?: string;
+    atoReversao?: string;
+  }) => Promise<void>;
+}
+
+export const RetornoTrabalhoModal: React.FC<RetornoTrabalhoModalProps> = ({
+  isOpen,
+  onClose,
+  occurrence,
+  doctors = [],
+  onConfirm,
+}) => {
+  const [dataRetorno, setDataRetorno] = useState('');
+  const [motivoRetorno, setMotivoRetorno] = useState('');
+  const [medico, setMedico] = useState('');
+  const [crm, setCrm] = useState('');
+  const [atoReversao, setAtoReversao] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (occurrence) {
+      setDataRetorno(new Date().toISOString().split('T')[0]);
+      setMotivoRetorno('Junta Médica Oficial do IPME realizou perícia médica revisional presencial e constatou a cessação dos motivos determinantes da incapacidade definitiva, declarando o servidor plenamente apto para reassumir suas funções públicas no município.');
+      setAtoReversao('Portaria de Reversão IPME nº ' + Math.floor(100 + Math.random() * 900) + '/2026');
+      const doc = doctors.find(d => d.ativo && d.is_diretor) || doctors.find(d => d.ativo) || doctors[0];
+      if (doc) {
+        setMedico(doc.nome);
+        setCrm(doc.crm);
+      } else {
+        setMedico(occurrence.medico_perito || 'Dr. Marcelo Cavalcante Holanda');
+        setCrm(occurrence.crm || 'CRM/CE 14.892');
+      }
+      setError('');
+    }
+  }, [occurrence, isOpen, doctors]);
+
+  if (!isOpen || !occurrence) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dataRetorno || !dataRetorno.trim()) {
+      setError('A Data do Retorno ao Trabalho é obrigatória.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await onConfirm({
+        dataRetorno,
+        motivoRetorno,
+        medico,
+        crm,
+        atoReversao,
+      });
+      onClose();
+    } catch (err) {
+      setError((err as Error).message || 'Erro ao homologar retorno ao trabalho.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="px-6 py-4 bg-emerald-950 text-white flex items-center justify-between border-b border-emerald-900">
+          <div className="flex items-center gap-2">
+            <Undo2 className="w-5 h-5 text-emerald-400" />
+            <div>
+              <h2 className="text-sm font-bold">
+                Reversão de Aposentadoria & Retorno ao Trabalho
+              </h2>
+              <p className="text-[11px] text-emerald-300">
+                Homologação de Reavaliação Pericial Favorável · IPME
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-300 hover:text-white cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+          {error && (
+            <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 text-emerald-950">
+            <div className="flex items-center justify-between font-bold">
+              <span>{occurrence.employee_nome} · Matrícula {occurrence.matricula}</span>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-200 text-emerald-900 font-mono">
+                {occurrence.tipo}
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-900 leading-relaxed">
+              Embora o afastamento em definitivo seja regra permanente, a legislação prevê a <strong>reversão extraordinária</strong> caso perícia médica oficial ateste a recuperação da capacidade laborativa.
+            </p>
+            <div className="p-2 bg-emerald-100/70 border border-emerald-200/80 rounded-lg text-[11px] font-medium text-emerald-950 flex items-start gap-1.5">
+              <UserCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+              <span>
+                Ao homologar esta reversão, o status funcional do servidor será <strong>restaurado automaticamente para "ATIVO"</strong> e a licença será concluída por motivo de retorno às funções.
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">
+                Data do Retorno à Atividade <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={dataRetorno}
+                onChange={e => setDataRetorno(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900 font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">
+                Ato Oficial de Reversão
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Portaria de Reversão nº 012/2026"
+                value={atoReversao}
+                onChange={e => setAtoReversao(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-medium"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Médico Perito Responsável pela Junta Revisional
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Nome do Médico Perito"
+                value={medico}
+                onChange={e => setMedico(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <input
+                type="text"
+                placeholder="CRM/CE..."
+                value={crm}
+                onChange={e => setCrm(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Parecer Médico Conclusivo da Junta de Reversão *
+            </label>
+            <textarea
+              rows={3}
+              required
+              value={motivoRetorno}
+              onChange={e => setMotivoRetorno(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Undo2 className="w-4 h-4" />
+              <span>{loading ? 'Processando...' : 'Homologar Retorno ao Trabalho'}</span>
             </button>
           </div>
         </form>

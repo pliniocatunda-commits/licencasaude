@@ -1,6 +1,6 @@
 import React from 'react';
 import { DashboardMetrics, Occurrence } from '../types/index.ts';
-import { formatarDataBR, calcularDiasPagos } from '../utils/validation.ts';
+import { formatarDataBR, calcularDiasPagos, isPrevisaoRetornoEmAtraso, calcularDiasAtraso } from '../utils/validation.ts';
 import { 
   Users, 
   HeartPulse, 
@@ -265,11 +265,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <span className="text-slate-600">{occ.employee_cargo}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <span className="flex items-center gap-1 text-purple-700 font-semibold font-mono tabular-nums">
-                          <Clock className="w-3 h-3" />
-                          Término previsto: {formatarDataBR(occ.data_termino)}
-                        </span>
+                      <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
+                        {isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo) ? (
+                          <span className="flex items-center gap-1 text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded font-bold font-mono tabular-nums" title={`Previsão de retorno expirada há ${calcularDiasAtraso(occ.data_termino)} dias`}>
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                            Término previsto: {formatarDataBR(occ.data_termino)} ({calcularDiasAtraso(occ.data_termino)}d em atraso)
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-purple-700 font-semibold font-mono tabular-nums">
+                            <Clock className="w-3 h-3" />
+                            Término previsto: {formatarDataBR(occ.data_termino)}
+                          </span>
+                        )}
                         <span>({occ.quantidade_dias}d totais · <strong className="text-emerald-700 font-mono">{calcularDiasPagos(occ.quantidade_dias)}d pagos IPME</strong>)</span>
                         {occ.cid && (
                           <span className="text-slate-500 font-mono text-[11px]">

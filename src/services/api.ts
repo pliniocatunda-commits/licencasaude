@@ -235,14 +235,39 @@ class ApiService {
     );
   }
 
-  public async concluirOccurrence(id: string, parecerFinal: string): Promise<Occurrence> {
+  public async concluirOccurrence(
+    id: string,
+    parecerFinal: string,
+    dataConcessao?: string,
+    atoConcessao?: string
+  ): Promise<Occurrence> {
     return this.request(
       `/api/occurrences/${id}/concluir`,
       {
         method: 'POST',
-        body: JSON.stringify({ parecerFinal, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({
+          parecerFinal,
+          dataConcessao,
+          atoConcessao,
+          actorEmail: this.currentUser.email,
+          actorRole: this.currentUser.role,
+        }),
       },
-      () => clientDb.concluirOccurrence(id, parecerFinal, this.currentUser.email, this.currentUser.role)
+      () => clientDb.concluirOccurrence(id, parecerFinal, this.currentUser.email, this.currentUser.role, dataConcessao, atoConcessao)
+    );
+  }
+
+  public async retornarTrabalhoOccurrence(
+    id: string,
+    data: { dataRetorno: string; motivoRetorno: string; medico?: string; crm?: string; atoReversao?: string }
+  ): Promise<Occurrence> {
+    return this.request(
+      `/api/occurrences/${id}/retorno-trabalho`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...data, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+      },
+      () => clientDb.retornarTrabalhoOccurrence(id, data, this.currentUser.email, this.currentUser.role)
     );
   }
 
@@ -468,6 +493,34 @@ class ApiService {
         body: JSON.stringify({ email, name, provider }),
       },
       () => clientDb.login(email, name, provider)
+    );
+  }
+
+  public async importCadastroCSV(
+    csvText: string,
+    substituirExistentes: boolean
+  ): Promise<{
+    totalLinhas: number;
+    servidoresImportados: number;
+    servidoresAtualizados: number;
+    secretariasImportadas: number;
+    secretariasAtualizadas: number;
+    telefonesFormatados: number;
+    telefonesIgnorados: number;
+    erros: string[];
+  }> {
+    return this.request(
+      '/api/admin/import-csv',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          csvText,
+          substituirExistentes,
+          actorEmail: this.currentUser.email,
+          actorRole: this.currentUser.role,
+        }),
+      },
+      () => clientDb.importCadastroCSV(csvText, substituirExistentes, this.currentUser.email, this.currentUser.role)
     );
   }
 }

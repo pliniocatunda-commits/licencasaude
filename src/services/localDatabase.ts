@@ -1,5 +1,6 @@
 import { Employee, Occurrence, Secretaria, Doctor, AuditLog, AppUser, DashboardMetrics } from '../types/index.ts';
 import { calcularDiasPagos } from '../utils/validation.ts';
+import { parseServidoresCSV } from '../utils/csvImporter.ts';
 
 export interface DatabaseSchema {
   employees: Employee[];
@@ -20,7 +21,7 @@ const INITIAL_DATA: DatabaseSchema = {
       secretaria: "SME - Secretaria Municipal de Educação",
       setor: "Escola Municipal Neusa de Freitas Sá",
       cargo: "PROFESSORA",
-      status: "Licenciado",
+      status: "Aposentado",
       data_admissao: "2016-02-15",
       email: "celsa.ferreira@eusebio.ce.gov.br",
       created_at: "2026-09-28T17:36:03.595Z",
@@ -103,16 +104,16 @@ const INITIAL_DATA: DatabaseSchema = {
       cid: "F32.1 - Episódio depressivo moderado",
       medico_perito: "Dr. Marcelo Cavalcante Holanda",
       crm: "CRM/CE 14.892",
-      status: "Ativa",
+      status: "Arquivado",
       anexo_url: "",
       anexo_nome: "Laudo_Pericial_SME_10.pdf",
       observacoes: "Servidora com sintomas de exaustão e depressão moderada em acompanhamento terapêutico.",
-      parecer_tecnico: "Junta Médica Oficial do IPME homologou 60 dias de afastamento integral para acompanhamento psicoterapêutico e farmacológico. Retorno previsto com reavaliação pericial.\n[Conversão em Licença Definitiva em 30/09/2026 por Pliniocatunda@gmail.com]: Licença transformada de \"Licença Saúde\" para \"Licença Definitiva\". Data da Concessão: 2026-10-14 | Ato Concessório: Portaria IPME nº 092/2026. Médico Responsável: Dr. Marcelo Cavalcante Holanda (CRM/CE 14.892). Justificativa: Incapacidade definitiva homologada",
+      parecer_tecnico: "Junta Médica Oficial do IPME homologou 60 dias de afastamento integral para acompanhamento psicoterapêutico e farmacológico. Retorno previsto com reavaliação pericial.\n[Conversão em Licença Definitiva em 30/09/2026 por Pliniocatunda@gmail.com]: Licença transformada de \"Licença Saúde\" para \"Licença Definitiva\". Data da Concessão: 2026-10-16 | Ato Concessório: Portaria IPME nº 092/2026. Médico Responsável: Dr. Marcelo Cavalcante Holanda (CRM/CE 14.892). Justificativa: Incapacidade definitiva homologada\n[Conclusão / Arquivamento em 02/10/2026 por Pliniocatunda@gmail.com]: Homologada a aposentadoria definitiva do servidor. Data de Concessão: 2026-10-16. Ato: Portaria IPME nº 092/2026.",
       prorrogacoes: [],
       created_at: "2026-08-15T14:20:00.000Z",
-      updated_at: "2026-09-30T18:18:47.663Z",
+      updated_at: "2026-10-02T13:49:21.775Z",
       created_by: "Pliniocatunda@gmail.com",
-      data_concessao: "2026-10-14",
+      data_concessao: "2026-10-16",
       ato_concessao: "Portaria IPME nº 092/2026",
       motivo_definitiva: "Incapacidade definitiva homologada",
       data_conversao: "2026-09-30T18:18:47.663Z"
@@ -405,6 +406,14 @@ export class ClientDatabase {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.employees && parsed.occurrences) {
+          // Sanitização de secretarias corrompidas com CPF
+          if (parsed.secretarias && Array.isArray(parsed.secretarias)) {
+            parsed.secretarias = parsed.secretarias.filter((s: Secretaria) => 
+              !/SEC-\d{3}\.\d{3}\.\d{3}-\d{2}/.test(s.id) &&
+              !/\d{3}\.\d{3}\.\d{3}-\d{2}/.test(s.sigla) &&
+              !/^\d{3}$/.test(s.nome)
+            );
+          }
           return parsed;
         }
       }
@@ -427,7 +436,7 @@ export class ClientDatabase {
   private addAudit(entry: {
     entity_type: 'employee' | 'occurrence' | 'secretaria' | 'doctor' | 'user';
     entity_id: string;
-    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PRORROGAR' | 'CONCLUIR' | 'CANCELAR' | 'CONVERTER_DEFINITIVA';
+    action: AuditLog['action'];
     details: string;
     changed_by: string;
     user_role: 'admin' | 'operator';
@@ -452,7 +461,11 @@ export class ClientDatabase {
       o => o.matricula === matricula && (o.status === 'Ativa' || o.status === 'Prorrogada')
     );
 
-    let newStatus: 'Ativo' | 'Licenciado' | 'Readaptado' = 'Ativo';
+    const hasArchivedDefinitiva = this.data.occurrences.some(
+      o => o.matricula === matricula && o.tipo === 'Licença Definitiva' && o.status === 'Arquivado'
+    );
+
+    let newStatus: 'Ativo' | 'Licenciado' | 'Readaptado' | 'Aposentado' = 'Ativo';
 
     if (empOccurrences.length > 0) {
       const hasLicense = empOccurrences.some(o => o.tipo !== 'Readaptação');
@@ -461,6 +474,8 @@ export class ClientDatabase {
       } else {
         newStatus = 'Readaptado';
       }
+    } else if (hasArchivedDefinitiva) {
+      newStatus = 'Aposentado';
     }
 
     if (emp.status !== newStatus) {
@@ -832,24 +847,102 @@ export class ClientDatabase {
     return occ;
   }
 
-  public concluirOccurrence(id: string, parecerFinal: string, actorEmail: string, actorRole: 'admin' | 'operator'): Occurrence {
+  public concluirOccurrence(
+    id: string,
+    parecerFinal: string,
+    actorEmail: string,
+    actorRole: 'admin' | 'operator',
+    dataConcessao?: string,
+    atoConcessao?: string
+  ): Occurrence {
     const occ = this.getOccurrenceById(id);
     if (!occ) throw new Error('Ocorrência não encontrada.');
 
     const now = new Date().toISOString();
-    occ.status = 'Concluída';
-    occ.updated_at = now;
-    if (parecerFinal) {
-      occ.parecer_tecnico = (occ.parecer_tecnico ? occ.parecer_tecnico + '\n' : '') + `[Conclusão Pericial em ${new Date().toLocaleDateString('pt-BR')} por ${actorEmail}]: ${parecerFinal}`;
+    const dataHoraBR = new Date().toLocaleDateString('pt-BR');
+    const isDefinitiva = occ.tipo === 'Licença Definitiva';
+
+    if (isDefinitiva) {
+      if (!dataConcessao || !dataConcessao.trim()) {
+        throw new Error('A Data de Concessão é obrigatória para a conclusão e arquivamento definitivo da Licença Definitiva.');
+      }
+      occ.data_concessao = dataConcessao.trim();
+      if (atoConcessao && atoConcessao.trim()) {
+        occ.ato_concessao = atoConcessao.trim();
+      }
+      occ.status = 'Arquivado';
+      occ.updated_at = now;
+      occ.parecer_tecnico = (occ.parecer_tecnico ? occ.parecer_tecnico + '\n' : '') + `[Conclusão / Arquivamento em ${dataHoraBR} por ${actorEmail}]: Homologada a aposentadoria definitiva do servidor. Data de Concessão: ${occ.data_concessao}. Ato: ${occ.ato_concessao || 'N/A'}. Parecer: ${parecerFinal || 'Afastamento definitivo homologado em perícia oficial.'}`;
+
+      this.syncEmployeeStatus(occ.matricula, actorEmail, actorRole);
+
+      this.addAudit({
+        entity_type: 'occurrence',
+        entity_id: occ.id,
+        action: 'ARQUIVAR',
+        details: `Conclusão e arquivamento definitivo da Licença Definitiva Nº ${occ.id} (Aposentadoria homologada). Data de Concessão: ${occ.data_concessao}. Parecer: ${parecerFinal}.`,
+        changed_by: actorEmail,
+        user_role: actorRole,
+      });
+    } else {
+      occ.status = 'Concluída';
+      occ.updated_at = now;
+      if (parecerFinal) {
+        occ.parecer_tecnico = (occ.parecer_tecnico ? occ.parecer_tecnico + '\n' : '') + `[Conclusão Pericial em ${dataHoraBR} por ${actorEmail}]: ${parecerFinal}`;
+      }
+
+      this.syncEmployeeStatus(occ.matricula, actorEmail, actorRole);
+
+      this.addAudit({
+        entity_type: 'occurrence',
+        entity_id: occ.id,
+        action: 'CONCLUIR',
+        details: `Conclusão e encerramento pericial da ${occ.tipo} Nº ${occ.id}. Parecer: ${parecerFinal || 'Perícia de retorno favorável.'}`,
+        changed_by: actorEmail,
+        user_role: actorRole,
+      });
     }
+
+    this.saveToStorage(this.data);
+    return occ;
+  }
+
+  public retornarTrabalhoOccurrence(
+    id: string,
+    data: { dataRetorno: string; motivoRetorno: string; medico?: string; crm?: string; atoReversao?: string },
+    actorEmail: string,
+    actorRole: 'admin' | 'operator'
+  ): Occurrence {
+    const occ = this.getOccurrenceById(id);
+    if (!occ) throw new Error('Ocorrência não encontrada.');
+
+    if (occ.tipo !== 'Licença Definitiva') {
+      throw new Error('A ação de Retorno ao Trabalho por reversão pericial aplica-se à Licença Definitiva.');
+    }
+
+    if (!data.dataRetorno || !data.dataRetorno.trim()) {
+      throw new Error('A Data do Retorno ao Trabalho é obrigatória.');
+    }
+
+    const now = new Date().toISOString();
+    const dataHoraBR = new Date().toLocaleDateString('pt-BR');
+
+    occ.status = 'Concluída';
+    occ.data_retorno = data.dataRetorno.trim();
+    occ.motivo_retorno = data.motivoRetorno?.trim() || 'Reversão pericial homologada pela Junta Médica Oficial.';
+    occ.updated_at = now;
+    if (data.medico) occ.medico_perito = data.medico;
+    if (data.crm) occ.crm = data.crm;
+
+    occ.parecer_tecnico = (occ.parecer_tecnico ? occ.parecer_tecnico + '\n' : '') + `[Reversão / Retorno ao Trabalho em ${dataHoraBR} por ${actorEmail}]: Reversão homologada com retorno às atividades funcionais em ${occ.data_retorno}. Ato: ${data.atoReversao || 'N/A'}. Perito: ${occ.medico_perito} (${occ.crm}). Parecer: ${occ.motivo_retorno}`;
 
     this.syncEmployeeStatus(occ.matricula, actorEmail, actorRole);
 
     this.addAudit({
       entity_type: 'occurrence',
       entity_id: occ.id,
-      action: 'CONCLUIR',
-      details: `Conclusão e encerramento pericial da ${occ.tipo} Nº ${occ.id}. Parecer: ${parecerFinal || 'Perícia de retorno favorável.'}`,
+      action: 'RETORNO_TRABALHO',
+      details: `Reversão pericial e retorno ao trabalho da Licença Definitiva Nº ${occ.id} (Servidor: ${occ.employee_nome}). Data de Retorno: ${occ.data_retorno}. Perito: ${occ.medico_perito} (${occ.crm}).`,
       changed_by: actorEmail,
       user_role: actorRole,
     });
@@ -1265,6 +1358,156 @@ export class ClientDatabase {
       );
     }
     return user;
+  }
+
+  public importCadastroCSV(
+    csvText: string,
+    substituirExistentes: boolean,
+    actorEmail: string,
+    actorRole: 'admin' | 'operator'
+  ): {
+    totalLinhas: number;
+    servidoresImportados: number;
+    servidoresAtualizados: number;
+    secretariasImportadas: number;
+    secretariasAtualizadas: number;
+    telefonesFormatados: number;
+    telefonesIgnorados: number;
+    erros: string[];
+  } {
+    // Dynamic import logic using parser
+    const parsed = parseServidoresCSV(csvText);
+
+    if (parsed.erros.length > 0 && parsed.rows.length === 0) {
+      throw new Error(`Erro ao processar CSV: ${parsed.erros.join('; ')}`);
+    }
+
+    const now = new Date().toISOString();
+
+    // Se solicitado substituição total da base de servidores
+    if (substituirExistentes) {
+      const totalAntigo = this.data.employees.length;
+      const totalLicencasAntigo = this.data.occurrences.length;
+      this.data.employees = [];
+      this.data.occurrences = [];
+
+      this.addAudit({
+        entity_type: 'employee',
+        entity_id: 'ALL',
+        action: 'DELETE',
+        details: `Reset total de servidores e licenças para nova importação CSV. Removidos: ${totalAntigo} servidores e ${totalLicencasAntigo} licenças anteriores.`,
+        changed_by: actorEmail,
+        user_role: actorRole,
+      });
+    }
+
+    let secretariasImportadas = 0;
+    let secretariasAtualizadas = 0;
+
+    // 1. Cadastrar / Atualizar Secretarias
+    for (const secItem of parsed.secretarias) {
+      if (
+        /SEC-\d{3}\.\d{3}\.\d{3}-\d{2}/.test(secItem.id) ||
+        /\d{3}\.\d{3}\.\d{3}-\d{2}/.test(secItem.sigla) ||
+        /^\d{3}$/.test(secItem.nome)
+      ) {
+        continue;
+      }
+
+      const idx = this.data.secretarias.findIndex(
+        s => s.id === secItem.id || s.sigla.toUpperCase() === secItem.sigla.toUpperCase() || s.nome.toLowerCase() === secItem.nome.toLowerCase()
+      );
+
+      if (idx >= 0) {
+        this.data.secretarias[idx].nome = secItem.nome;
+        this.data.secretarias[idx].sigla = secItem.sigla;
+        this.data.secretarias[idx].updated_at = now;
+        secretariasAtualizadas++;
+      } else {
+        this.data.secretarias.push({
+          id: secItem.id,
+          sigla: secItem.sigla,
+          nome: secItem.nome,
+          ativa: true,
+          created_at: now,
+          updated_at: now,
+          created_by: actorEmail,
+        });
+        secretariasImportadas++;
+      }
+    }
+
+    let servidoresImportados = 0;
+    let servidoresAtualizados = 0;
+
+    // 2. Cadastrar / Atualizar Servidores
+    for (const row of parsed.rows) {
+      const idx = this.data.employees.findIndex(e => e.matricula.trim() === row.matricula.trim());
+      if (idx >= 0) {
+        this.data.employees[idx] = {
+          ...this.data.employees[idx],
+          nome: row.nome,
+          cargo: row.cargo || this.data.employees[idx].cargo,
+          telefone: row.telefone || this.data.employees[idx].telefone,
+          cpf: row.cpf || this.data.employees[idx].cpf,
+          secretaria: row.secretaria_completa,
+          data_admissao: row.data_admissao || this.data.employees[idx].data_admissao,
+          email: row.email || this.data.employees[idx].email,
+          updated_at: now,
+        };
+
+        // Sincroniza o cargo nas licenças existentes do servidor para manter prontuários consistentes
+        if (row.cargo) {
+          this.data.occurrences.forEach(occ => {
+            if (occ.matricula.trim() === row.matricula.trim()) {
+              occ.employee_cargo = row.cargo;
+              occ.employee_nome = row.nome;
+              occ.employee_secretaria = row.secretaria_completa;
+            }
+          });
+        }
+
+        servidoresAtualizados++;
+      } else {
+        this.data.employees.push({
+          matricula: row.matricula,
+          nome: row.nome,
+          cpf: row.cpf,
+          telefone: row.telefone,
+          secretaria: row.secretaria_completa,
+          cargo: row.cargo || 'Servidor Municipal',
+          status: 'Ativo',
+          data_admissao: row.data_admissao,
+          email: row.email,
+          created_at: now,
+          updated_at: now,
+          created_by: actorEmail,
+        });
+        servidoresImportados++;
+      }
+    }
+
+    this.addAudit({
+      entity_type: 'employee',
+      entity_id: 'IMPORT_CSV',
+      action: 'CREATE',
+      details: `Importação em lote via CSV concluída: ${servidoresImportados} novos servidores inseridos, ${servidoresAtualizados} atualizados, ${secretariasImportadas} secretarias criadas. Telefones formatados: ${parsed.telefonesValidos}, ignorados: ${parsed.telefonesIgnorados}.`,
+      changed_by: actorEmail,
+      user_role: actorRole,
+    });
+
+    this.saveToStorage(this.data);
+
+    return {
+      totalLinhas: parsed.totalRows,
+      servidoresImportados,
+      servidoresAtualizados,
+      secretariasImportadas,
+      secretariasAtualizadas,
+      telefonesFormatados: parsed.telefonesValidos,
+      telefonesIgnorados: parsed.telefonesIgnorados,
+      erros: parsed.erros,
+    };
   }
 }
 

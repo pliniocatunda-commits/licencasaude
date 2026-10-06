@@ -122,6 +122,23 @@ async function startServer() {
     }
   });
 
+  // Importação de Dados via CSV (Servidores e Secretarias)
+  app.post('/api/admin/import-csv', (req: Request, res: Response) => {
+    try {
+      const { actorEmail, actorRole } = getActor(req);
+      const { csvText, substituirExistentes } = req.body;
+
+      if (!csvText || typeof csvText !== 'string') {
+        return res.status(400).json({ success: false, message: 'Conteúdo CSV não fornecido.' });
+      }
+
+      const result = db.importCadastroCSV(csvText, Boolean(substituirExistentes), actorEmail, actorRole);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
   // Occurrences (Licença Saúde & Readaptação) CRUD
   app.get('/api/occurrences', (req: Request, res: Response) => {
     try {
@@ -209,8 +226,31 @@ async function startServer() {
   app.post('/api/occurrences/:id/concluir', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const { parecerFinal } = req.body;
-      const updated = db.concluirOccurrence(req.params.id, parecerFinal, actorEmail, actorRole);
+      const { parecerFinal, dataConcessao, atoConcessao } = req.body;
+      const updated = db.concluirOccurrence(req.params.id, parecerFinal, actorEmail, actorRole, dataConcessao, atoConcessao);
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/occurrences/:id/retorno-trabalho', (req: Request, res: Response) => {
+    try {
+      const { actorEmail, actorRole } = getActor(req);
+      const { dataRetorno, motivoRetorno, medico, crm, atoReversao } = req.body;
+      if (!dataRetorno) {
+        return res.status(400).json({ success: false, message: 'Data do Retorno ao Trabalho é obrigatória.' });
+      }
+      const updated = db.retornarTrabalhoOccurrence(
+        req.params.id,
+        dataRetorno,
+        motivoRetorno,
+        medico,
+        crm,
+        atoReversao,
+        actorEmail,
+        actorRole
+      );
       res.json({ success: true, data: updated });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });

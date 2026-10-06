@@ -27,10 +27,12 @@ import {
   ProrrogarModal, 
   ConcluirModal, 
   CancelarModal,
-  ConverterDefinitivaModal
+  ConverterDefinitivaModal,
+  RetornoTrabalhoModal
 } from './components/OccurrenceActionsModal.tsx';
 import { PrintCertificateModal } from './components/PrintCertificateModal.tsx';
 import { ExecutiveReportLandscapeModal } from './components/ExecutiveReportLandscapeModal.tsx';
+import { ImportCsvModal } from './components/ImportCsvModal.tsx';
 import { LoginModal } from './components/LoginModal.tsx';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
@@ -78,12 +80,14 @@ export default function App() {
   const [converterDefinitivaModalOpen, setConverterDefinitivaModalOpen] = useState(false);
   const [targetOccurrence, setTargetOccurrence] = useState<Occurrence | null>(null);
   const [occurrenceToConvert, setOccurrenceToConvert] = useState<Occurrence | null>(null);
+  const [occurrenceToRetornar, setOccurrenceToRetornar] = useState<Occurrence | null>(null);
   const [historyModalOccurrence, setHistoryModalOccurrence] = useState<Occurrence | null>(null);
 
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [printOccurrence, setPrintOccurrence] = useState<Occurrence | null>(null);
 
   const [executiveReportModalOpen, setExecutiveReportModalOpen] = useState(false);
+  const [importCsvModalOpen, setImportCsvModalOpen] = useState(false);
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -404,14 +408,50 @@ export default function App() {
     setConcluirModalOpen(true);
   };
 
-  const handleConfirmConcluir = async (parecerFinal: string) => {
+  const handleConfirmConcluir = async (parecerFinal: string, dataConcessao?: string, atoConcessao?: string) => {
     if (!targetOccurrence) return;
     try {
-      await api.concluirOccurrence(targetOccurrence.id, parecerFinal);
-      addToast('success', `Perícia concluída. Servidor ${targetOccurrence.employee_nome} restaurado para status Ativo.`);
-      loadAllData();
+      await api.concluirOccurrence(targetOccurrence.id, parecerFinal, dataConcessao, atoConcessao);
+      if (targetOccurrence.tipo === 'Licença Definitiva') {
+        addToast('success', `Aposentadoria homologada com sucesso! Ocorrência Nº ${targetOccurrence.id} arquivada e servidor classificado como Aposentado.`);
+      } else {
+        addToast('success', `Perícia concluída. Servidor ${targetOccurrence.employee_nome} restaurado para status Ativo.`);
+      }
+      await loadAllData();
+      if (selectedEmployeeForDetail) {
+        const empOccurrences = await api.getOccurrences(selectedEmployeeForDetail.matricula);
+        const updatedEmp = await api.getEmployeeByMatricula(selectedEmployeeForDetail.matricula);
+        setSelectedEmployeeForDetail(prev => prev ? { ...prev, status: updatedEmp?.status || prev.status, history: empOccurrences } : null);
+      }
     } catch (err) {
       addToast('error', (err as Error).message || 'Erro ao concluir perícia.');
+      throw err;
+    }
+  };
+
+  const handleOpenRetornoTrabalho = (occ: Occurrence) => {
+    setOccurrenceToRetornar(occ);
+  };
+
+  const handleConfirmRetornoTrabalho = async (data: {
+    dataRetorno: string;
+    motivoRetorno: string;
+    medico?: string;
+    crm?: string;
+    atoReversao?: string;
+  }) => {
+    if (!occurrenceToRetornar) return;
+    try {
+      const updated = await api.retornarTrabalhoOccurrence(occurrenceToRetornar.id, data);
+      addToast('success', `Reversão homologada com sucesso! Servidor ${updated.employee_nome} retornou às atividades funcionais (Status: Ativo).`);
+      await loadAllData();
+      if (selectedEmployeeForDetail) {
+        const empOccurrences = await api.getOccurrences(selectedEmployeeForDetail.matricula);
+        const updatedEmp = await api.getEmployeeByMatricula(selectedEmployeeForDetail.matricula);
+        setSelectedEmployeeForDetail(prev => prev ? { ...prev, status: updatedEmp?.status || 'Ativo', history: empOccurrences } : null);
+      }
+    } catch (err) {
+      addToast('error', (err as Error).message || 'Erro ao homologar retorno ao trabalho.');
       throw err;
     }
   };
@@ -487,6 +527,7 @@ export default function App() {
         onOpenNewOccurrence={() => handleOpenNewOccurrence()}
         onOpenNewEmployee={handleOpenNewEmployee}
         onOpenExecutiveReport={() => setExecutiveReportModalOpen(true)}
+        onOpenImportCsv={() => setImportCsvModalOpen(true)}
         onSwitchUser={handleSwitchUser}
         onOpenLoginModal={() => setLoginModalOpen(true)}
       />
@@ -516,6 +557,7 @@ export default function App() {
             onViewEmployeeDetail={handleViewEmployeeDetail}
             onOpenNewOccurrenceForEmployee={matricula => handleOpenNewOccurrence(matricula)}
             onDeleteEmployee={handleDeleteEmployee}
+            onOpenImportCsv={() => setImportCsvModalOpen(true)}
             secretariasList={secretarias}
             initialSecretariaFilter={initialSecretariaFilterForEmployees}
             onClearSecretariaFilter={() => setInitialSecretariaFilterForEmployees(undefined)}
@@ -558,6 +600,7 @@ export default function App() {
             onOpenProrrogar={handleOpenProrrogar}
             onOpenConcluir={handleOpenConcluir}
             onOpenConverterDefinitiva={handleOpenConverterDefinitiva}
+            onOpenRetornoTrabalho={handleOpenRetornoTrabalho}
             onOpenCancelar={handleOpenCancelar}
             onPrintOccurrence={handlePrintOccurrence}
             onDeleteOccurrence={handleDeleteOccurrence}
@@ -633,6 +676,7 @@ export default function App() {
         onOpenProrrogar={handleOpenProrrogar}
         onOpenConcluir={handleOpenConcluir}
         onOpenConverterDefinitiva={handleOpenConverterDefinitiva}
+        onOpenRetornoTrabalho={handleOpenRetornoTrabalho}
         onOpenHistory={occ => setHistoryModalOccurrence(occ)}
         onDeleteOccurrence={handleDeleteOccurrence}
         userRole={currentUser.role}
@@ -687,6 +731,14 @@ export default function App() {
         onConfirm={handleConfirmConverterDefinitiva}
       />
 
+      <RetornoTrabalhoModal
+        isOpen={Boolean(occurrenceToRetornar)}
+        onClose={() => setOccurrenceToRetornar(null)}
+        occurrence={occurrenceToRetornar}
+        doctors={doctors}
+        onConfirm={handleConfirmRetornoTrabalho}
+      />
+
       <PrintCertificateModal
         isOpen={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
@@ -702,6 +754,15 @@ export default function App() {
         secretarias={secretarias}
         metrics={metrics}
         doctors={doctors}
+      />
+
+      <ImportCsvModal
+        isOpen={importCsvModalOpen}
+        onClose={() => setImportCsvModalOpen(false)}
+        onSuccess={() => {
+          loadAllData();
+          addToast('success', 'Base cadastral e secretarias importadas com sucesso!');
+        }}
       />
 
       <ProrrogacoesHistoryModal

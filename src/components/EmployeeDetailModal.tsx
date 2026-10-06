@@ -5,7 +5,8 @@ import {
   formatarTelefone, 
   formatarDataBR, 
   formatarDataHoraBR,
-  calcularDiasPagos
+  calcularDiasPagos,
+  isPrevisaoRetornoEmAtraso
 } from '../utils/validation.ts';
 import { 
   X, 
@@ -23,11 +24,13 @@ import {
   CheckCircle2, 
   Printer, 
   Paperclip,
+  AlertCircle,
   Stethoscope,
   Trash2,
-  AlertCircle,
   FileBadge,
-  History
+  History,
+  Undo2,
+  Archive
 } from 'lucide-react';
 
 interface EmployeeDetailModalProps {
@@ -39,6 +42,7 @@ interface EmployeeDetailModalProps {
   onOpenProrrogar: (occ: Occurrence) => void;
   onOpenConcluir: (occ: Occurrence) => void;
   onOpenConverterDefinitiva?: (occ: Occurrence) => void;
+  onOpenRetornoTrabalho?: (occ: Occurrence) => void;
   onOpenHistory?: (occ: Occurrence) => void;
   onDeleteOccurrence?: (id: string) => void;
   userRole?: 'admin' | 'operator';
@@ -53,6 +57,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
   onOpenProrrogar,
   onOpenConcluir,
   onOpenConverterDefinitiva,
+  onOpenRetornoTrabalho,
   onOpenHistory,
   onDeleteOccurrence,
   userRole,
@@ -219,6 +224,8 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                             ? 'bg-emerald-100 text-emerald-800'
                             : occ.status === 'Prorrogada'
                             ? 'bg-purple-100 text-purple-800'
+                            : occ.status === 'Arquivado'
+                            ? 'bg-purple-100 text-purple-900 border border-purple-300 font-bold'
                             : occ.status === 'Concluída'
                             ? 'bg-slate-100 text-slate-700'
                             : 'bg-red-100 text-red-800'
@@ -228,6 +235,16 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-1.5 self-end sm:self-center">
+                        {occ.tipo === 'Licença Definitiva' && onOpenRetornoTrabalho && (
+                          <button
+                            onClick={() => onOpenRetornoTrabalho(occ)}
+                            className="px-2 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                            title="Reversão pericial: homologar retorno do servidor da Licença Definitiva / Aposentadoria ao trabalho ativo"
+                          >
+                            <Undo2 className="w-3 h-3 text-emerald-700" />
+                            <span>Retornar ao Trabalho</span>
+                          </button>
+                        )}
                         {(occ.status === 'Ativa' || occ.status === 'Prorrogada') && (
                           <>
                             {occ.tipo !== 'Licença Definitiva' && onOpenConverterDefinitiva && (
@@ -250,9 +267,21 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                             )}
                             <button
                               onClick={() => onOpenConcluir(occ)}
-                              className="px-2 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors"
+                              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                                occ.tipo === 'Licença Definitiva'
+                                  ? 'text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300'
+                                  : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                              }`}
+                              title={occ.tipo === 'Licença Definitiva' ? 'Concluir perícia e homologar aposentadoria definitiva (Arquivar)' : 'Concluir perícia médica'}
                             >
-                              Concluir Perícia
+                              {occ.tipo === 'Licença Definitiva' ? (
+                                <>
+                                  <Archive className="w-3 h-3 text-purple-700" />
+                                  <span>Concluir / Arquivar</span>
+                                </>
+                              ) : (
+                                <span>Concluir Perícia</span>
+                              )}
                             </button>
                           </>
                         )}
@@ -290,9 +319,19 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div>
                         <span className="text-slate-400 block text-[11px]">Período de Afastamento:</span>
-                        <span className="font-mono text-slate-800 font-semibold">
-                          {formatarDataBR(occ.data_inicio)} até {occ.tipo === 'Licença Definitiva' ? 'Definitivo' : formatarDataBR(occ.data_termino)}
-                        </span>
+                        <div className="font-mono text-slate-800 font-semibold flex items-center gap-1.5 flex-wrap">
+                          <span>{formatarDataBR(occ.data_inicio)} até</span>
+                          {occ.tipo === 'Licença Definitiva' ? (
+                            <span>Definitivo</span>
+                          ) : isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo) ? (
+                            <span className="font-bold text-rose-800 bg-rose-100 border border-rose-300 px-1.5 py-0.5 rounded text-[11px] inline-flex items-center gap-1" title="Previsão de retorno expirada!">
+                              <AlertCircle className="w-3 h-3 text-rose-600 animate-pulse" />
+                              {formatarDataBR(occ.data_termino)} (Em atraso)
+                            </span>
+                          ) : (
+                            <span>{formatarDataBR(occ.data_termino)}</span>
+                          )}
+                        </div>
                         {occ.tipo === 'Licença Definitiva' && (occ.data_concessao || occ.data_inicio) && (
                           <span className="text-purple-700 block text-[11px] font-semibold">
                             Concessão: {formatarDataBR(occ.data_concessao || occ.data_inicio)}{occ.ato_concessao ? ` (${occ.ato_concessao})` : ''}

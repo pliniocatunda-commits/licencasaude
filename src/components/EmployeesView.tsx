@@ -25,7 +25,8 @@ import {
   Building,
   Briefcase,
   Users,
-  X
+  X,
+  Upload
 } from 'lucide-react';
 
 interface EmployeesViewProps {
@@ -36,6 +37,7 @@ interface EmployeesViewProps {
   onViewEmployeeDetail: (employee: Employee) => void;
   onOpenNewOccurrenceForEmployee: (matricula: string) => void;
   onDeleteEmployee: (matricula: string) => void;
+  onOpenImportCsv?: () => void;
   secretariasList?: Secretaria[];
   initialSecretariaFilter?: string;
   onClearSecretariaFilter?: () => void;
@@ -49,6 +51,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   onViewEmployeeDetail,
   onOpenNewOccurrenceForEmployee,
   onDeleteEmployee,
+  onOpenImportCsv,
   secretariasList = [],
   initialSecretariaFilter,
   onClearSecretariaFilter,
@@ -148,6 +151,17 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
+          {onOpenImportCsv && (
+            <button
+              onClick={onOpenImportCsv}
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Importar servidores e secretarias através de arquivo CSV"
+            >
+              <Upload className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Importar CSV</span>
+            </button>
+          )}
+
           <button
             onClick={handleExportCSV}
             className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5"

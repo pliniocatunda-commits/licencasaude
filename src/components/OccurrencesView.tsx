@@ -4,7 +4,9 @@ import { ProrrogacoesHistoryModal } from './ProrrogacoesHistoryModal.tsx';
 import { 
   formatarDataBR, 
   exportarCSV,
-  calcularDiasPagos
+  calcularDiasPagos,
+  isPrevisaoRetornoEmAtraso,
+  calcularDiasAtraso
 } from '../utils/validation.ts';
 import { 
   Search, 
@@ -15,6 +17,7 @@ import {
   Clock, 
   CheckCircle2, 
   AlertCircle, 
+  AlertTriangle,
   RefreshCw, 
   Printer, 
   Trash2, 
@@ -29,7 +32,9 @@ import {
   Eye,
   History,
   FileSpreadsheet,
-  FileBadge
+  FileBadge,
+  Undo2,
+  Archive
 } from 'lucide-react';
 
 interface OccurrencesViewProps {
@@ -43,6 +48,7 @@ interface OccurrencesViewProps {
   onOpenConcluir: (occ: Occurrence) => void;
   onOpenCancelar: (occ: Occurrence) => void;
   onOpenConverterDefinitiva: (occ: Occurrence) => void;
+  onOpenRetornoTrabalho?: (occ: Occurrence) => void;
   onPrintOccurrence: (occ: Occurrence) => void;
   onDeleteOccurrence: (id: string) => void;
   onClearAllOccurrences?: () => Promise<void>;
@@ -62,6 +68,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   onOpenConcluir,
   onOpenCancelar,
   onOpenConverterDefinitiva,
+  onOpenRetornoTrabalho,
   onPrintOccurrence,
   onDeleteOccurrence,
   onClearAllOccurrences,
@@ -81,13 +88,22 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
   const pageSize = 8;
 
+  // Total de ocorrências com previsão de retorno em atraso
+  const totalEmAtraso = useMemo(() => {
+    return occurrences.filter(occ => isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo)).length;
+  }, [occurrences]);
+
   // Filter occurrences
   const filteredOccurrences = useMemo(() => {
     return occurrences.filter(occ => {
       // Tipo
       if (selectedTipo !== 'ALL' && occ.tipo !== selectedTipo) return false;
       // Status
-      if (selectedStatus !== 'ALL' && occ.status !== selectedStatus) return false;
+      if (selectedStatus === 'EM_ATRASO') {
+        if (!isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo)) return false;
+      } else if (selectedStatus !== 'ALL' && occ.status !== selectedStatus) {
+        return false;
+      }
       // Date start
       if (dataInicioFilter && occ.data_inicio < dataInicioFilter) return false;
       // Date end
@@ -273,11 +289,19 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 setSelectedStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 font-medium"
+              className={`w-full py-2 px-3 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium ${
+                selectedStatus === 'EM_ATRASO'
+                  ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold'
+                  : 'bg-slate-50 border-slate-200 text-slate-800'
+              }`}
             >
               <option value="ALL">Todos os Status</option>
+              {totalEmAtraso > 0 && (
+                <option value="EM_ATRASO">⚠️ Em Atraso ({totalEmAtraso})</option>
+              )}
               <option value="Ativa">Ativa</option>
               <option value="Prorrogada">Prorrogada</option>
+              <option value="Arquivado">Arquivado (Aposentado)</option>
               <option value="Concluída">Concluída</option>
               <option value="Cancelada">Cancelada</option>
             </select>
@@ -329,6 +353,24 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
             Mostrando <span className="font-semibold text-slate-900 font-mono tabular-nums">{filteredOccurrences.length}</span> registros de afastamento
           </div>
           <div className="flex items-center gap-3">
+            {totalEmAtraso > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStatus(selectedStatus === 'EM_ATRASO' ? 'ALL' : 'EM_ATRASO');
+                  setCurrentPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  selectedStatus === 'EM_ATRASO'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200'
+                }`}
+                title="Clique para filtrar apenas as ocorrências com retorno em atraso"
+              >
+                <AlertCircle className={`w-3.5 h-3.5 ${selectedStatus === 'EM_ATRASO' ? 'text-white' : 'text-rose-600'}`} />
+                <span>{totalEmAtraso} em Atraso</span>
+              </button>
+            )}
             <span className="inline-flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               <span>{occurrences.filter(o => o.status === 'Ativa').length} Ativas</span>
@@ -357,7 +399,16 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 <th className="py-3 px-4 whitespace-nowrap">Secretaria</th>
                 <th className="py-3 px-4 whitespace-nowrap">Tipo</th>
                 <th className="py-3 px-4 whitespace-nowrap">Data Afastamento</th>
-                <th className="py-3 px-4 whitespace-nowrap">Prev. Retorno</th>
+                <th className="py-3 px-4 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <span>Prev. Retorno</span>
+                    {totalEmAtraso > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                        {totalEmAtraso} em atraso
+                      </span>
+                    )}
+                  </div>
+                </th>
                 <th className="py-3 px-4 text-center whitespace-nowrap" title="Dias pagos pelo IPME (os primeiros 15 dias são assumidos pela Prefeitura)">Dias Pagos</th>
                 <th className="py-3 px-4 whitespace-nowrap">CID-10</th>
                 <th className="py-3 px-4 whitespace-nowrap">Perito Oficial</th>
@@ -375,8 +426,11 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 </tr>
               ) : (
                 paginatedOccurrences.map(occ => {
+                  const isAtrasado = isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo);
+                  const diasAtraso = isAtrasado ? calcularDiasAtraso(occ.data_termino) : 0;
+
                   return (
-                    <tr key={occ.id} className="hover:bg-slate-50/70 transition-colors group">
+                    <tr key={occ.id} className={`hover:bg-slate-50/70 transition-colors group ${isAtrasado ? 'bg-rose-50/25' : ''}`}>
                       {/* ID */}
                       <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-xs font-mono">
@@ -435,7 +489,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                       </td>
 
                       {/* Data Previsão Retorno */}
-                      <td className="py-3 px-4 whitespace-nowrap font-mono tabular-nums text-slate-800 font-medium text-xs">
+                      <td className="py-3 px-4 whitespace-nowrap font-mono tabular-nums text-xs">
                         {occ.tipo === 'Licença Definitiva' ? (
                           <div className="flex flex-col">
                             <span className="font-bold text-purple-900 text-xs">Definitiva</span>
@@ -443,8 +497,24 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                               Concessão: {formatarDataBR(occ.data_concessao || occ.data_inicio)}
                             </span>
                           </div>
+                        ) : isAtrasado ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <span 
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-extrabold text-xs bg-rose-100 text-rose-800 border-2 border-rose-400 shadow-2xs group-hover:bg-rose-200 transition-colors"
+                              title={`⚠️ Previsão de retorno expirada! Afastamento em atraso há ${diasAtraso} ${diasAtraso === 1 ? 'dia' : 'dias'} em relação à data de hoje.`}
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 animate-pulse" />
+                              <span className="underline decoration-rose-500 font-black tracking-tight">{formatarDataBR(occ.data_termino)}</span>
+                            </span>
+                            <span className="text-[10px] text-rose-600 font-bold font-mono flex items-center gap-1 pl-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                              <span>Em atraso ({diasAtraso}d)</span>
+                            </span>
+                          </div>
                         ) : (
-                          formatarDataBR(occ.data_termino)
+                          <span className="font-medium text-slate-800 text-xs">
+                            {formatarDataBR(occ.data_termino)}
+                          </span>
                         )}
                       </td>
 
@@ -493,33 +563,47 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
 
                       {/* Status */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {occ.status === 'Ativa' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Ativa
-                          </span>
-                        )}
-                        {occ.status === 'Prorrogada' && (
-                          <button
-                            type="button"
-                            onClick={() => setHistoryModalOccurrence(occ)}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors shadow-2xs group/btn cursor-pointer"
-                            title="Clique para ver o histórico detalhado de prorrogações deste afastamento"
-                          >
-                            <History className="w-3 h-3 text-purple-600 group-hover/btn:rotate-[-45deg] transition-transform" />
-                            <span>Prorrogada ({occ.prorrogacoes?.length || 1}x)</span>
-                          </button>
-                        )}
-                        {occ.status === 'Concluída' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                            Concluída
-                          </span>
-                        )}
-                        {occ.status === 'Cancelada' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">
-                            Cancelada
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {occ.status === 'Ativa' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              Ativa
+                            </span>
+                          )}
+                          {occ.status === 'Prorrogada' && (
+                            <button
+                              type="button"
+                              onClick={() => setHistoryModalOccurrence(occ)}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors shadow-2xs group/btn cursor-pointer"
+                              title="Clique para ver o histórico detalhado de prorrogações deste afastamento"
+                            >
+                              <History className="w-3 h-3 text-purple-600 group-hover/btn:rotate-[-45deg] transition-transform" />
+                              <span>Prorrogada ({occ.prorrogacoes?.length || 1}x)</span>
+                            </button>
+                          )}
+                          {occ.status === 'Arquivado' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                              <Archive className="w-3 h-3 text-purple-700" />
+                              <span>Arquivado</span>
+                            </span>
+                          )}
+                          {occ.status === 'Concluída' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                              Concluída
+                            </span>
+                          )}
+                          {occ.status === 'Cancelada' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">
+                              Cancelada
+                            </span>
+                          )}
+                          {isAtrasado && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title={`Previsão de retorno expirada há ${diasAtraso} dias`}>
+                              <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                              <span>Atraso</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -545,6 +629,18 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                             <span>Histórico</span>
                           </button>
 
+                          {/* Reversão de Aposentadoria / Retorno ao Trabalho para Licença Definitiva */}
+                          {occ.tipo === 'Licença Definitiva' && onOpenRetornoTrabalho && (
+                            <button
+                              onClick={() => onOpenRetornoTrabalho(occ)}
+                              className="px-2 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Reversão pericial: homologar retorno do servidor da Licença Definitiva / Aposentadoria ao trabalho ativo"
+                            >
+                              <Undo2 className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>Retornar ao Trabalho</span>
+                            </button>
+                          )}
+
                           {/* Quick Lifecycle Controls */}
                           {(occ.status === 'Ativa' || occ.status === 'Prorrogada') && (
                             <>
@@ -569,10 +665,21 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                               )}
                               <button
                                 onClick={() => onOpenConcluir(occ)}
-                                className="px-2 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors cursor-pointer"
-                                title="Concluir licença após perícia de retorno (restaura servidor para Ativo)"
+                                className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                                  occ.tipo === 'Licença Definitiva'
+                                    ? 'text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300'
+                                    : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                                }`}
+                                title={occ.tipo === 'Licença Definitiva' ? 'Concluir perícia e homologar aposentadoria definitiva (Arquivar)' : 'Concluir licença após perícia de retorno (restaura servidor para Ativo)'}
                               >
-                                Concluir
+                                {occ.tipo === 'Licença Definitiva' ? (
+                                  <>
+                                    <Archive className="w-3.5 h-3.5 text-purple-700" />
+                                    <span>Concluir / Arquivar</span>
+                                  </>
+                                ) : (
+                                  <span>Concluir</span>
+                                )}
                               </button>
                             </>
                           )}

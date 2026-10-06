@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo } from '../types/index.ts';
+import { parseServidoresCSV } from '../utils/csvImporter.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -595,6 +596,21 @@ class DatabaseManager {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.employees) && Array.isArray(parsed.occurrences)) {
+          let needsSave = false;
+
+          // Sanitização de secretarias corrompidas com CPF
+          if (parsed.secretarias && Array.isArray(parsed.secretarias)) {
+            const initialCount = parsed.secretarias.length;
+            parsed.secretarias = parsed.secretarias.filter((s: Secretaria) => 
+              !/SEC-\d{3}\.\d{3}\.\d{3}-\d{2}/.test(s.id) &&
+              !/\d{3}\.\d{3}\.\d{3}-\d{2}/.test(s.sigla) &&
+              !/^\d{3}$/.test(s.nome)
+            );
+            if (parsed.secretarias.length !== initialCount) {
+              needsSave = true;
+            }
+          }
+
           if (!parsed.secretarias || !Array.isArray(parsed.secretarias) || parsed.secretarias.length === 0) {
             parsed.secretarias = DEFAULT_SECRETARIAS;
             this.saveToDisk(parsed);
@@ -606,7 +622,6 @@ class DatabaseManager {
           }
 
           // Normalize any legacy IDs with prefixes (e.g. LIC-2026-0001) to clean sequential numbers
-          let needsSave = false;
           let seqCounter = 1;
           const idMap = new Map<string, string>();
 
@@ -1079,27 +1094,115 @@ class DatabaseManager {
     return occ;
   }
 
-  public concluirOccurrence(id: string, parecerFinal: string, actorEmail: string, actorRole: 'admin' | 'operator'): Occurrence {
+  public concluirOccurrence(
+    id: string,
+    parecerFinal: string,
+    actorEmail: string,
+    actorRole: 'admin' | 'operator',
+    dataConcessao?: string,
+    atoConcessao?: string
+  ): Occurrence {
     const occ = this.getOccurrenceById(id);
     if (!occ) throw new Error('Ocorrência não encontrada.');
 
     const now = new Date().toISOString();
-    occ.status = 'Concluída';
-    occ.updated_at = now;
     const dataHoraBR = new Date().toLocaleDateString('pt-BR');
-    occ.parecer_tecnico = (occ.parecer_tecnico || '') + `\n[Conclusão em ${dataHoraBR}]: ${parecerFinal || 'Perícia de retorno realizada. Servidor apto.'}`;
+    const isDefinitiva = occ.tipo === 'Licença Definitiva';
+
+    if (isDefinitiva) {
+      if (!dataConcessao || !dataConcessao.trim()) {
+        throw new Error('A Data de Concessão é obrigatória para a conclusão e arquivamento da Licença Definitiva.');
+      }
+      occ.data_concessao = dataConcessao.trim();
+      if (atoConcessao && atoConcessao.trim()) {
+        occ.ato_concessao = atoConcessao.trim();
+      }
+      occ.status = 'Arquivado';
+      occ.updated_at = now;
+      occ.parecer_tecnico = (occ.parecer_tecnico || '') + `\n[Conclusão / Arquivamento em ${dataHoraBR} por ${actorEmail}]: Homologada a aposentadoria definitiva do servidor. Data de Concessão: ${occ.data_concessao}. Ato: ${occ.ato_concessao || 'N/A'}. Parecer: ${parecerFinal || 'Afastamento definitivo homologado em perícia oficial.'}`;
+
+      const index = this.data.occurrences.findIndex(o => o.id === id);
+      this.data.occurrences[index] = occ;
+
+      this.syncEmployeeStatus(occ.matricula);
+
+      this.addAuditLog({
+        entity_type: 'occurrence',
+        entity_id: occ.id,
+        action: 'ARQUIVAR',
+        details: `Conclusão e arquivamento definitivo da Licença Definitiva Nº ${occ.id} (Aposentadoria homologada). Data de Concessão: ${occ.data_concessao}. Ato: ${occ.ato_concessao || 'N/A'}. Parecer: ${parecerFinal}.`,
+        changed_by: actorEmail,
+        user_role: actorRole,
+      });
+    } else {
+      occ.status = 'Concluída';
+      occ.updated_at = now;
+      occ.parecer_tecnico = (occ.parecer_tecnico || '') + `\n[Conclusão em ${dataHoraBR}]: ${parecerFinal || 'Perícia de retorno realizada. Servidor apto.'}`;
+
+      const index = this.data.occurrences.findIndex(o => o.id === id);
+      this.data.occurrences[index] = occ;
+
+      // Restore employee status if no other active occurrence exists
+      this.syncEmployeeStatus(occ.matricula);
+
+      this.addAuditLog({
+        entity_type: 'occurrence',
+        entity_id: occ.id,
+        action: 'CONCLUIR',
+        details: `Conclusão e encerramento pericial da ${occ.tipo} ${occ.id}. Parecer: ${parecerFinal}.`,
+        changed_by: actorEmail,
+        user_role: actorRole,
+      });
+    }
+
+    this.saveToDisk(this.data);
+    return occ;
+  }
+
+  public retornarTrabalhoOccurrence(
+    id: string,
+    dataRetorno: string,
+    motivoRetorno: string,
+    medico: string,
+    crm: string,
+    atoReversao: string,
+    actorEmail: string,
+    actorRole: 'admin' | 'operator'
+  ): Occurrence {
+    const occ = this.getOccurrenceById(id);
+    if (!occ) throw new Error('Ocorrência não encontrada.');
+
+    if (occ.tipo !== 'Licença Definitiva') {
+      throw new Error('A ação de Retorno ao Trabalho por reversão pericial aplica-se à Licença Definitiva.');
+    }
+
+    if (!dataRetorno || !dataRetorno.trim()) {
+      throw new Error('A Data do Retorno ao Trabalho é obrigatória.');
+    }
+
+    const now = new Date().toISOString();
+    const dataHoraBR = new Date().toLocaleDateString('pt-BR');
+
+    occ.status = 'Concluída';
+    occ.data_retorno = dataRetorno.trim();
+    occ.motivo_retorno = motivoRetorno?.trim() || 'Reversão pericial homologada pela Junta Médica Oficial.';
+    occ.updated_at = now;
+    if (medico) occ.medico_perito = medico;
+    if (crm) occ.crm = crm;
+
+    occ.parecer_tecnico = (occ.parecer_tecnico || '') + `\n[Reversão / Retorno ao Trabalho em ${dataHoraBR} por ${actorEmail}]: Reversão homologada com retorno às atividades funcionais em ${occ.data_retorno}. Ato: ${atoReversao || 'N/A'}. Perito: ${occ.medico_perito} (${occ.crm}). Parecer: ${occ.motivo_retorno}`;
 
     const index = this.data.occurrences.findIndex(o => o.id === id);
     this.data.occurrences[index] = occ;
 
-    // Restore employee status if no other active occurrence exists
+    // Sincroniza o servidor para Ativo
     this.syncEmployeeStatus(occ.matricula);
 
     this.addAuditLog({
       entity_type: 'occurrence',
       entity_id: occ.id,
-      action: 'CONCLUIR',
-      details: `Conclusão e encerramento pericial da ${occ.tipo} ${occ.id}. Parecer: ${parecerFinal}.`,
+      action: 'RETORNO_TRABALHO',
+      details: `Reversão pericial e retorno ao trabalho da Licença Definitiva Nº ${occ.id} (Servidor: ${occ.employee_nome}). Data de Retorno: ${occ.data_retorno}. Perito: ${occ.medico_perito} (${occ.crm}).`,
       changed_by: actorEmail,
       user_role: actorRole,
     });
@@ -1253,11 +1356,18 @@ class DatabaseManager {
       o => o.matricula.toUpperCase() === matricula.toUpperCase() && (o.status === 'Ativa' || o.status === 'Prorrogada')
     );
 
-    let nextStatus: 'Ativo' | 'Licenciado' | 'Readaptado' = 'Ativo';
+    // Look for archived definitive leaves (retired)
+    const hasArchivedDefinitiva = this.data.occurrences.some(
+      o => o.matricula.toUpperCase() === matricula.toUpperCase() && o.tipo === 'Licença Definitiva' && o.status === 'Arquivado'
+    );
+
+    let nextStatus: 'Ativo' | 'Licenciado' | 'Readaptado' | 'Aposentado' = 'Ativo';
     if (activeOccurrences.length > 0) {
       // Prioritize any leave type over Readaptação
       const hasLicenca = activeOccurrences.some(o => o.tipo !== 'Readaptação');
       nextStatus = hasLicenca ? 'Licenciado' : 'Readaptado';
+    } else if (hasArchivedDefinitiva) {
+      nextStatus = 'Aposentado';
     }
 
     if (this.data.employees[empIndex].status !== nextStatus) {
@@ -1779,6 +1889,155 @@ class DatabaseManager {
     const diff = e.getTime() - s.getTime();
     if (diff < 0) return 0;
     return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+  }
+
+  public importCadastroCSV(
+    csvText: string,
+    substituirExistentes: boolean,
+    actorEmail: string,
+    actorRole: 'admin' | 'operator'
+  ): {
+    totalLinhas: number;
+    servidoresImportados: number;
+    servidoresAtualizados: number;
+    secretariasImportadas: number;
+    secretariasAtualizadas: number;
+    telefonesFormatados: number;
+    telefonesIgnorados: number;
+    erros: string[];
+  } {
+    const parsed = parseServidoresCSV(csvText);
+
+    if (parsed.erros.length > 0 && parsed.rows.length === 0) {
+      throw new Error(`Erro ao processar CSV: ${parsed.erros.join('; ')}`);
+    }
+
+    const now = new Date().toISOString();
+
+    // Reset base if user requested replacement
+    if (substituirExistentes) {
+      const totalAntigo = this.data.employees.length;
+      const totalLicencasAntigo = this.data.occurrences.length;
+      this.data.employees = [];
+      this.data.occurrences = [];
+
+      this.addAuditLog({
+        entity_type: 'employee',
+        entity_id: 'ALL',
+        action: 'DELETE',
+        details: `Reset total de servidores e licenças para nova importação CSV. Removidos: ${totalAntigo} servidores e ${totalLicencasAntigo} licenças anteriores.`,
+        changed_by: actorEmail,
+        user_role: actorRole,
+      });
+    }
+
+    let secretariasImportadas = 0;
+    let secretariasAtualizadas = 0;
+
+    // 1. Cadastrar / Atualizar Secretarias
+    for (const secItem of parsed.secretarias) {
+      if (
+        /SEC-\d{3}\.\d{3}\.\d{3}-\d{2}/.test(secItem.id) ||
+        /\d{3}\.\d{3}\.\d{3}-\d{2}/.test(secItem.sigla) ||
+        /^\d{3}$/.test(secItem.nome)
+      ) {
+        continue;
+      }
+
+      const idx = this.data.secretarias.findIndex(
+        s => s.id === secItem.id || s.sigla.toUpperCase() === secItem.sigla.toUpperCase() || s.nome.toLowerCase() === secItem.nome.toLowerCase()
+      );
+
+      if (idx >= 0) {
+        this.data.secretarias[idx].nome = secItem.nome;
+        this.data.secretarias[idx].sigla = secItem.sigla;
+        this.data.secretarias[idx].updated_at = now;
+        secretariasAtualizadas++;
+      } else {
+        this.data.secretarias.push({
+          id: secItem.id,
+          sigla: secItem.sigla,
+          nome: secItem.nome,
+          ativa: true,
+          created_at: now,
+          updated_at: now,
+          created_by: actorEmail,
+        });
+        secretariasImportadas++;
+      }
+    }
+
+    let servidoresImportados = 0;
+    let servidoresAtualizados = 0;
+
+    // 2. Cadastrar / Atualizar Servidores
+    for (const row of parsed.rows) {
+      const idx = this.data.employees.findIndex(e => e.matricula.trim() === row.matricula.trim());
+      if (idx >= 0) {
+        this.data.employees[idx] = {
+          ...this.data.employees[idx],
+          nome: row.nome,
+          cargo: row.cargo || this.data.employees[idx].cargo,
+          telefone: row.telefone || this.data.employees[idx].telefone,
+          cpf: row.cpf || this.data.employees[idx].cpf,
+          secretaria: row.secretaria_completa,
+          data_admissao: row.data_admissao || this.data.employees[idx].data_admissao,
+          email: row.email || this.data.employees[idx].email,
+          updated_at: now,
+        };
+
+        // Sincroniza o cargo nas licenças existentes do servidor para manter prontuários consistentes
+        if (row.cargo) {
+          this.data.occurrences.forEach(occ => {
+            if (occ.matricula.trim() === row.matricula.trim()) {
+              occ.employee_cargo = row.cargo;
+              occ.employee_nome = row.nome;
+              occ.employee_secretaria = row.secretaria_completa;
+            }
+          });
+        }
+
+        servidoresAtualizados++;
+      } else {
+        this.data.employees.push({
+          matricula: row.matricula,
+          nome: row.nome,
+          cpf: row.cpf,
+          telefone: row.telefone,
+          secretaria: row.secretaria_completa,
+          cargo: row.cargo || 'Servidor Municipal',
+          status: 'Ativo',
+          data_admissao: row.data_admissao,
+          email: row.email,
+          created_at: now,
+          updated_at: now,
+          created_by: actorEmail,
+        });
+        servidoresImportados++;
+      }
+    }
+
+    this.addAuditLog({
+      entity_type: 'employee',
+      entity_id: 'IMPORT_CSV',
+      action: 'CREATE',
+      details: `Importação em lote via CSV concluída: ${servidoresImportados} novos servidores inseridos, ${servidoresAtualizados} atualizados, ${secretariasImportadas} secretarias criadas. Telefones formatados: ${parsed.telefonesValidos}, ignorados: ${parsed.telefonesIgnorados}.`,
+      changed_by: actorEmail,
+      user_role: actorRole,
+    });
+
+    this.saveToDisk(this.data);
+
+    return {
+      totalLinhas: parsed.totalRows,
+      servidoresImportados,
+      servidoresAtualizados,
+      secretariasImportadas,
+      secretariasAtualizadas,
+      telefonesFormatados: parsed.telefonesValidos,
+      telefonesIgnorados: parsed.telefonesIgnorados,
+      erros: parsed.erros,
+    };
   }
 }
 
