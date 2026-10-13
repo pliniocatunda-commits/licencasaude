@@ -258,6 +258,11 @@ const INITIAL_DATA: DatabaseSchema = {
       role: "operator",
       auth_provider: "corporate",
       department: "IPME - Junta Médica Pericial",
+      cargo: "Médico Perito Oficial",
+      telefone: "(85) 3260-1234",
+      ativo: true,
+      password: "123",
+      must_change_password: true,
       avatar_url: "/src/assets/images/avatar_perito_1790337176942.jpg",
       created_at: "2026-01-15T09:30:00.000Z"
     },
@@ -268,6 +273,11 @@ const INITIAL_DATA: DatabaseSchema = {
       role: "operator",
       auth_provider: "corporate",
       department: "SME / IPME - Recursos Humanos & Benefícios",
+      cargo: "Analista de Recursos Humanos",
+      telefone: "(85) 3260-5678",
+      ativo: true,
+      password: "123",
+      must_change_password: true,
       created_at: "2026-02-01T10:00:00.000Z"
     }
   ],
@@ -413,6 +423,21 @@ export class ClientDatabase {
               !/\d{3}\.\d{3}\.\d{3}-\d{2}/.test(s.sigla) &&
               !/^\d{3}$/.test(s.nome)
             );
+          if (!parsed.users || !Array.isArray(parsed.users) || parsed.users.length === 0) {
+            parsed.users = INITIAL_DATA.users;
+            this.saveToStorage(parsed);
+          } else {
+            let updated = false;
+            for (const u of parsed.users) {
+              if (u.role === 'operator' && !u.password) {
+                u.password = '123';
+                u.must_change_password = true;
+                updated = true;
+              }
+            }
+            if (updated) {
+              this.saveToStorage(parsed);
+            }
           }
           return parsed;
         }
@@ -717,6 +742,19 @@ export class ClientDatabase {
 
       const emp = this.getEmployeeByMatricula(occurrenceData.matricula || '');
       if (!emp) throw new Error('Servidor não encontrado para a matrícula informada.');
+
+      // Regra de Integridade: Não permitir criar nova licença se o servidor já tiver uma licença com status Ativa ou Prorrogada (mesmo em atraso)
+      const existingActiveOcc = this.data.occurrences.find(
+        o => o.matricula.toUpperCase() === emp.matricula.toUpperCase() &&
+             (o.status === 'Ativa' || o.status === 'Prorrogada')
+      );
+      if (existingActiveOcc) {
+        const isAtrasado = existingActiveOcc.data_termino < new Date().toISOString().split('T')[0];
+        const atrasoMsg = isAtrasado ? ' (atualmente com previsão de retorno em atraso)' : '';
+        throw new Error(
+          `Bloqueio de Integridade: O servidor ${emp.nome} (${emp.matricula}) já possui um afastamento ativo em andamento (Ocorrência Nº ${existingActiveOcc.id} - ${existingActiveOcc.tipo}${atrasoMsg}, término previsto: ${existingActiveOcc.data_termino}). Para garantir a integridade cadastral e evitar sobreposição de licenças, conclua a perícia de retorno, homologue a prorrogação ou cancele o afastamento existente antes de registrar uma nova licença.`
+        );
+      }
 
       const existingNumericIds = this.data.occurrences
         .map(o => parseInt(o.id, 10))
@@ -1274,20 +1312,36 @@ export class ClientDatabase {
   }
 
   public saveUser(userData: Partial<AppUser>, actorEmail: string, actorRole: 'admin' | 'operator'): AppUser {
+    if (actorRole !== 'admin') {
+      throw new Error('Apenas o Administrador Master pode cadastrar ou alterar operadores.');
+    }
+    const emailNorm = (userData.email || '').trim().toLowerCase();
+    if (!emailNorm) throw new Error('E-mail corporativo é obrigatório.');
+
+    const isMaster = emailNorm === 'pliniocatunda@gmail.com';
     const now = new Date().toISOString();
-    const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === userData.email?.toLowerCase());
+    const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === emailNorm);
 
     if (existingIndex >= 0) {
+      const existing = this.data.users[existingIndex];
       const updated: AppUser = {
-        ...this.data.users[existingIndex],
+        ...existing,
         ...userData,
-      } as AppUser;
+        email: existing.email,
+        role: isMaster ? 'admin' : (userData.role || 'operator'),
+        auth_provider: isMaster ? 'google' : 'corporate',
+        ativo: isMaster ? true : (userData.ativo !== undefined ? userData.ativo : existing.ativo ?? true),
+        password: userData.password ? userData.password : (existing.password || '123'),
+        must_change_password: userData.must_change_password !== undefined 
+          ? userData.must_change_password 
+          : (userData.password && userData.password !== existing.password ? true : existing.must_change_password ?? false),
+      };
       this.data.users[existingIndex] = updated;
       this.addAudit({
         entity_type: 'user',
         entity_id: updated.email,
         action: 'UPDATE',
-        details: `Usuário ${updated.name} (${updated.email}) atualizado. Perfil: ${updated.role}.`,
+        details: `Operador/Usuário ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.${userData.password ? ' Senha atualizada pelo administrador.' : ''}`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1296,12 +1350,17 @@ export class ClientDatabase {
     } else {
       const newUser: AppUser = {
         id: userData.id || `user_${Date.now()}`,
-        email: userData.email || '',
-        name: userData.name || userData.email?.split('@')[0] || 'Usuário IPME',
-        role: userData.role || 'operator',
-        auth_provider: userData.auth_provider || 'corporate',
+        email: emailNorm,
+        name: userData.name || emailNorm.split('@')[0],
+        role: isMaster ? 'admin' : (userData.role || 'operator'),
+        auth_provider: isMaster ? 'google' : 'corporate',
         department: userData.department || 'Prefeitura Municipal de Eusébio',
-        avatar_url: userData.avatar_url || '',
+        cargo: userData.cargo || (isMaster ? 'Administrador Geral' : 'Operador Pericial'),
+        telefone: userData.telefone || '',
+        ativo: userData.ativo !== undefined ? userData.ativo : true,
+        password: userData.password || '123',
+        must_change_password: userData.must_change_password !== undefined ? userData.must_change_password : true,
+        avatar_url: userData.avatar_url || (isMaster ? '/src/assets/images/ipme_seal_logo_1790337165041.jpg' : ''),
         created_at: now,
       };
       this.data.users.push(newUser);
@@ -1309,7 +1368,7 @@ export class ClientDatabase {
         entity_type: 'user',
         entity_id: newUser.email,
         action: 'CREATE',
-        details: `Novo usuário de sistema cadastrado: ${newUser.name} (${newUser.email}). Perfil: ${newUser.role}.`,
+        details: `Novo operador corporativo credenciado pelo Administrador: ${newUser.name} (${newUser.email}). Cargo: ${newUser.cargo}. Lotação: ${newUser.department}. Senha de acesso definida.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1320,10 +1379,13 @@ export class ClientDatabase {
 
   public deleteUser(email: string, actorEmail: string, actorRole: 'admin' | 'operator'): boolean {
     if (email.toLowerCase() === 'pliniocatunda@gmail.com') {
-      throw new Error('O usuário Administrador Master não pode ser excluído.');
+      throw new Error('A conta do Administrador Master (pliniocatunda@gmail.com) é permanente e não pode ser excluída.');
+    }
+    if (actorRole !== 'admin') {
+      throw new Error('Apenas o Administrador Master pode excluir operadores.');
     }
     const index = this.data.users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-    if (index === -1) throw new Error('Usuário não encontrado.');
+    if (index === -1) throw new Error('Operador não encontrado.');
     const user = this.data.users[index];
 
     this.data.users.splice(index, 1);
@@ -1331,7 +1393,7 @@ export class ClientDatabase {
       entity_type: 'user',
       entity_id: email,
       action: 'DELETE',
-      details: `Usuário ${user.name} (${user.email}) excluído do sistema.`,
+      details: `Operador ${user.name} (${user.email}) excluído do sistema pelo Administrador Master.`,
       changed_by: actorEmail,
       user_role: actorRole,
     });
@@ -1339,24 +1401,84 @@ export class ClientDatabase {
     return true;
   }
 
-  public login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate'): AppUser {
-    let user = this.data.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  public login(email: string, password?: string, name?: string, provider: 'google' | 'corporate' = 'corporate'): AppUser {
+    const emailNorm = email.trim().toLowerCase();
+    const isMaster = emailNorm === 'pliniocatunda@gmail.com';
+    let user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
+
     if (!user) {
-      const isMaster = email.toLowerCase() === 'pliniocatunda@gmail.com';
-      const role = isMaster ? 'admin' : 'operator';
-      user = this.saveUser(
-        {
-          email,
-          name: name || (isMaster ? 'Plínio Catunda (Admin Master)' : email.split('@')[0]),
-          role,
-          auth_provider: provider,
-          department: isMaster ? 'IPME Presidência & Governança' : 'Prefeitura Municipal de Eusébio',
-          avatar_url: isMaster ? '/src/assets/images/ipme_seal_logo_1790337165041.jpg' : undefined,
-        },
-        'Sistema IPME',
-        'admin'
-      );
+      if (isMaster) {
+        user = this.saveUser(
+          {
+            email: 'Pliniocatunda@gmail.com',
+            name: name || 'Plínio Catunda (Administrador Master)',
+            role: 'admin',
+            auth_provider: 'google',
+            department: 'IPME - Presidência & Governança',
+            cargo: 'Administrador Geral & Master do Sistema',
+            ativo: true,
+            avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
+          },
+          'Sistema IPME',
+          'admin'
+        );
+      } else {
+        throw new Error(
+          `O e-mail corporativo "${email}" não está cadastrado. Apenas operadores previamente cadastrados pelo Administrador Master (pliniocatunda@gmail.com) possuem acesso ao sistema.`
+        );
+      }
     }
+
+    if (user.ativo === false) {
+      throw new Error(`O acesso do operador "${user.name}" está inativo. Solicite a reativação ao Administrador Master.`);
+    }
+
+    // Validação de senha para operadores corporativos
+    if (!isMaster) {
+      if (!password || !password.trim()) {
+        throw new Error('Informe a senha de acesso da conta corporativa.');
+      }
+      const savedPwd = user.password || '123';
+      if (password !== savedPwd) {
+        throw new Error('Senha incorreta. Verifique os dados digitados ou solicite a redefinição ao Administrador Master.');
+      }
+    }
+
+    user.last_login = new Date().toISOString();
+    this.saveToStorage(this.data);
+    return user;
+  }
+
+  public changePassword(email: string, currentPassword?: string, newPassword?: string): AppUser {
+    const emailNorm = (email || '').trim().toLowerCase();
+    const user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
+    if (!user) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    if (!newPassword || newPassword.trim().length < 4) {
+      throw new Error('A nova senha deve ter no mínimo 4 caracteres.');
+    }
+
+    const savedPwd = user.password || '123';
+    // Se a senha atual foi fornecida, verifica se confere
+    if (currentPassword && currentPassword !== savedPwd) {
+      throw new Error('A senha atual informada está incorreta.');
+    }
+
+    user.password = newPassword.trim();
+    user.must_change_password = false;
+
+    this.addAudit({
+      entity_type: 'user',
+      entity_id: user.email,
+      action: 'UPDATE',
+      details: `Senha de acesso do operador/usuário ${user.name} (${user.email}) alterada com sucesso.`,
+      changed_by: user.email,
+      user_role: user.role,
+    });
+
+    this.saveToStorage(this.data);
     return user;
   }
 

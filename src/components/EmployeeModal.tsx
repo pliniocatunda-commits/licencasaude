@@ -155,20 +155,20 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full border border-[#BED4EF] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+            <div className="w-8 h-8 rounded-lg bg-white/20 border border-white/30 flex items-center justify-center text-white">
               <User className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-base font-bold leading-tight">
                 {isEditing ? `Editar Servidor · ${initialEmployee?.matricula}` : 'Cadastrar Novo Servidor Ativo'}
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-blue-100/90">
                 IPME · Instituto de Previdência do Município de Eusébio
               </p>
             </div>

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { AppUser } from '../types/index.ts';
-import { X, Lock, Mail, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Lock, Mail, ShieldCheck, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (email: string, name?: string, provider?: 'google' | 'corporate') => Promise<void>;
+  onLogin: (email: string, password?: string, name?: string, provider?: 'google' | 'corporate') => Promise<void>;
   currentUser: AppUser;
 }
 
@@ -16,7 +16,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   currentUser,
 }) => {
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,13 +25,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleCorporateLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    if (!email.trim()) {
       setError('Informe seu email corporativo.');
+      return;
+    }
+    if (!password.trim()) {
+      setError('Informe a senha de acesso da conta.');
       return;
     }
     setLoading(true);
     try {
-      await onLogin(email.trim().toLowerCase(), name.trim() || email.split('@')[0], 'corporate');
+      await onLogin(email.trim().toLowerCase(), password.trim(), undefined, 'corporate');
       onClose();
     } catch (err) {
       setError((err as Error).message || 'Erro ao autenticar.');
@@ -42,7 +47,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleGoogleMasterLogin = async () => {
     setLoading(true);
     try {
-      await onLogin('Pliniocatunda@gmail.com', 'Plínio Catunda (Superuser)', 'google');
+      await onLogin('Pliniocatunda@gmail.com', undefined, 'Plínio Catunda (Superuser)', 'google');
       onClose();
     } catch (err) {
       setError((err as Error).message || 'Erro ao conectar via Google.');
@@ -52,18 +57,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full border border-[#BED4EF] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
           <div className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-emerald-400" />
+            <Lock className="w-5 h-5 text-blue-100" />
             <h2 className="text-sm font-bold">
               Autenticação de Acesso · IPME
             </h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button onClick={onClose} className="text-white/80 hover:text-white cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -85,7 +90,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               type="button"
               onClick={handleGoogleMasterLogin}
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-semibold border border-slate-300 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-3"
+              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-semibold border border-slate-300 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-3 cursor-pointer"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -121,43 +126,57 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           {/* Corporate Email Login */}
           <form onSubmit={handleCorporateLogin} className="space-y-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              2. Autenticação Corporativa (@eusebio.ce.gov.br)
+              2. Autenticação de Operador (E-mail Corporativo & Senha)
             </span>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Email Institucional Oficial *
+                E-mail Corporativo Institucional *
               </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="seu.nome@eusebio.ce.gov.br"
+                placeholder="operador@eusebio.ce.gov.br"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900"
               />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                O e-mail deve estar previamente cadastrado pelo Administrador.
+              </span>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Nome do Servidor / Operador
+              <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span>Senha de Acesso *</span>
+                <span className="text-[10px] text-slate-400 font-normal">Definida pelo Administrador</span>
               </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Ex: Dr. Roberto Bezerra Filho"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Digite sua senha de acesso"
+                  className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Mail className="w-4 h-4" />
-              <span>{loading ? 'Validando...' : 'Acessar com Email Corporativo'}</span>
+              <span>{loading ? 'Validando...' : 'Acessar com E-mail e Senha'}</span>
             </button>
           </form>
 

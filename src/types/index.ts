@@ -120,8 +120,14 @@ export interface AppUser {
   role: UserRole;
   auth_provider: 'google' | 'corporate';
   department: string;
+  cargo?: string;
+  telefone?: string;
+  ativo?: boolean;
   avatar_url?: string;
   created_at: string;
+  last_login?: string;
+  password?: string;
+  must_change_password?: boolean;
 }
 
 export interface DashboardMetrics {

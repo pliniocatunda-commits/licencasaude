@@ -36,6 +36,11 @@ const DEFAULT_USERS: AppUser[] = [
     role: 'operator',
     auth_provider: 'corporate',
     department: 'IPME - Junta Médica Pericial',
+    cargo: 'Médico Perito Oficial',
+    telefone: '(85) 3260-1234',
+    ativo: true,
+    password: '123',
+    must_change_password: true,
     avatar_url: '/src/assets/images/avatar_perito_1790337176942.jpg',
     created_at: '2026-01-15T09:30:00.000Z',
   },
@@ -46,6 +51,11 @@ const DEFAULT_USERS: AppUser[] = [
     role: 'operator',
     auth_provider: 'corporate',
     department: 'SME / IPME - Recursos Humanos & Benefícios',
+    cargo: 'Analista de Recursos Humanos',
+    telefone: '(85) 3260-5678',
+    ativo: true,
+    password: '123',
+    must_change_password: true,
     created_at: '2026-02-01T10:00:00.000Z',
   },
 ];
@@ -708,6 +718,19 @@ class DatabaseManager {
             }
           }
 
+          if (!parsed.users || !Array.isArray(parsed.users) || parsed.users.length === 0) {
+            parsed.users = DEFAULT_USERS;
+            needsSave = true;
+          } else {
+            for (const u of parsed.users) {
+              if (u.role === 'operator' && !u.password) {
+                u.password = '123';
+                u.must_change_password = true;
+                needsSave = true;
+              }
+            }
+          }
+
           if (needsSave) {
             this.saveToDisk(parsed);
           }
@@ -970,6 +993,19 @@ class DatabaseManager {
       // Regra de Negócio: Licença Definitiva não pode ser criada diretamente como nova ocorrência
       if (occurrenceData.tipo === 'Licença Definitiva') {
         throw new Error('A Licença Definitiva não pode ser cadastrada diretamente como uma nova ocorrência. Ela deve ser originada a partir da transformação de uma licença já ativa ou prorrogada com a devida Data da Concessão.');
+      }
+
+      // Regra de Integridade: Não permitir criar nova licença se o servidor já tiver uma licença com status Ativa ou Prorrogada (mesmo em atraso)
+      const existingActiveOcc = this.data.occurrences.find(
+        o => o.matricula.toUpperCase() === employee.matricula.toUpperCase() &&
+             (o.status === 'Ativa' || o.status === 'Prorrogada')
+      );
+      if (existingActiveOcc) {
+        const isAtrasado = existingActiveOcc.data_termino < new Date().toISOString().split('T')[0];
+        const atrasoMsg = isAtrasado ? ' (atualmente com previsão de retorno em atraso)' : '';
+        throw new Error(
+          `Bloqueio de Integridade: O servidor ${employee.nome} (${employee.matricula}) já possui um afastamento ativo em andamento (Ocorrência Nº ${existingActiveOcc.id} - ${existingActiveOcc.tipo}${atrasoMsg}, término previsto: ${existingActiveOcc.data_termino}). Para garantir a integridade cadastral e evitar sobreposição de licenças, conclua a perícia de retorno, homologue a prorrogação ou cancele o afastamento existente antes de registrar uma nova licença.`
+        );
       }
 
       // Create - Unique sequential numeric ID without prefix
@@ -1402,11 +1438,15 @@ class DatabaseManager {
     return this.data.users;
   }
 
-  public saveUser(userData: Partial<AppUser> & { email: string; name: string; role: 'admin' | 'operator' }, actorEmail: string, actorRole: 'admin' | 'operator'): AppUser {
+  public saveUser(userData: Partial<AppUser> & { email: string }, actorEmail: string, actorRole: 'admin' | 'operator'): AppUser {
     if (actorRole !== 'admin') {
-      throw new Error('Apenas Administradores podem gerenciar contas de usuários e permissões.');
+      throw new Error('Apenas o Administrador Master pode cadastrar ou alterar operadores.');
     }
-    const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === userData.email.toLowerCase());
+    const emailNorm = (userData.email || '').trim().toLowerCase();
+    if (!emailNorm) throw new Error('E-mail é obrigatório.');
+
+    const isMaster = emailNorm === 'pliniocatunda@gmail.com';
+    const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === emailNorm);
     const now = new Date().toISOString();
 
     if (existingIndex >= 0) {
@@ -1414,6 +1454,14 @@ class DatabaseManager {
       const updated: AppUser = {
         ...existing,
         ...userData,
+        email: existing.email,
+        role: isMaster ? 'admin' : (userData.role || 'operator'),
+        auth_provider: isMaster ? 'google' : 'corporate',
+        ativo: isMaster ? true : (userData.ativo !== undefined ? userData.ativo : existing.ativo ?? true),
+        password: userData.password ? userData.password : (existing.password || '123'),
+        must_change_password: userData.must_change_password !== undefined 
+          ? userData.must_change_password 
+          : (userData.password && userData.password !== existing.password ? true : existing.must_change_password ?? false),
       };
       this.data.users[existingIndex] = updated;
 
@@ -1421,7 +1469,7 @@ class DatabaseManager {
         entity_type: 'user',
         entity_id: updated.email,
         action: 'UPDATE',
-        details: `Usuário ${updated.name} (${updated.email}) atualizado. Papel: ${updated.role}.`,
+        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.${userData.password ? ' Senha atualizada pelo administrador.' : ''}`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1430,12 +1478,18 @@ class DatabaseManager {
       return updated;
     } else {
       const created: AppUser = {
-        id: `user_${Date.now()}`,
-        email: userData.email.toLowerCase(),
-        name: userData.name,
-        role: userData.role,
-        auth_provider: userData.email.endsWith('@eusebio.ce.gov.br') ? 'corporate' : 'google',
-        department: userData.department || 'IPME',
+        id: userData.id || `user_${Date.now()}`,
+        email: emailNorm,
+        name: userData.name || emailNorm.split('@')[0],
+        role: isMaster ? 'admin' : (userData.role || 'operator'),
+        auth_provider: isMaster ? 'google' : 'corporate',
+        department: userData.department || 'IPME - Junta Médica',
+        cargo: userData.cargo || (isMaster ? 'Administrador Geral' : 'Operador Pericial'),
+        telefone: userData.telefone || '',
+        ativo: userData.ativo !== undefined ? userData.ativo : true,
+        password: userData.password || '123',
+        must_change_password: userData.must_change_password !== undefined ? userData.must_change_password : true,
+        avatar_url: userData.avatar_url || (isMaster ? '/src/assets/images/ipme_seal_logo_1790337165041.jpg' : ''),
         created_at: now,
       };
       this.data.users.push(created);
@@ -1444,7 +1498,7 @@ class DatabaseManager {
         entity_type: 'user',
         entity_id: created.email,
         action: 'CREATE',
-        details: `Novo usuário concedido acesso ao IPME: ${created.name} (${created.email}), Nível: ${created.role}.`,
+        details: `Novo operador cadastrado pelo Administrador: ${created.name} (${created.email}), Cargo: ${created.cargo}. Lotação: ${created.department}. Senha de acesso definida.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1452,6 +1506,62 @@ class DatabaseManager {
       this.saveToDisk(this.data);
       return created;
     }
+  }
+
+  public changePassword(email: string, currentPassword?: string, newPassword?: string): AppUser {
+    const emailNorm = (email || '').trim().toLowerCase();
+    const user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
+    if (!user) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    if (!newPassword || newPassword.trim().length < 4) {
+      throw new Error('A nova senha deve ter no mínimo 4 caracteres.');
+    }
+
+    const savedPwd = user.password || '123';
+    if (currentPassword && currentPassword !== savedPwd) {
+      throw new Error('A senha atual informada está incorreta.');
+    }
+
+    user.password = newPassword.trim();
+    user.must_change_password = false;
+
+    this.addAuditLog({
+      entity_type: 'user',
+      entity_id: user.email,
+      action: 'UPDATE',
+      details: `Senha de acesso do operador/usuário ${user.name} (${user.email}) alterada com sucesso.`,
+      changed_by: user.email,
+      user_role: user.role,
+    });
+
+    this.saveToDisk(this.data);
+    return user;
+  }
+
+  public deleteUser(email: string, actorEmail: string, actorRole: 'admin' | 'operator'): boolean {
+    if (email.toLowerCase() === 'pliniocatunda@gmail.com') {
+      throw new Error('A conta do Administrador Master (pliniocatunda@gmail.com) é permanente e não pode ser excluída.');
+    }
+    if (actorRole !== 'admin') {
+      throw new Error('Apenas o Administrador Master pode excluir operadores.');
+    }
+    const index = this.data.users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    if (index === -1) throw new Error('Operador não encontrado.');
+    const user = this.data.users[index];
+
+    this.data.users.splice(index, 1);
+    this.addAuditLog({
+      entity_type: 'user',
+      entity_id: email,
+      action: 'DELETE',
+      details: `Operador ${user.name} (${user.email}) excluído pelo Administrador Master.`,
+      changed_by: actorEmail,
+      user_role: actorRole,
+    });
+    this.saveToDisk(this.data);
+    return true;
   }
 
   public getSecretarias(search?: string, apenasAtivas?: boolean): Secretaria[] {

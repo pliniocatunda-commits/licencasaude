@@ -92,23 +92,23 @@ export const SecretariaModal: React.FC<SecretariaModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div 
-        className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white rounded-xl shadow-2xl border border-[#BED4EF] w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-emerald-900 to-teal-900 text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-700/80 border border-emerald-500/40 flex items-center justify-center text-emerald-200">
+            <div className="w-9 h-9 rounded-lg bg-white/20 border border-white/30 flex items-center justify-center text-white">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold">
                 {initialSecretaria ? 'Editar Secretaria Municipal' : 'Nova Secretaria Municipal'}
               </h3>
-              <p className="text-xs text-emerald-200/80">
+              <p className="text-xs text-blue-100/90">
                 Cadastro e lotação de órgãos da Prefeitura de Eusébio
               </p>
             </div>

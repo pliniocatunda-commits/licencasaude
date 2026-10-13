@@ -19,7 +19,9 @@ import {
   Stethoscope,
   Layers,
   Upload,
-  Palette
+  Palette,
+  KeyRound,
+  AlertTriangle
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -32,6 +34,8 @@ interface HeaderProps {
   onOpenImportCsv?: () => void;
   onSwitchUser: (user: AppUser) => void;
   onOpenLoginModal: () => void;
+  onOpenChangePassword?: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,6 +48,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenImportCsv,
   onSwitchUser,
   onOpenLoginModal,
+  onOpenChangePassword,
+  onLogout,
 }) => {
   const { theme, themeConfig } = useAppTheme();
   const [themeModalOpen, setThemeModalOpen] = useState(false);
@@ -121,6 +127,27 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
         </div>
       </div>
+
+      {/* Temporary Password Notification Banner */}
+      {currentUser.must_change_password && onOpenChangePassword && (
+        <div className="bg-amber-500/90 text-amber-950 px-4 py-1.5 text-xs font-medium flex items-center justify-between border-b border-amber-600/30 animate-in fade-in">
+          <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-amber-950 shrink-0 animate-bounce" />
+              <span>
+                <strong>Atenção ({currentUser.name}):</strong> Você está utilizando uma senha provisória definida pelo Administrador. Recomendamos cadastrar sua nova senha pessoal.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenChangePassword}
+              className="px-2.5 py-0.5 bg-amber-950 text-white rounded text-[11px] font-bold hover:bg-black transition-colors cursor-pointer shrink-0 shadow-xs"
+            >
+              Definir Nova Senha
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Top Bar (Order of Resolution: 3-Zone Contract) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -204,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className={`absolute left-0 mt-2 w-64 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 overflow-hidden py-1.5 animate-in fade-in zoom-in-95 duration-100`}
                 onMouseLeave={() => setCadastrosDropdownOpen(false)}
               >
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-800 mb-1">
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-200/80 border-b border-white/10 mb-1">
                   Módulos de Cadastro
                 </div>
 
@@ -216,8 +243,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer ${
                     activeTab === 'employees'
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'text-white/85 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
@@ -228,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Servidores Ativos</span>
                       {activeTab === 'employees' && <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>}
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-blue-100/70 truncate">
                       Quadro funcional e servidores
                     </p>
                   </div>
@@ -242,8 +269,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer ${
                     activeTab === 'secretarias'
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'text-white/85 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-400 shrink-0">
@@ -254,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Secretarias & Órgãos</span>
                       {activeTab === 'secretarias' && <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>}
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-blue-100/70 truncate">
                       Pastas municipais de lotação
                     </p>
                   </div>
@@ -268,8 +295,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer ${
                     activeTab === 'doctors'
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'text-white/85 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
@@ -280,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Médicos Peritos</span>
                       {activeTab === 'doctors' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>}
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-blue-100/70 truncate">
                       Registro de CRM e junta oficial
                     </p>
                   </div>
@@ -289,13 +316,13 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* 4. Importador CSV */}
                 {onOpenImportCsv && (
                   <>
-                    <div className="my-1 border-t border-slate-800"></div>
+                    <div className="my-1 border-t border-white/10"></div>
                     <button
                       onClick={() => {
                         onOpenImportCsv();
                         setCadastrosDropdownOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer text-slate-300 hover:bg-slate-800/70 hover:text-white"
+                      className="w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer text-white/85 hover:bg-white/10 hover:text-white"
                     >
                       <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
                         <Upload className="w-4 h-4" />
@@ -347,7 +374,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className={`absolute left-0 mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 overflow-hidden py-1.5 animate-in fade-in zoom-in-95 duration-100`}
                 onMouseLeave={() => setLicencasDropdownOpen(false)}
               >
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-800 mb-1">
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-200/80 border-b border-white/10 mb-1">
                   Gestão Pericial & Afastamentos
                 </div>
 
@@ -359,8 +386,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer ${
                     activeTab === 'occurrences'
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'text-white/85 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -371,7 +398,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Licenças & Readaptações</span>
                       {activeTab === 'occurrences' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>}
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-blue-100/70 truncate">
                       Listagem e gestão de afastamentos
                     </p>
                   </div>
@@ -383,7 +410,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onOpenNewOccurrence();
                     setLicencasDropdownOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 flex items-center gap-3 text-slate-300 hover:bg-slate-800/70 hover:text-white transition-colors cursor-pointer"
+                  className="w-full text-left px-3 py-2 flex items-center gap-3 text-white/85 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
                 >
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
                     <Plus className="w-4 h-4" />
@@ -391,11 +418,11 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-white flex items-center justify-between">
                       <span>Nova Ocorrência</span>
-                      <span className="text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50 px-1.5 py-0.5 rounded">
+                      <span className="text-[9px] font-bold bg-emerald-900 text-emerald-200 border border-emerald-700/50 px-1.5 py-0.5 rounded">
                         Novo +
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-blue-100/70 truncate">
                       Cadastrar nova licença médica
                     </p>
                   </div>
@@ -409,8 +436,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer ${
                     activeTab === 'audit'
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'text-white/85 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-400 shrink-0">
@@ -421,7 +448,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Trilha de Auditoria</span>
                       {activeTab === 'audit' && <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>}
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-[10px] text-blue-100/70 truncate">
                       Histórico e conformidade pericial
                     </p>
                   </div>
@@ -434,19 +461,19 @@ export const Header: React.FC<HeaderProps> = ({
                       onOpenExecutiveReport();
                       setLicencasDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 flex items-center gap-3 text-slate-300 hover:bg-slate-800/70 hover:text-white transition-colors cursor-pointer border-t border-slate-800/70 mt-1 pt-2"
+                    className="w-full text-left px-3 py-2 flex items-center gap-3 text-white/85 hover:bg-white/10 hover:text-white transition-colors cursor-pointer border-t border-white/10 mt-1 pt-2"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400 shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300 shrink-0">
                       <FileSpreadsheet className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-semibold text-white flex items-center justify-between">
                         <span>Relatório Executivo</span>
-                        <span className="text-[9px] font-bold bg-blue-950 text-blue-300 border border-blue-700/50 px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] font-bold bg-[#1E426D] text-blue-200 border border-[#5281B7]/60 px-1.5 py-0.5 rounded">
                           A4 Paisagem
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 truncate">
+                      <p className="text-[10px] text-blue-100/70 truncate">
                         Painel gerencial e download PDF
                       </p>
                     </div>
@@ -465,18 +492,18 @@ export const Header: React.FC<HeaderProps> = ({
             }}
             className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'audit'
-                ? theme === 'light'
-                  ? 'bg-purple-100 text-purple-900 font-bold border border-purple-300 shadow-xs'
-                  : 'bg-slate-800 text-purple-300 font-bold border border-purple-500/50 shadow-xs'
+                ? theme === 'azul_ipme_light'
+                  ? 'bg-[#EBF3FC] text-[#1E426D] font-bold border border-[#97BDE8] shadow-xs'
+                  : 'bg-white/20 text-white font-bold border border-white/30 shadow-xs'
                 : themeConfig.navHoverClass
             }`}
             title="Trilha de Auditoria e Histórico Completo de Alterações"
           >
-            <History className={`w-4 h-4 shrink-0 ${activeTab === 'audit' ? 'text-purple-400' : 'opacity-70'}`} />
+            <History className={`w-4 h-4 shrink-0 ${activeTab === 'audit' ? 'text-blue-200' : 'opacity-70'}`} />
             <span>Histórico / Trilha</span>
           </button>
 
-          {/* 5. Acessos (Admin) */}
+          {/* 5. Operadores (Admin) */}
           {currentUser.role === 'admin' && (
             <button
               onClick={() => {
@@ -489,9 +516,10 @@ export const Header: React.FC<HeaderProps> = ({
                   ? themeConfig.navActiveBgClass
                   : themeConfig.navHoverClass
               }`}
+              title="Cadastro e Gestão de Usuários Operadores"
             >
-              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>Acessos</span>
+              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-300" />
+              <span>Operadores</span>
             </button>
           )}
         </nav>
@@ -503,13 +531,13 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={() => setThemeModalOpen(true)}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95 ${
-              theme === 'light'
-                ? 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800'
-                : 'border-white/20 bg-white/10 hover:bg-white/20 text-white'
+              theme === 'azul_ipme_light'
+                ? 'border-[#BED4EF] bg-[#F0F5FC] hover:bg-[#E4EEFA] text-[#1E426D]'
+                : 'border-white/25 bg-white/15 hover:bg-white/25 text-white'
             }`}
-            title="Mudar paleta de cores do sistema (Verde, Branco Clean, Grafite, etc.)"
+            title="Mudar paleta de cores do sistema (Variações Oficiais do Azul IPME)"
           >
-            <Palette className="w-4 h-4 text-emerald-400 shrink-0" />
+            <Palette className="w-4 h-4 text-blue-200 shrink-0" />
             <span className="hidden sm:inline">Cores</span>
           </button>
 
@@ -536,38 +564,38 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-xs font-semibold truncate max-w-[120px] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>
+                  <span className={`text-xs font-semibold truncate max-w-[120px] ${theme === 'azul_ipme_light' ? 'text-slate-900' : 'text-white'}`}>
                     {currentUser.name}
                   </span>
                   <span className={`text-[10px] font-mono uppercase px-1.5 py-0.2 rounded font-bold ${
                     currentUser.role === 'admin' 
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' 
-                      : 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                      : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
                   }`}>
                     {currentUser.role === 'admin' ? 'Admin' : 'Operador'}
                   </span>
                 </div>
-                <p className={`text-[10px] truncate max-w-[140px] ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                <p className={`text-[10px] truncate max-w-[140px] ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-100/80'}`}>
                   {currentUser.email}
                 </p>
               </div>
-              <ChevronDown className={`w-3.5 h-3.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`} />
+              <ChevronDown className={`w-3.5 h-3.5 ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-200'}`} />
             </button>
 
             {/* Profile Menu Dropdown */}
             {profileDropdownOpen && (
               <div 
-                className="absolute right-0 mt-2 w-72 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl py-2 z-50 text-slate-200"
+                className={`absolute right-0 mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} shadow-2xl py-2 z-50 text-white`}
                 onClick={() => setProfileDropdownOpen(false)}
               >
-                <div className="px-4 py-2 border-b border-slate-800">
+                <div className="px-4 py-2 border-b border-white/10">
                   <p className="text-xs font-semibold text-white">{currentUser.name}</p>
-                  <p className="text-[11px] text-slate-400">{currentUser.email}</p>
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-400">
+                  <p className="text-[11px] text-blue-100/80">{currentUser.email}</p>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300">
                     <UserCheck className="w-3.5 h-3.5" />
                     <span>{currentUser.department}</span>
                   </div>
-                  <div className="mt-2 text-[10px] bg-slate-800 p-1.5 rounded text-slate-300">
+                  <div className="mt-2 text-[10px] bg-white/10 p-1.5 rounded text-white/90 border border-white/10">
                     <span className="font-semibold text-white">Nível de Permissão:</span>{' '}
                     {currentUser.role === 'admin' 
                       ? 'Superusuário Admin (Acesso Total, Exclusão e RBAC)' 
@@ -576,29 +604,29 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 {/* Theme Selector Option inside Profile */}
-                <div className="p-2 border-b border-slate-800">
+                <div className="p-2 border-b border-white/10">
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
                       setThemeModalOpen(true);
                     }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-emerald-300 hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-blue-100 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-emerald-400" />
+                      <Palette className="w-4 h-4 text-blue-200" />
                       <div>
                         <span className="font-semibold block text-white">Mudar Cores do Sistema</span>
-                        <span className="text-[10px] text-slate-400">Ativo: {themeConfig.name}</span>
+                        <span className="text-[10px] text-blue-200/80">Ativo: {themeConfig.name}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                    <span className="text-[10px] bg-white/20 text-white border border-white/30 px-1.5 py-0.5 rounded font-bold">
                       Trocar
                     </span>
                   </button>
                 </div>
 
                 {/* Role Switcher for Rapid Verification & Testing */}
-                <div className="px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                <div className="px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-blue-200/70">
                   Alternar Conta / Perfil (Simulação)
                 </div>
 
@@ -616,81 +644,129 @@ export const Header: React.FC<HeaderProps> = ({
                         created_at: new Date().toISOString(),
                       });
                     }}
-                    className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between hover:bg-slate-800 transition-colors ${
-                      currentUser.email.toLowerCase() === acc.email.toLowerCase() ? 'bg-slate-800/80 text-emerald-300 font-medium' : 'text-slate-300'
+                    className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between hover:bg-white/10 transition-colors ${
+                      currentUser.email.toLowerCase() === acc.email.toLowerCase() ? 'bg-white/20 text-white font-medium' : 'text-white/80'
                     }`}
                   >
                     <div>
                       <p className="font-medium text-white">{acc.name}</p>
-                      <p className="text-[10px] text-slate-400">{acc.email}</p>
+                      <p className="text-[10px] text-blue-100/70">{acc.email}</p>
                     </div>
                     {currentUser.email.toLowerCase() === acc.email.toLowerCase() ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
                     ) : (
-                      <span className="text-[10px] text-slate-500 font-mono">
+                      <span className="text-[10px] text-blue-200/70 font-mono">
                         {acc.role}
                       </span>
                     )}
                   </button>
                 ))}
 
-                <div className="border-t border-slate-800 mt-2 pt-2 px-2">
+                <div className="border-t border-white/10 mt-2 pt-2 px-2 space-y-1">
+                  {onOpenChangePassword && (
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        onOpenChangePassword();
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-white hover:bg-white/15 flex items-center justify-between transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
+                        <span className="font-medium">Alterar Senha de Acesso</span>
+                      </div>
+                      {currentUser.must_change_password && (
+                        <span className="text-[10px] bg-amber-500/30 text-amber-200 border border-amber-400/50 px-1.5 py-0.5 rounded font-bold animate-pulse">
+                          Pendente
+                        </span>
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={onOpenLoginModal}
-                    className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2"
+                    className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
                   >
-                    <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Autenticar com Outro Email / Google</span>
+                    <Lock className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Tela de Acesso / Trocar Conta</span>
                   </button>
+                  {onLogout && (
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-red-300 hover:bg-red-500/20 hover:text-red-100 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-red-400" />
+                      <span>Encerrar Sessão / Sair</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
           </div>
+
+          {/* Direct Logout Button */}
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Encerrar sessão e voltar à tela de login"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                theme === 'azul_ipme_light'
+                  ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700'
+                  : 'border-red-400/30 bg-red-500/15 hover:bg-red-500/25 text-red-200'
+              }`}
+            >
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">Sair</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mobile Navigation bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-slate-800 px-1 py-2 bg-slate-900/95 text-[11px] overflow-x-auto">
+      <div className={`md:hidden flex items-center justify-around border-t ${themeConfig.headerBorderClass} px-1 py-2 ${themeConfig.headerClass} text-[11px] overflow-x-auto`}>
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'dashboard' ? 'text-emerald-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'dashboard' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
         >
           Painel
         </button>
         <button
           onClick={() => setActiveTab('occurrences')}
-          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'occurrences' ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'occurrences' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
         >
           Licenças
         </button>
         <button
           onClick={() => setActiveTab('employees')}
-          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'employees' ? 'text-sky-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'employees' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
         >
           Servidores
         </button>
         <button
           onClick={() => setActiveTab('secretarias')}
-          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'secretarias' ? 'text-teal-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'secretarias' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
         >
           Secretarias
         </button>
         <button
           onClick={() => setActiveTab('doctors')}
-          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'doctors' ? 'text-emerald-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'doctors' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
         >
           Médicos
         </button>
         <button
           onClick={() => setActiveTab('audit')}
-          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'audit' ? 'text-purple-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+          className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'audit' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
         >
           Histórico / Trilha
         </button>
         {currentUser.role === 'admin' && (
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'users' ? 'text-emerald-400 font-bold bg-slate-800' : 'text-slate-400'}`}
+            className={`px-2 py-1 rounded whitespace-nowrap cursor-pointer ${activeTab === 'users' ? 'text-white font-bold bg-white/20' : 'text-blue-100/80 hover:text-white'}`}
           >
             Acessos
           </button>

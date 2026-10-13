@@ -13,29 +13,32 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F223D]/65 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
+        className="bg-white rounded-2xl shadow-2xl border border-[#BED4EF] max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
-              <Palette className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white shadow-2xs">
+              <Palette className="w-5 h-5 text-blue-100" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight">
-                Personalização Visual do Sistema
+              <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                Temas Oficiais IPME Eusébio
+                <span className="text-[10px] uppercase font-bold bg-[#254A75] text-blue-100 px-2 py-0.5 rounded border border-[#5281B7]/60">
+                  Identidade Visual
+                </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                Escolha a paleta de cores que melhor se adapta à sua preferência e ao ambiente de trabalho
+              <p className="text-xs text-blue-100/90">
+                Selecione a variação do azul oficial do IPME mais agradável para o seu uso
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -43,11 +46,11 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
         </div>
 
         {/* Modal Body: Cards de Comparação */}
-        <div className="p-6 overflow-y-auto space-y-4">
-          <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
-            <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <div className="p-6 overflow-y-auto space-y-4 bg-[#F8FAFD]">
+          <div className="bg-[#EBF3FC] border border-[#BED4EF] rounded-xl p-3.5 text-xs text-[#1E426D] flex items-start gap-2.5 shadow-2xs">
+            <Sparkles className="w-4 h-4 text-[#3868A0] shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              Você pode clicar em qualquer uma das opções abaixo para <strong>aplicar e testar imediatamente</strong> no sistema. O tema escolhido fica salvo no seu navegador.
+              Todas as opções são harmonizadas com a <strong>paleta institucional azul do IPME</strong>. Clique em qualquer opção para <strong>aplicar e testar imediatamente</strong> em todo o sistema. Sua escolha é memorizada automaticamente.
             </p>
           </div>
 
@@ -62,8 +65,8 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
                   onClick={() => setTheme(key)}
                   className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between gap-3 ${
                     isSelected
-                      ? 'border-emerald-600 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs'
+                      ? 'border-[#3868A0] bg-white shadow-md ring-2 ring-[#3868A0]/25'
+                      : 'border-[#D4E3F7] hover:border-[#BED4EF] bg-white hover:bg-[#F0F5FC]/50 shadow-2xs'
                   }`}
                 >
                   {/* Top: Swatch & Badges */}
@@ -74,24 +77,24 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
                         <div 
                           className="w-6 h-6 rounded-lg border border-slate-300 shadow-2xs" 
                           style={{ backgroundColor: item.swatchColors[0] }}
-                          title="Cor principal da barra"
+                          title="Tom principal"
                         />
                         <div 
                           className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs" 
                           style={{ backgroundColor: item.swatchColors[1] }}
-                          title="Cor de destaque"
+                          title="Tom de acento"
                         />
                       </div>
 
                       {/* Active Indicator */}
                       {isSelected ? (
-                        <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Check className="w-3 h-3 stroke-[3]" />
+                        <span className="text-[11px] font-bold text-[#1E426D] bg-[#EBF3FC] border border-[#BED4EF] px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                          <Check className="w-3 h-3 stroke-[3] text-[#3868A0]" />
                           Ativo no Sistema
                         </span>
                       ) : (
-                        <span className="text-[11px] text-slate-600 font-medium hover:text-slate-900">
-                          Clique para testar
+                        <span className="text-[11px] text-slate-500 font-medium hover:text-[#1E426D]">
+                          Clique para ativar
                         </span>
                       )}
                     </div>
@@ -100,12 +103,12 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
                     <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                       {item.name}
                       {key === 'azul_ipme' && (
-                        <span className="text-[10px] uppercase font-bold bg-blue-100 text-[#1E426D] border border-blue-300 px-1.5 py-0.2 rounded">
-                          Oficial IPME
+                        <span className="text-[10px] uppercase font-bold bg-[#EBF3FC] text-[#1E426D] border border-[#BED4EF] px-1.5 py-0.2 rounded">
+                          Recomendado
                         </span>
                       )}
                     </h3>
-                    <div className="text-xs font-semibold text-slate-600 mt-0.5">
+                    <div className="text-xs font-semibold text-[#2B5485] mt-0.5">
                       {item.subtitle}
                     </div>
 
@@ -116,15 +119,15 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
                   </div>
 
                   {/* Micro Visual Preview Bar */}
-                  <div className="mt-2 pt-2 border-t border-slate-100">
-                    <div className="text-[10px] text-slate-600 uppercase font-bold tracking-wider mb-1">
+                  <div className="mt-2 pt-2 border-t border-[#EBF3FC]">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">
                       Amostra do Topo:
                     </div>
                     <div 
-                      className="rounded-lg p-2 text-[11px] flex items-center justify-between shadow-2xs border border-slate-300/40"
+                      className="rounded-lg p-2 text-[11px] flex items-center justify-between shadow-2xs border border-[#BED4EF]/50"
                       style={{ 
                         backgroundColor: item.swatchColors[0],
-                        color: key === 'light' ? '#0f172a' : '#ffffff' 
+                        color: key === 'azul_ipme_light' ? '#1E426D' : '#ffffff' 
                       }}
                     >
                       <div className="flex items-center gap-1.5 font-bold">
@@ -149,14 +152,14 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, 
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-6 py-3.5 bg-white border-t border-[#BED4EF] flex items-center justify-between text-xs text-slate-500">
           <div className="flex items-center gap-1.5 text-slate-600">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Configuração salva automaticamente no seu navegador</span>
+            <ShieldCheck className="w-4 h-4 text-[#3868A0]" />
+            <span>Configuração salva automaticamente no navegador</span>
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer"
+            className="px-4 py-1.5 bg-[#3868A0] hover:bg-[#2B5485] text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer shadow-xs"
           >
             Concluir
           </button>

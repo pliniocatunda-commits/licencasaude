@@ -358,6 +358,26 @@ async function startServer() {
     }
   });
 
+  app.put('/api/users/:email', (req: Request, res: Response) => {
+    try {
+      const { actorEmail, actorRole } = getActor(req);
+      const user = db.saveUser({ ...req.body, email: req.params.email }, actorEmail, actorRole);
+      res.json({ success: true, data: user });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  app.delete('/api/users/:email', (req: Request, res: Response) => {
+    try {
+      const { actorEmail, actorRole } = getActor(req);
+      db.deleteUser(req.params.email, actorEmail, actorRole);
+      res.json({ success: true, message: 'Operador excluído com sucesso.' });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
   // Secretarias CRUD
   app.get('/api/secretarias', (req: Request, res: Response) => {
     try {
@@ -512,35 +532,80 @@ async function startServer() {
     }
   });
 
-  // Auth endpoint for simulated or verified login
+  // Auth endpoint for Google Master and corporate operators
   app.post('/api/auth/login', (req: Request, res: Response) => {
     try {
-      const { email, name, provider } = req.body;
-      if (!email) {
-        return res.status(400).json({ success: false, message: 'Email é obrigatório.' });
+      const { email, password, name, provider } = req.body;
+      if (!email || !email.trim()) {
+        return res.status(400).json({ success: false, message: 'Email é obrigatório para autenticação.' });
       }
 
+      const emailNorm = email.trim().toLowerCase();
+      const isMaster = emailNorm === 'pliniocatunda@gmail.com';
       const users = db.getUsers();
-      let user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      let user = users.find(u => u.email.toLowerCase() === emailNorm);
 
-      // If user is the master email or ends with @eusebio.ce.gov.br
       if (!user) {
-        const isMaster = email.toLowerCase() === 'pliniocatunda@gmail.com';
-        const role = isMaster ? 'admin' : 'operator';
-        user = db.saveUser(
-          {
-            email,
-            name: name || (isMaster ? 'Plínio Catunda (Admin)' : email.split('@')[0]),
-            role,
-            auth_provider: provider === 'google' ? 'google' : 'corporate',
-            department: isMaster ? 'IPME Presidência' : 'Prefeitura Municipal de Eusébio',
-          },
-          'Sistema IPME',
-          'admin'
-        );
+        if (isMaster) {
+          // Master administrator is auto-provisioned/restored if missing
+          user = db.saveUser(
+            {
+              email: 'Pliniocatunda@gmail.com',
+              name: name || 'Plínio Catunda (Administrador Master)',
+              role: 'admin',
+              auth_provider: 'google',
+              department: 'IPME - Presidência & Governança',
+              cargo: 'Administrador Geral & Master do Sistema',
+              ativo: true,
+              avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
+            },
+            'Sistema IPME',
+            'admin'
+          );
+        } else {
+          return res.status(403).json({
+            success: false,
+            message: `O e-mail corporativo "${email}" não está cadastrado. Apenas operadores previamente cadastrados pelo Administrador Master (pliniocatunda@gmail.com) possuem permissão de acesso ao sistema.`
+          });
+        }
+      }
+
+      if (user.ativo === false) {
+        return res.status(403).json({
+          success: false,
+          message: `O acesso do operador "${user.name}" está inativo. Solicite a reativação ao Administrador Master.`
+        });
+      }
+
+      // Validação de senha para operadores corporativos
+      if (!isMaster) {
+        if (!password || !password.trim()) {
+          return res.status(400).json({ success: false, message: 'Informe a senha de acesso da conta corporativa.' });
+        }
+        const savedPwd = user.password || '123';
+        if (password !== savedPwd) {
+          return res.status(401).json({
+            success: false,
+            message: 'Senha incorreta. Verifique os dados digitados ou solicite a redefinição ao Administrador Master.'
+          });
+        }
       }
 
       res.json({ success: true, data: user });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  // Change password endpoint
+  app.post('/api/auth/change-password', (req: Request, res: Response) => {
+    try {
+      const { email, currentPassword, newPassword } = req.body;
+      if (!email || !newPassword) {
+        return res.status(400).json({ success: false, message: 'E-mail e nova senha são obrigatórios.' });
+      }
+      const user = db.changePassword(email, currentPassword, newPassword);
+      res.json({ success: true, data: user, message: 'Senha alterada com sucesso.' });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
     }

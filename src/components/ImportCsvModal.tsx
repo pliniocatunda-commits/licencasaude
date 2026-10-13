@@ -123,23 +123,23 @@ export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full flex flex-col max-h-[92vh] overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div className="bg-white rounded-2xl shadow-2xl border border-[#BED4EF] max-w-4xl w-full flex flex-col max-h-[92vh] overflow-hidden text-slate-800">
         
         {/* Cabeçalho */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white shrink-0">
               <Upload className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
                 <span>Importador de Dados Cadastrais (CSV)</span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-300 font-mono px-2 py-0.5 rounded border border-emerald-700/50">
+                <span className="text-[10px] bg-[#254A75] text-blue-100 font-mono px-2 py-0.5 rounded border border-[#5281B7]/60">
                   Servidores & Secretarias
                 </span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-blue-100/90 mt-0.5">
                 Importação oficial para alimentar servidores ativos e cadastro institucional de órgãos
               </p>
             </div>
@@ -331,7 +331,7 @@ export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
                   {/* Tabela de Prévia com Coluna de Cargo e Secretaria Corrigidas */}
                   <div className="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                     <table className="w-full text-left text-[11px] border-collapse bg-white">
-                      <thead className="bg-slate-900 text-white font-semibold sticky top-0 uppercase tracking-wider text-[10px]">
+                      <thead className="bg-[#2B5485] text-white font-semibold sticky top-0 uppercase tracking-wider text-[10px]">
                         <tr>
                           <th className="py-2 px-2.5">Matrícula</th>
                           <th className="py-2 px-3">Servidor</th>

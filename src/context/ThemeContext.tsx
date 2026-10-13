@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type AppTheme = 'azul_ipme' | 'azul_ipme_light' | 'verde' | 'grafite';
+export type AppTheme = 'azul_ipme' | 'azul_ipme_light' | 'azul_ipme_marinho' | 'azul_ipme_celeste';
 
 export interface ThemeConfig {
   id: AppTheme;
@@ -24,14 +24,23 @@ export interface ThemeConfig {
   dropdownItemHoverClass: string;
   profileBtnHoverClass: string;
   profileBtnBorderClass: string;
+  pageBgClass: string;
+  footerClass: string;
+  footerBorderClass: string;
+  footerTextClass: string;
+  heroBannerClass: string;
+  heroBannerBorderClass: string;
+  modalHeaderClass: string;
+  modalHeaderBorderClass: string;
+  accentBadgeClass: string;
 }
 
 export const THEMES: Record<AppTheme, ThemeConfig> = {
   azul_ipme: {
     id: 'azul_ipme',
-    name: 'Azul IPME Oficial',
-    subtitle: 'Cor Oficial da Previdência IPME (Recomendado)',
-    description: 'Tom azul cerúleo / cornflower oficial do IPME (#85AEE3 / #3868A0). Luminoso, elegante e representativo da previdência municipal.',
+    name: 'Azul IPME Clássico Oficial',
+    subtitle: 'Cor Oficial da Previdência IPME (Padrão Recomendado)',
+    description: 'Tom azul cerúleo / cornflower oficial do IPME (#3868A0 / #85AEE3). Equilíbrio perfeito entre identidade visual municipal, elegância e clareza de leitura.',
     swatchColors: ['#3868A0', '#85AEE3'],
     headerClass: 'bg-[#3868A0] text-white shadow-sm',
     headerBorderClass: 'border-[#2B5485]',
@@ -44,17 +53,26 @@ export const THEMES: Record<AppTheme, ThemeConfig> = {
     navActiveBgClass: 'bg-[#254C78] text-white border-[#5D8BBE]/80 shadow-xs font-semibold',
     navActiveTextClass: 'text-white',
     navHoverClass: 'hover:bg-[#2D588B] hover:text-white',
-    dropdownBgClass: 'bg-[#315F95] text-white',
-    dropdownBorderClass: 'border-[#254A75] shadow-2xl',
-    dropdownItemHoverClass: 'hover:bg-[#254C78]',
+    dropdownBgClass: 'bg-[#2B5485] text-white',
+    dropdownBorderClass: 'border-[#1E426D] shadow-2xl',
+    dropdownItemHoverClass: 'hover:bg-[#21436D]',
     profileBtnHoverClass: 'hover:bg-[#2D588B]',
     profileBtnBorderClass: 'border-[#5D8BBE]/60',
+    pageBgClass: 'bg-[#F4F7FC]',
+    footerClass: 'bg-[#1E426D]',
+    footerBorderClass: 'border-[#2B5485]',
+    footerTextClass: 'text-blue-200',
+    heroBannerClass: 'bg-gradient-to-r from-[#1E426D] via-[#2B5485] to-[#3868A0]',
+    heroBannerBorderClass: 'border-[#2B5485]',
+    modalHeaderClass: 'bg-[#3868A0]',
+    modalHeaderBorderClass: 'border-[#2B5485]',
+    accentBadgeClass: 'bg-[#EBF3FC] text-[#1E426D] border-[#BED4EF]',
   },
   azul_ipme_light: {
     id: 'azul_ipme_light',
-    name: 'Azul IPME Clean & Branco',
-    subtitle: 'Base Clara com Acentos no Azul IPME',
-    description: 'Fundo branco puro super arejado com tipografia chumbo e divisores no azul oficial do IPME. Elimina qualquer bloco escuro pesado.',
+    name: 'Azul IPME Clean & Arejado',
+    subtitle: 'Base Clara e Arejada com Acentos no Azul IPME',
+    description: 'Fundo claro com tipografia chumbo e divisores no azul oficial do IPME. Elimina qualquer bloco escuro, proporcionando máxima luminosidade.',
     swatchColors: ['#FFFFFF', '#3868A0'],
     headerClass: 'bg-white text-slate-800 shadow-xs',
     headerBorderClass: 'border-[#C8DCF4]',
@@ -72,52 +90,79 @@ export const THEMES: Record<AppTheme, ThemeConfig> = {
     dropdownItemHoverClass: 'hover:bg-[#F0F5FC]',
     profileBtnHoverClass: 'hover:bg-[#F0F5FC]',
     profileBtnBorderClass: 'border-[#C8DCF4]',
+    pageBgClass: 'bg-[#F8FAFD]',
+    footerClass: 'bg-[#F0F5FC]',
+    footerBorderClass: 'border-[#BED4EF]',
+    footerTextClass: 'text-slate-600',
+    heroBannerClass: 'bg-gradient-to-r from-[#EBF3FC] via-[#F4F8FD] to-white text-slate-800',
+    heroBannerBorderClass: 'border-[#BED4EF]',
+    modalHeaderClass: 'bg-[#3868A0]',
+    modalHeaderBorderClass: 'border-[#2B5485]',
+    accentBadgeClass: 'bg-[#EBF3FC] text-[#1E426D] border-[#BED4EF]',
   },
-  verde: {
-    id: 'verde',
-    name: 'Verde Institucional',
-    subtitle: 'Prefeitura & Junta Médica',
-    description: 'Tons nobres de verde floresta e esmeralda, alinhados à bandeira do Município de Eusébio e à área da saúde.',
-    swatchColors: ['#064e3b', '#10b981'],
-    headerClass: 'bg-emerald-950 text-white shadow-sm',
-    headerBorderClass: 'border-emerald-900',
-    topStripClass: 'bg-[#022c22]',
-    topStripTextClass: 'text-emerald-200',
-    topStripBorderClass: 'border-emerald-900/80',
+  azul_ipme_marinho: {
+    id: 'azul_ipme_marinho',
+    name: 'Azul IPME Marinho Nobre',
+    subtitle: 'Azul Profundo Institucional (Sem Preto ou Grafite)',
+    description: 'Tons de azul marinho nobre (#16325B / #1E426D) característicos de órgãos de previdência. Transmite sobriedade, respeito estatutário e alta autoridade.',
+    swatchColors: ['#16325B', '#4880C8'],
+    headerClass: 'bg-[#16325B] text-white shadow-sm',
+    headerBorderClass: 'border-[#102442]',
+    topStripClass: 'bg-[#0F223D]',
+    topStripTextClass: 'text-blue-100',
+    topStripBorderClass: 'border-[#0B1A2F]',
     brandTextClass: 'text-white',
-    brandSubtextClass: 'text-emerald-300/80',
-    navTextClass: 'text-emerald-100/90',
-    navActiveBgClass: 'bg-emerald-900 text-white border-emerald-700/80 shadow-xs',
+    brandSubtextClass: 'text-blue-200/90',
+    navTextClass: 'text-blue-100/90',
+    navActiveBgClass: 'bg-[#0E203B] text-white border-[#3B6EA8]/80 shadow-xs font-semibold',
     navActiveTextClass: 'text-white',
-    navHoverClass: 'hover:bg-emerald-900/60 hover:text-white',
-    dropdownBgClass: 'bg-emerald-950 text-white',
-    dropdownBorderClass: 'border-emerald-850 shadow-2xl',
-    dropdownItemHoverClass: 'hover:bg-emerald-900/70',
-    profileBtnHoverClass: 'hover:bg-emerald-900/70',
-    profileBtnBorderClass: 'border-emerald-800/80',
+    navHoverClass: 'hover:bg-[#1C3E70] hover:text-white',
+    dropdownBgClass: 'bg-[#16325B] text-white',
+    dropdownBorderClass: 'border-[#0F223D] shadow-2xl',
+    dropdownItemHoverClass: 'hover:bg-[#0E203B]',
+    profileBtnHoverClass: 'hover:bg-[#1C3E70]',
+    profileBtnBorderClass: 'border-[#3B6EA8]/60',
+    pageBgClass: 'bg-[#F0F4FA]',
+    footerClass: 'bg-[#0F223D]',
+    footerBorderClass: 'border-[#16325B]',
+    footerTextClass: 'text-blue-200',
+    heroBannerClass: 'bg-gradient-to-r from-[#0F223D] via-[#16325B] to-[#1E426D]',
+    heroBannerBorderClass: 'border-[#1E426D]',
+    modalHeaderClass: 'bg-[#16325B]',
+    modalHeaderBorderClass: 'border-[#0F223D]',
+    accentBadgeClass: 'bg-[#E4EEFA] text-[#16325B] border-[#A8C8EE]',
   },
-  grafite: {
-    id: 'grafite',
-    name: 'Grafite Ônix Executivo',
-    subtitle: 'Neutro Puro / Sem tom azul',
-    description: 'Preto carbono e grafite puro (zinc/neutral), para quem prefere neutralidade máxima.',
-    swatchColors: ['#18181b', '#71717a'],
-    headerClass: 'bg-zinc-950 text-zinc-100 shadow-sm',
-    headerBorderClass: 'border-zinc-800',
-    topStripClass: 'bg-black',
-    topStripTextClass: 'text-zinc-400',
-    topStripBorderClass: 'border-zinc-900',
+  azul_ipme_celeste: {
+    id: 'azul_ipme_celeste',
+    name: 'Azul IPME Celeste & Contemporâneo',
+    subtitle: 'Azul Vibrante e Iluminado da Marca',
+    description: 'Tom azul royal e celeste luminoso (#2B6CB0 / #63B3ED). Visual moderno, fresco e dinâmico, mantendo fidelidade total à identidade do IPME.',
+    swatchColors: ['#2B6CB0', '#63B3ED'],
+    headerClass: 'bg-[#2B6CB0] text-white shadow-sm',
+    headerBorderClass: 'border-[#23588F]',
+    topStripClass: 'bg-[#1E4B7A]',
+    topStripTextClass: 'text-blue-100',
+    topStripBorderClass: 'border-[#183B61]',
     brandTextClass: 'text-white',
-    brandSubtextClass: 'text-zinc-400',
-    navTextClass: 'text-zinc-300',
-    navActiveBgClass: 'bg-zinc-900 text-white border-zinc-700/80 shadow-xs',
+    brandSubtextClass: 'text-blue-100',
+    navTextClass: 'text-blue-50',
+    navActiveBgClass: 'bg-[#1B436D] text-white border-[#63B3ED]/80 shadow-xs font-semibold',
     navActiveTextClass: 'text-white',
-    navHoverClass: 'hover:bg-zinc-900/60 hover:text-white',
-    dropdownBgClass: 'bg-zinc-950 text-zinc-100',
-    dropdownBorderClass: 'border-zinc-800 shadow-2xl',
-    dropdownItemHoverClass: 'hover:bg-zinc-900/70',
-    profileBtnHoverClass: 'hover:bg-zinc-900',
-    profileBtnBorderClass: 'border-zinc-800',
+    navHoverClass: 'hover:bg-[#255C96] hover:text-white',
+    dropdownBgClass: 'bg-[#23588F] text-white',
+    dropdownBorderClass: 'border-[#1B436D] shadow-2xl',
+    dropdownItemHoverClass: 'hover:bg-[#1B436D]',
+    profileBtnHoverClass: 'hover:bg-[#255C96]',
+    profileBtnBorderClass: 'border-[#63B3ED]/60',
+    pageBgClass: 'bg-[#F4F8FD]',
+    footerClass: 'bg-[#1E4B7A]',
+    footerBorderClass: 'border-[#23588F]',
+    footerTextClass: 'text-blue-100',
+    heroBannerClass: 'bg-gradient-to-r from-[#1E4B7A] via-[#2B6CB0] to-[#3B82F6]',
+    heroBannerBorderClass: 'border-[#3B82F6]/50',
+    modalHeaderClass: 'bg-[#2B6CB0]',
+    modalHeaderBorderClass: 'border-[#23588F]',
+    accentBadgeClass: 'bg-[#EBF5FE] text-[#1E4B7A] border-[#93C5FD]',
   },
 };
 
@@ -162,3 +207,4 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 };
 
 export const useAppTheme = () => useContext(ThemeContext);
+

@@ -328,9 +328,9 @@ export const DoctorsView: React.FC<DoctorsViewProps> = ({
       </div>
 
       {/* Table of Doctors */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+      <div className="bg-white border border-[#BED4EF] rounded-xl overflow-hidden shadow-2xs">
         <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-slate-900 text-white font-semibold text-[10px] uppercase tracking-wider">
+          <thead className="bg-[#2B5485] text-white font-semibold text-[10px] uppercase tracking-wider">
             <tr>
               <th className="py-3 px-3 w-16 text-center">ID</th>
               <th className="py-3 px-4">Médico Perito Oficial</th>
@@ -528,16 +528,16 @@ export const DoctorsView: React.FC<DoctorsViewProps> = ({
 
       {/* Modal In-App: Confirmação de Designação de Médico Diretor */}
       {directorConfirmDoctor && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-[#BED4EF] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
               <div className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-amber-400" />
+                <Crown className="w-4 h-4 text-amber-300" />
                 <h3 className="text-sm font-bold">Definir Médico Diretor Oficial</h3>
               </div>
               <button
                 onClick={() => setDirectorConfirmDoctor(null)}
-                className="text-slate-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
+                className="text-white/80 hover:text-white p-1 rounded transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

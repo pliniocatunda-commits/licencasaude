@@ -1,6 +1,7 @@
 import React from 'react';
 import { DashboardMetrics, Occurrence } from '../types/index.ts';
 import { formatarDataBR, calcularDiasPagos, isPrevisaoRetornoEmAtraso, calcularDiasAtraso } from '../utils/validation.ts';
+import { useAppTheme } from '../context/ThemeContext.tsx';
 import { 
   Users, 
   HeartPulse, 
@@ -40,6 +41,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onViewOccurrence,
   onOpenExecutiveReport,
 }) => {
+  const { themeConfig } = useAppTheme();
+
   if (loading || !metrics) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -59,11 +62,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Welcome & Context Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-6 text-white border border-slate-700/80 shadow-md">
+      {/* Welcome & Context Banner no Azul Institucional IPME */}
+      <div className={`${themeConfig.heroBannerClass} rounded-2xl p-6 text-white border ${themeConfig.heroBannerBorderClass} shadow-md`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-200 uppercase tracking-wider">
               <span>Gestão Previdenciária Municipal</span>
               <span>·</span>
               <span>Exercício 2026</span>
@@ -71,7 +74,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h1 className="text-2xl font-bold tracking-tight text-white mt-1">
               Controle de Licenças Médicas & Readaptações
             </h1>
-            <p className="text-sm text-slate-300 mt-1 max-w-2xl">
+            <p className="text-sm text-blue-100/90 mt-1 max-w-2xl">
               Central oficial do IPME para acompanhamento pericial de servidores da Prefeitura Municipal de Eusébio, histórico pericial e controle temporal de afastamentos.
             </p>
           </div>
@@ -80,25 +83,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {onOpenExecutiveReport && (
               <button
                 onClick={onOpenExecutiveReport}
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2.5 bg-[#2B5485] hover:bg-[#1E426D] text-white border border-[#5D8BBE]/80 rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
                 title="Emitir Relatório Gerencial de Licenças & Readaptações em formato PDF Paisagem"
               >
-                <FileSpreadsheet className="w-4 h-4 text-blue-200" />
+                <FileSpreadsheet className="w-4 h-4 text-blue-100" />
                 <span>Relatório Executivo PDF</span>
               </button>
             )}
             <button
               onClick={() => onOpenNewOccurrence()}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Registrar Afastamento</span>
             </button>
             <button
               onClick={onOpenNewEmployee}
-              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer backdrop-blur-xs"
             >
-              <UserPlus className="w-4 h-4 text-sky-400" />
+              <UserPlus className="w-4 h-4 text-blue-200" />
               <span>Novo Servidor</span>
             </button>
           </div>

@@ -2,42 +2,56 @@ import { Employee, Occurrence, AuditLog, AppUser, DashboardMetrics, Secretaria, 
 import { clientDb } from './localDatabase.ts';
 
 class ApiService {
-  private currentUser: AppUser = {
-    id: 'user_master_admin',
-    email: 'Pliniocatunda@gmail.com',
-    name: 'Plínio Catunda',
-    role: 'admin',
-    auth_provider: 'google',
-    department: 'IPME - Presidência & Governança',
-    avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
-    created_at: '2026-01-01T08:00:00.000Z',
-  };
+  private currentUser: AppUser | null = null;
 
-  public getCurrentUser(): AppUser {
+  public getCurrentUser(): AppUser | null {
     return this.currentUser;
   }
 
-  public setCurrentUser(user: AppUser) {
+  public setCurrentUser(user: AppUser | null) {
     this.currentUser = user;
     try {
-      localStorage.setItem('ipme_current_user', JSON.stringify(user));
+      if (user) {
+        localStorage.setItem('ipme_current_user', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('ipme_current_user');
+      }
     } catch {}
   }
 
-  public initUser() {
+  public logout(): void {
+    this.setCurrentUser(null);
+  }
+
+  public initUser(): AppUser | null {
     try {
       const stored = localStorage.getItem('ipme_current_user');
       if (stored) {
         this.currentUser = JSON.parse(stored);
+        return this.currentUser;
       }
     } catch {}
+    this.currentUser = null;
+    return null;
+  }
+
+  public hasUserSession(): boolean {
+    return !!this.currentUser && !!this.actorEmail;
+  }
+
+  private get actorEmail(): string {
+    return this.currentUser?.email || "Pliniocatunda@gmail.com";
+  }
+
+  private get actorRole(): "admin" | "operator" {
+    return this.currentUser?.role || "admin";
   }
 
   private getHeaders(): HeadersInit {
     return {
       'Content-Type': 'application/json',
-      'x-user-email': this.currentUser.email,
-      'x-user-role': this.currentUser.role,
+      'x-user-email': this.currentUser?.email || '',
+      'x-user-role': this.currentUser?.role || 'operator',
     };
   }
 
@@ -142,9 +156,9 @@ class ApiService {
       '/api/employees',
       {
         method: 'POST',
-        body: JSON.stringify({ ...emp, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...emp, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveEmployee(emp, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveEmployee(emp, this.actorEmail, this.actorRole)
     );
   }
 
@@ -153,9 +167,9 @@ class ApiService {
       `/api/employees/${matricula}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ ...emp, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...emp, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveEmployee({ ...emp, matricula }, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveEmployee({ ...emp, matricula }, this.actorEmail, this.actorRole)
     );
   }
 
@@ -164,9 +178,9 @@ class ApiService {
       `/api/employees/${matricula}`,
       {
         method: 'DELETE',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteEmployee(matricula, this.currentUser.email, this.currentUser.role)
+      () => clientDb.deleteEmployee(matricula, this.actorEmail, this.actorRole)
     );
   }
 
@@ -204,9 +218,9 @@ class ApiService {
       '/api/occurrences',
       {
         method: 'POST',
-        body: JSON.stringify({ ...occ, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...occ, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveOccurrence(occ, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveOccurrence(occ, this.actorEmail, this.actorRole)
     );
   }
 
@@ -215,9 +229,9 @@ class ApiService {
       `/api/occurrences/${id}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ ...occ, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...occ, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveOccurrence({ ...occ, id }, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveOccurrence({ ...occ, id }, this.actorEmail, this.actorRole)
     );
   }
 
@@ -229,9 +243,9 @@ class ApiService {
       `/api/occurrences/${id}/prorrogar`,
       {
         method: 'POST',
-        body: JSON.stringify({ ...data, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.prorrogarOccurrence(id, data, this.currentUser.email, this.currentUser.role)
+      () => clientDb.prorrogarOccurrence(id, data, this.actorEmail, this.actorRole)
     );
   }
 
@@ -249,11 +263,11 @@ class ApiService {
           parecerFinal,
           dataConcessao,
           atoConcessao,
-          actorEmail: this.currentUser.email,
-          actorRole: this.currentUser.role,
+          actorEmail: this.actorEmail,
+          actorRole: this.actorRole,
         }),
       },
-      () => clientDb.concluirOccurrence(id, parecerFinal, this.currentUser.email, this.currentUser.role, dataConcessao, atoConcessao)
+      () => clientDb.concluirOccurrence(id, parecerFinal, this.actorEmail, this.actorRole, dataConcessao, atoConcessao)
     );
   }
 
@@ -265,9 +279,9 @@ class ApiService {
       `/api/occurrences/${id}/retorno-trabalho`,
       {
         method: 'POST',
-        body: JSON.stringify({ ...data, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.retornarTrabalhoOccurrence(id, data, this.currentUser.email, this.currentUser.role)
+      () => clientDb.retornarTrabalhoOccurrence(id, data, this.actorEmail, this.actorRole)
     );
   }
 
@@ -279,9 +293,9 @@ class ApiService {
       `/api/occurrences/${id}/converter-definitiva`,
       {
         method: 'POST',
-        body: JSON.stringify({ ...data, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.converterOccurrenceDefinitiva(id, data, this.currentUser.email, this.currentUser.role)
+      () => clientDb.converterOccurrenceDefinitiva(id, data, this.actorEmail, this.actorRole)
     );
   }
 
@@ -290,9 +304,9 @@ class ApiService {
       `/api/occurrences/${id}/cancelar`,
       {
         method: 'POST',
-        body: JSON.stringify({ motivo, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ motivo, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.cancelarOccurrence(id, motivo, this.currentUser.email, this.currentUser.role)
+      () => clientDb.cancelarOccurrence(id, motivo, this.actorEmail, this.actorRole)
     );
   }
 
@@ -301,9 +315,9 @@ class ApiService {
       `/api/occurrences/${id}`,
       {
         method: 'DELETE',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteOccurrence(id, this.currentUser.email, this.currentUser.role)
+      () => clientDb.deleteOccurrence(id, this.actorEmail, this.actorRole)
     );
   }
 
@@ -312,9 +326,9 @@ class ApiService {
       '/api/admin/clear-occurrences',
       {
         method: 'POST',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.clearOccurrences(this.currentUser.email, this.currentUser.role)
+      () => clientDb.clearOccurrences(this.actorEmail, this.actorRole)
     );
   }
 
@@ -332,9 +346,9 @@ class ApiService {
       '/api/secretarias',
       {
         method: 'POST',
-        body: JSON.stringify({ ...sec, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...sec, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveSecretaria(sec, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveSecretaria(sec, this.actorEmail, this.actorRole)
     );
   }
 
@@ -343,9 +357,9 @@ class ApiService {
       `/api/secretarias/${id}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ ...sec, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...sec, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveSecretaria({ ...sec, id }, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveSecretaria({ ...sec, id }, this.actorEmail, this.actorRole)
     );
   }
 
@@ -354,9 +368,9 @@ class ApiService {
       `/api/secretarias/${id}`,
       {
         method: 'DELETE',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteSecretaria(id, this.currentUser.email, this.currentUser.role)
+      () => clientDb.deleteSecretaria(id, this.actorEmail, this.actorRole)
     );
   }
 
@@ -374,9 +388,9 @@ class ApiService {
       '/api/doctors',
       {
         method: 'POST',
-        body: JSON.stringify({ ...doc, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...doc, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveDoctor(doc, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveDoctor(doc, this.actorEmail, this.actorRole)
     );
   }
 
@@ -385,9 +399,9 @@ class ApiService {
       `/api/doctors/${crm}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ ...doc, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...doc, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveDoctor({ ...doc, crm }, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveDoctor({ ...doc, crm }, this.actorEmail, this.actorRole)
     );
   }
 
@@ -396,9 +410,9 @@ class ApiService {
       `/api/doctors/${crm}`,
       {
         method: 'DELETE',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteDoctor(crm, this.currentUser.email, this.currentUser.role)
+      () => clientDb.deleteDoctor(crm, this.actorEmail, this.actorRole)
     );
   }
 
@@ -407,9 +421,9 @@ class ApiService {
       `/api/doctors/${id}/toggle`,
       {
         method: 'PATCH',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.toggleDoctorStatus(id, this.currentUser.email, this.currentUser.role)
+      () => clientDb.toggleDoctorStatus(id, this.actorEmail, this.actorRole)
     );
   }
 
@@ -418,9 +432,9 @@ class ApiService {
       `/api/doctors/${id}/set-diretor`,
       {
         method: 'PATCH',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.setDoctorDiretor(id, this.currentUser.email, this.currentUser.role)
+      () => clientDb.setDoctorDiretor(id, this.actorEmail, this.actorRole)
     );
   }
 
@@ -449,13 +463,15 @@ class ApiService {
   }
 
   public async createUser(user: Partial<AppUser>): Promise<AppUser> {
+    const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
+    const actorRole = this.currentUser?.role || 'admin';
     return this.request(
       '/api/users',
       {
         method: 'POST',
-        body: JSON.stringify({ ...user, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...user, actorEmail, actorRole }),
       },
-      () => clientDb.saveUser(user, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveUser(user, actorEmail, actorRole)
     );
   }
 
@@ -464,36 +480,66 @@ class ApiService {
   }
 
   public async updateUser(email: string, user: Partial<AppUser>): Promise<AppUser> {
+    const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
+    const actorRole = this.currentUser?.role || 'admin';
     return this.request(
       `/api/users/${email}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ ...user, actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ ...user, actorEmail, actorRole }),
       },
-      () => clientDb.saveUser({ ...user, email }, this.currentUser.email, this.currentUser.role)
+      () => clientDb.saveUser({ ...user, email }, actorEmail, actorRole)
     );
   }
 
   public async deleteUser(email: string): Promise<boolean> {
+    const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
+    const actorRole = this.currentUser?.role || 'admin';
     return this.request(
       `/api/users/${email}`,
       {
         method: 'DELETE',
-        body: JSON.stringify({ actorEmail: this.currentUser.email, actorRole: this.currentUser.role }),
+        body: JSON.stringify({ actorEmail, actorRole }),
       },
-      () => clientDb.deleteUser(email, this.currentUser.email, this.currentUser.role)
+      () => clientDb.deleteUser(email, actorEmail, actorRole)
     );
   }
 
-  public async login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate'): Promise<AppUser> {
-    return this.request(
+  public async login(
+    email: string, 
+    password?: string, 
+    name?: string, 
+    provider: 'google' | 'corporate' = 'corporate'
+  ): Promise<AppUser> {
+    const user = await this.request(
       '/api/auth/login',
       {
         method: 'POST',
-        body: JSON.stringify({ email, name, provider }),
+        body: JSON.stringify({ email, password, name, provider }),
       },
-      () => clientDb.login(email, name, provider)
+      () => clientDb.login(email, password, name, provider)
     );
+    this.setCurrentUser(user);
+    return user;
+  }
+
+  public async changePassword(
+    email: string, 
+    currentPassword?: string, 
+    newPassword?: string
+  ): Promise<AppUser> {
+    const res = await this.request(
+      '/api/auth/change-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, currentPassword, newPassword }),
+      },
+      () => clientDb.changePassword(email, currentPassword, newPassword)
+    );
+    if (this.currentUser && this.currentUser.email.toLowerCase() === email.toLowerCase()) {
+      this.setCurrentUser(res);
+    }
+    return res;
   }
 
   public async importCadastroCSV(
@@ -516,11 +562,11 @@ class ApiService {
         body: JSON.stringify({
           csvText,
           substituirExistentes,
-          actorEmail: this.currentUser.email,
-          actorRole: this.currentUser.role,
+          actorEmail: this.actorEmail,
+          actorRole: this.actorRole,
         }),
       },
-      () => clientDb.importCadastroCSV(csvText, substituirExistentes, this.currentUser.email, this.currentUser.role)
+      () => clientDb.importCadastroCSV(csvText, substituirExistentes, this.actorEmail, this.actorRole)
     );
   }
 }

@@ -3,6 +3,7 @@ import { Occurrence, OccurrenceType, OccurrenceStatus, Employee, Doctor } from '
 import { 
   calcularQuantidadeDias, 
   calcularDiasPagos,
+  formatarDataBR,
   CID_CATALOG 
 } from '../utils/validation.ts';
 import { 
@@ -13,6 +14,7 @@ import {
   Stethoscope, 
   Paperclip, 
   AlertCircle, 
+  AlertTriangle,
   HeartPulse, 
   RefreshCw, 
   Baby,
@@ -30,6 +32,7 @@ interface OccurrenceModalProps {
   onClose: () => void;
   onSave: (occurrenceData: Partial<Occurrence>) => Promise<void>;
   employees: Employee[];
+  occurrences?: Occurrence[];
   doctors?: Doctor[];
   initialOccurrence?: Occurrence | null;
   preselectedMatricula?: string;
@@ -40,6 +43,7 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   onClose,
   onSave,
   employees,
+  occurrences = [],
   doctors = [],
   initialOccurrence,
   preselectedMatricula,
@@ -163,9 +167,19 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
     }).slice(0, 25);
   }, [employees, employeeSearchTerm]);
 
-  if (!isOpen) return null;
+  // Regra de Integridade: Impede criar afastamento para servidor com status Ativa ou Prorrogada (mesmo em atraso)
+  const activeOccurrenceForEmployee = useMemo(() => {
+    if (!matricula || occurrences.length === 0) return null;
+    return occurrences.find(
+      o => o.matricula.toUpperCase() === matricula.toUpperCase() &&
+           (o.status === 'Ativa' || o.status === 'Prorrogada') &&
+           (!initialOccurrence || o.id !== initialOccurrence.id)
+    );
+  }, [matricula, occurrences, initialOccurrence]);
 
   const selectedEmployee = employees.find(e => e.matricula.toUpperCase() === matricula.toUpperCase());
+
+  if (!isOpen) return null;
 
   // Handle mock certificate file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,6 +198,13 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
 
     if (!matricula) {
       setFormError('Selecione o servidor municipal.');
+      return;
+    }
+
+    if (activeOccurrenceForEmployee) {
+      setFormError(
+        `Bloqueio de Integridade: O servidor ${selectedEmployee?.nome || matricula} já possui um afastamento ativo em andamento (Ocorrência Nº ${activeOccurrenceForEmployee.id} - ${activeOccurrenceForEmployee.tipo}). Para evitar sobreposição de licenças, conclua a perícia de retorno ou homologue a prorrogação do afastamento existente.`
+      );
       return;
     }
 
@@ -260,11 +281,11 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full border border-[#BED4EF] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
               tipo === 'Licença Saúde' 
@@ -313,10 +334,11 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
             </label>
 
             {selectedEmployee ? (
-              /* Card do Servidor Selecionado */
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <>
+                {/* Card do Servidor Selecionado */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                  <div className="w-10 h-10 rounded-full bg-[#3868A0] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
                     {selectedEmployee.nome.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -361,6 +383,46 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                   </button>
                 )}
               </div>
+
+              {/* Card de Alerta de Integridade se o servidor já possuir licença ativa */}
+              {activeOccurrenceForEmployee && (
+                <div className="mt-2.5 p-3.5 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-amber-900 text-xs space-y-2 shadow-xs animate-in fade-in">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-amber-950 text-xs">
+                          Bloqueio de Integridade: Servidor com Licença Ativa em Curso
+                        </span>
+                        {activeOccurrenceForEmployee.data_termino < new Date().toISOString().split('T')[0] && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
+                            ⚠️ Em atraso
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        O servidor <span className="font-bold text-slate-900">{selectedEmployee.nome}</span> já possui o afastamento{' '}
+                        <span className="font-mono font-bold bg-white/80 px-1 py-0.5 rounded border border-amber-200">
+                          Nº {activeOccurrenceForEmployee.id}
+                        </span>{' '}
+                        ({activeOccurrenceForEmployee.tipo}) ativo até{' '}
+                        <span className="font-bold font-mono">
+                          {formatarDataBR(activeOccurrenceForEmployee.data_termino)}
+                        </span>.
+                      </p>
+                      <div className="text-[11px] text-amber-800 bg-white/70 p-2 rounded-lg border border-amber-200/80 space-y-0.5 font-medium">
+                        <p className="flex items-center gap-1.5 text-amber-900 font-semibold">
+                          <span>🛡️ Prevenção de Sobreposição de Licenças:</span>
+                        </p>
+                        <p className="text-slate-600">
+                          Não é permitido cadastrar um novo afastamento enquanto houver licença ativa. Para dar prosseguimento ao caso, acesse a ocorrência existente na tela principal e realize a <strong>Prorrogação</strong> ou a <strong>Conclusão da Perícia de Retorno</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
             ) : (
               /* Campo de Busca Dinâmica por Matrícula ou Nome */
               <div className="relative">
@@ -406,43 +468,58 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                           </p>
                         </div>
                       ) : (
-                        filteredEmployees.map(emp => (
-                          <button
-                            key={emp.matricula}
-                            type="button"
-                            onClick={() => {
-                              setMatricula(emp.matricula);
-                              setEmployeeSearchTerm('');
-                              setIsEmployeeDropdownOpen(false);
-                            }}
-                            className="w-full text-left p-2.5 hover:bg-emerald-50/70 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="font-mono font-bold text-xs bg-slate-100 group-hover:bg-emerald-100 text-slate-700 group-hover:text-emerald-800 px-2 py-0.5 rounded border border-slate-200 group-hover:border-emerald-300 shrink-0">
-                                {emp.matricula}
-                              </span>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-xs text-slate-900 group-hover:text-emerald-950 truncate">
-                                  {emp.nome}
-                                </p>
-                                <p className="text-[11px] text-slate-500 truncate">
-                                  {emp.cargo} · {emp.secretaria.split(' - ')[0]}
-                                </p>
-                              </div>
-                            </div>
+                        filteredEmployees.map(emp => {
+                          const hasActiveOcc = occurrences.find(
+                            o => o.matricula.toUpperCase() === emp.matricula.toUpperCase() &&
+                                 (o.status === 'Ativa' || o.status === 'Prorrogada') &&
+                                 (!initialOccurrence || o.id !== initialOccurrence.id)
+                          );
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                emp.status === 'Ativo'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
-                              }`}>
-                                {emp.status}
-                              </span>
-                              <Check className="w-3.5 h-3.5 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </button>
-                        ))
+                          return (
+                            <button
+                              key={emp.matricula}
+                              type="button"
+                              onClick={() => {
+                                setMatricula(emp.matricula);
+                                setEmployeeSearchTerm('');
+                                setIsEmployeeDropdownOpen(false);
+                              }}
+                              className="w-full text-left p-2.5 hover:bg-emerald-50/70 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="font-mono font-bold text-xs bg-slate-100 group-hover:bg-emerald-100 text-slate-700 group-hover:text-emerald-800 px-2 py-0.5 rounded border border-slate-200 group-hover:border-emerald-300 shrink-0">
+                                  {emp.matricula}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-xs text-slate-900 group-hover:text-emerald-950 truncate">
+                                    {emp.nome}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 truncate">
+                                    {emp.cargo} · {emp.secretaria.split(' - ')[0]}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {hasActiveOcc ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1" title={`Servidor possui afastamento ativo: Nº ${hasActiveOcc.id} (${hasActiveOcc.tipo})`}>
+                                    <AlertTriangle className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                    <span>Licença Ativa</span>
+                                  </span>
+                                ) : (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    emp.status === 'Ativo'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  }`}>
+                                    {emp.status}
+                                  </span>
+                                )}
+                                <Check className="w-3.5 h-3.5 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -627,7 +704,7 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-800"
               >
                 <option value="Ativa">Ativa (Em andamento)</option>
-                <option value="Prorrogada">Prorrogada (Prazo estendido)</option>
+                <option value="Prorrogada">Ativa Prorrogada (Prazo estendido)</option>
                 <option value="Concluída">Concluída (Servidor liberado / retornou)</option>
                 <option value="Cancelada">Cancelada</option>
               </select>
@@ -854,8 +931,9 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              disabled={loading || !!activeOccurrenceForEmployee}
+              title={activeOccurrenceForEmployee ? 'Bloqueio de integridade: servidor já possui afastamento ativo em andamento' : undefined}
+              className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{loading ? 'Salvando...' : isEditing ? 'Salvar Ocorrência' : 'Homologar Afastamento'}</span>

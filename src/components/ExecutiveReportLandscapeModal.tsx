@@ -738,7 +738,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
   }).format(new Date());
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/65 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible">
       
       {/* Dynamic Print CSS for Landscape A4 Output */}
       <style>{`
@@ -1243,18 +1243,18 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
 
         {/* Processing / Status Notification Banner */}
         {statusMessage && (
-          <div className="bg-blue-900/90 text-blue-100 px-6 py-2 text-xs flex items-center justify-between border-b border-blue-800 animate-in fade-in duration-150 print-hidden shrink-0">
+          <div className="bg-[#2B5485] text-white px-6 py-2 text-xs flex items-center justify-between border-b border-[#1E426D] animate-in fade-in duration-150 print-hidden shrink-0 shadow-2xs">
             <div className="flex items-center gap-2">
               {isGeneratingPDF ? (
-                <Loader2 className="w-4 h-4 text-blue-300 animate-spin" />
+                <Loader2 className="w-4 h-4 text-blue-200 animate-spin" />
               ) : (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
               )}
               <span className="font-medium">{statusMessage}</span>
             </div>
             <button 
               onClick={() => setStatusMessage(null)}
-              className="text-blue-300 hover:text-white text-xs underline cursor-pointer"
+              className="text-blue-200 hover:text-white text-xs underline cursor-pointer"
             >
               Fechar
             </button>
@@ -1262,16 +1262,16 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
         )}
 
         {/* Document Canvas Container */}
-        <div className="overflow-y-auto overflow-x-auto p-3 sm:p-6 bg-slate-100/70 print:p-0 print:bg-white flex-1">
+        <div className="overflow-y-auto overflow-x-auto p-3 sm:p-6 bg-[#F0F5FC]/90 print:p-0 print:bg-white flex-1">
           
           {/* THE OFFICIAL LANDSCAPE CANVAS (A4 Landscape) */}
           <div 
             id="executive-report-landscape" 
-            className="bg-white rounded-xl shadow-lg border border-slate-200/80 p-5 sm:p-7 mx-auto max-w-[1280px] text-slate-900 space-y-5 print:shadow-none print:border-none print:p-0 print:max-w-none print:rounded-none"
+            className="bg-white rounded-xl shadow-lg border border-[#BED4EF]/80 p-5 sm:p-7 mx-auto max-w-[1280px] text-slate-900 space-y-5 print:shadow-none print:border-none print:p-0 print:max-w-none print:rounded-none"
           >
             
             {/* 1. CABEÇALHO OFICIAL / IDENTIFICAÇÃO ESTATUTÁRIA */}
-            <div className="border-b-2 border-slate-900 pb-4 page-break-avoid">
+            <div className="border-b-2 border-[#3868A0] pb-4 page-break-avoid">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 
                 {/* Brasão & Títulos Institucionais */}
@@ -1402,19 +1402,19 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
 
                 <div className="border border-slate-200 rounded-xl overflow-x-auto print:overflow-visible bg-white shadow-2xs">
                   <table className="w-full text-left text-xs border-collapse table-auto">
-                    <thead className="bg-slate-900 text-white font-semibold text-[9.5px] uppercase tracking-wider">
+                    <thead className="bg-[#2B5485] text-white font-semibold text-[9.5px] uppercase tracking-wider">
                       <tr>
                         <th className="py-2 px-1.5 text-center w-8">Nº</th>
                         <th className="py-2 px-2.5 min-w-[170px] max-w-[210px]">Servidor / Matrícula / CPF</th>
                         <th className="py-2 px-2 min-w-[120px] max-w-[150px]">Cargo Funcional</th>
                         <th className="py-2 px-2 text-center whitespace-nowrap">Tipo de Ato</th>
-                        <th className={`py-2 px-2 text-center whitespace-nowrap ${tipoDataFiltro === 'afastamento' && (periodoInicio || periodoFim) ? 'bg-amber-950/80 text-amber-200 ring-1 ring-amber-400/50' : ''}`}>
+                        <th className={`py-2 px-2 text-center whitespace-nowrap ${tipoDataFiltro === 'afastamento' && (periodoInicio || periodoFim) ? 'bg-[#1E426D] text-amber-200 ring-1 ring-amber-400/70' : ''}`}>
                           Data Afastamento
                           {tipoDataFiltro === 'afastamento' && (periodoInicio || periodoFim) && (
                             <span className="ml-1 text-[8.5px] bg-amber-400 text-slate-950 px-1 py-0.2 rounded font-bold">FILTRADO</span>
                           )}
                         </th>
-                        <th className={`py-2 px-2 text-center whitespace-nowrap ${tipoDataFiltro === 'retorno' && (periodoInicio || periodoFim) ? 'bg-emerald-950/80 text-emerald-200 ring-1 ring-emerald-400/50' : ''}`}>
+                        <th className={`py-2 px-2 text-center whitespace-nowrap ${tipoDataFiltro === 'retorno' && (periodoInicio || periodoFim) ? 'bg-[#1E426D] text-emerald-200 ring-1 ring-emerald-400/70' : ''}`}>
                           Data Retorno
                           {tipoDataFiltro === 'retorno' && (periodoInicio || periodoFim) && (
                             <span className="ml-1 text-[8.5px] bg-emerald-400 text-slate-950 px-1 py-0.2 rounded font-bold">FILTRADO</span>
@@ -1442,19 +1442,19 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                         return groupedBySecretaria.map((group) => (
                           <tbody key={group.secretariaNome} className="divide-y divide-slate-100 text-[10.5px] border-b-2 border-slate-300 page-break-avoid">
                             {/* Faixa Cabeçalho da Secretaria */}
-                            <tr className="bg-slate-800 text-white font-semibold text-xs page-break-avoid secretaria-header-row">
+                            <tr className="bg-[#3868A0] text-white font-semibold text-xs page-break-avoid secretaria-header-row">
                               <td colSpan={10} className="py-2 px-2.5">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                   <div className="flex items-center gap-2">
-                                    <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                    <Building2 className="w-3.5 h-3.5 text-blue-200 shrink-0" />
                                     <span className="font-bold uppercase tracking-wider text-xs">
                                       {group.secretariaNome}
                                     </span>
-                                    <span className="bg-slate-700 text-slate-200 text-[9.5px] font-mono px-1.5 py-0.5 rounded font-bold">
+                                    <span className="bg-[#1E426D] text-white text-[9.5px] font-mono px-1.5 py-0.5 rounded font-bold">
                                       {group.secretariaSigla}
                                     </span>
                                   </div>
-                                  <div className="text-[10px] font-normal text-slate-300 flex items-center gap-2 flex-wrap">
+                                  <div className="text-[10px] font-normal text-blue-100 flex items-center gap-2 flex-wrap">
                                     <span><strong>{group.subtotalAtos}</strong> ato(s)</span>
                                     <span>·</span>
                                     <span>Saúde: <strong>{group.subtotalSaude}</strong> | Readaptação: <strong>{group.subtotalReadaptacao}</strong> | Maternidade: <strong>{group.subtotalMaternidade}</strong></span>
@@ -1616,7 +1616,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
 
                     {/* Linha de Totais da Parte I */}
                     {afastamentosTemporarios.length > 0 && (
-                      <tfoot className="bg-slate-900 text-white font-semibold text-xs border-t-2 border-slate-950 page-break-avoid">
+                      <tfoot className="bg-[#2B5485] text-white font-semibold text-xs border-t-2 border-[#1E426D] page-break-avoid">
                         <tr>
                           <td colSpan={4} className="py-3 px-3">
                             <div className="flex items-center gap-3 flex-wrap">

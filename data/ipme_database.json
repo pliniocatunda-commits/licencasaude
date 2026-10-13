@@ -21727,6 +21727,16 @@
   ],
   "audit_logs": [
     {
+      "id": "audit_1791922927703_xqvx",
+      "timestamp": "2026-10-13T20:22:07.703Z",
+      "entity_type": "user",
+      "entity_id": "juliana.castro@eusebio.ce.gov.br",
+      "action": "CREATE",
+      "details": "Novo operador cadastrado pelo Administrador: Dra. Juliana Castro (juliana.castro@eusebio.ce.gov.br), Cargo: Médica Perita Oficial. Lotação: IPME - Junta Médica.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
       "id": "audit_1791207310788_5to3",
       "timestamp": "2026-10-05T13:35:10.788Z",
       "entity_type": "employee",
@@ -22340,6 +22350,19 @@
       "auth_provider": "corporate",
       "department": "SME / IPME - Recursos Humanos & Benefícios",
       "created_at": "2026-02-01T10:00:00.000Z"
+    },
+    {
+      "id": "user_1791922927703",
+      "email": "juliana.castro@eusebio.ce.gov.br",
+      "name": "Dra. Juliana Castro",
+      "role": "operator",
+      "auth_provider": "corporate",
+      "department": "IPME - Junta Médica",
+      "cargo": "Médica Perita Oficial",
+      "telefone": "",
+      "ativo": true,
+      "avatar_url": "",
+      "created_at": "2026-10-13T20:22:07.703Z"
     }
   ],
   "secretarias": [

@@ -34,6 +34,9 @@ import { PrintCertificateModal } from './components/PrintCertificateModal.tsx';
 import { ExecutiveReportLandscapeModal } from './components/ExecutiveReportLandscapeModal.tsx';
 import { ImportCsvModal } from './components/ImportCsvModal.tsx';
 import { LoginModal } from './components/LoginModal.tsx';
+import { LoginScreen } from './components/LoginScreen.tsx';
+import { ChangePasswordModal } from './components/ChangePasswordModal.tsx';
+import { useAppTheme } from './context/ThemeContext.tsx';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 interface ToastNotification {
@@ -43,7 +46,9 @@ interface ToastNotification {
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<AppUser>(() => api.getCurrentUser());
+  const { themeConfig } = useAppTheme();
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => api.initUser());
+  const [authLoading, setAuthLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users'>('dashboard');
 
   // Core Data States
@@ -90,6 +95,7 @@ export default function App() {
   const [importCsvModalOpen, setImportCsvModalOpen] = useState(false);
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -135,9 +141,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    api.initUser();
-    setCurrentUser(api.getCurrentUser());
-    loadAllData();
+    const user = api.initUser();
+    setCurrentUser(user);
+    if (user) {
+      loadAllData();
+    }
   }, [loadAllData]);
 
   // Auth & User switching
@@ -148,15 +156,45 @@ export default function App() {
     loadAllData();
   };
 
-  const handleLogin = async (email: string, name?: string, provider: 'google' | 'corporate' = 'corporate') => {
+  const handleLogin = async (
+    email: string, 
+    password?: string, 
+    name?: string, 
+    provider: 'google' | 'corporate' = 'corporate'
+  ) => {
     try {
-      const user = await api.login(email, name, provider);
+      setAuthLoading(true);
+      const user = await api.login(email, password, name, provider);
       setCurrentUser(user);
       addToast('success', `Bem-vindo(a), ${user.name}!`);
-      loadAllData();
+      await loadAllData();
+      if (user.must_change_password) {
+        setChangePasswordModalOpen(true);
+      }
     } catch (err) {
       addToast('error', (err as Error).message || 'Falha ao autenticar.');
+      throw err;
+    } finally {
+      setAuthLoading(false);
     }
+  };
+
+  const handleSavePassword = async (currentPassword: string, newPassword: string) => {
+    if (!currentUser) return;
+    try {
+      const updated = await api.changePassword(currentUser.email, currentPassword, newPassword);
+      setCurrentUser(updated);
+      addToast('success', 'Senha pessoal cadastrada com sucesso!');
+    } catch (err) {
+      addToast('error', (err as Error).message || 'Erro ao alterar a senha.');
+      throw err;
+    }
+  };
+
+  const handleLogout = () => {
+    api.logout();
+    setCurrentUser(null);
+    addToast('info', 'Sessão encerrada com sucesso.');
   };
 
   // Employee Handlers
@@ -512,13 +550,62 @@ export default function App() {
       addToast('success', `Permissões de ${userData.email} atualizadas.`);
       loadAllData();
     } catch (err) {
-      addToast('error', (err as Error).message || 'Erro ao gerenciar usuário.');
+      addToast('error', (err as Error).message || 'Erro ao gerenciar operador.');
       throw err;
     }
   };
 
+  const handleDeleteUser = async (email: string) => {
+    try {
+      await api.deleteUser(email);
+      addToast('success', `Operador ${email} excluído do sistema.`);
+      loadAllData();
+    } catch (err) {
+      addToast('error', (err as Error).message || 'Erro ao excluir operador.');
+      throw err;
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <>
+        {/* Floating Toast Container */}
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+          {toasts.map(toast => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex items-start gap-2.5 p-3 rounded-xl shadow-xl text-xs font-medium border animate-in slide-in-from-bottom-3 duration-200 ${
+                toast.type === 'success'
+                  ? 'bg-emerald-900/95 text-emerald-100 border-emerald-700'
+                  : toast.type === 'error'
+                  ? 'bg-red-900/95 text-red-100 border-red-700'
+                  : 'bg-slate-900/95 text-slate-100 border-slate-700'
+              }`}
+            >
+              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
+              {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />}
+              {toast.type === 'info' && <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />}
+              <span className="flex-1">{toast.message}</span>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="text-white/60 hover:text-white ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <LoginScreen
+          onLogin={handleLogin}
+          loading={authLoading}
+        />
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className={`min-h-screen ${themeConfig.pageBgClass} flex flex-col font-sans transition-colors duration-200`}>
       {/* Top Header */}
       <Header
         currentUser={currentUser}
@@ -530,6 +617,8 @@ export default function App() {
         onOpenImportCsv={() => setImportCsvModalOpen(true)}
         onSwitchUser={handleSwitchUser}
         onOpenLoginModal={() => setLoginModalOpen(true)}
+        onOpenChangePassword={() => setChangePasswordModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Viewport Content */}
@@ -604,7 +693,6 @@ export default function App() {
             onOpenCancelar={handleOpenCancelar}
             onPrintOccurrence={handlePrintOccurrence}
             onDeleteOccurrence={handleDeleteOccurrence}
-            onClearAllOccurrences={handleClearAllOccurrences}
             onViewEmployeeDetailByMatricula={handleViewEmployeeDetailByMatricula}
             onOpenExecutiveReport={() => setExecutiveReportModalOpen(true)}
             onOpenAuditTrail={() => setActiveTab('audit')}
@@ -623,23 +711,25 @@ export default function App() {
           <UsersView
             users={users}
             currentUser={currentUser}
+            secretarias={secretarias}
             onRefresh={loadAllData}
             onSaveUser={handleSaveUser}
+            onDeleteUser={handleDeleteUser}
           />
         )}
       </main>
 
       {/* Institutional Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-6 text-xs">
+      <footer className={`${themeConfig.footerClass} border-t ${themeConfig.footerBorderClass} ${themeConfig.footerTextClass} py-6 text-xs transition-colors duration-200`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-200">IPME</span>
+            <span className="font-bold text-white">IPME</span>
             <span>·</span>
-            <span>Instituto de Previdência do Município de Eusébio</span>
-            <span className="text-slate-600">|</span>
-            <span className="text-slate-500 font-mono">Regime Próprio de Previdência Social (RPPS)</span>
+            <span className="font-medium text-white/90">Instituto de Previdência do Município de Eusébio</span>
+            <span className="opacity-40">|</span>
+            <span className="opacity-80 font-mono">Regime Próprio de Previdência Social (RPPS)</span>
           </div>
-          <div className="flex items-center gap-4 text-slate-500">
+          <div className="flex items-center gap-4 opacity-80">
             <span>Prefeitura Municipal de Eusébio - CE</span>
             <span>·</span>
             <span>Auditoria e Compliance em Tempo Real</span>
@@ -694,6 +784,7 @@ export default function App() {
         onClose={() => setOccurrenceModalOpen(false)}
         onSave={handleSaveOccurrence}
         employees={employees}
+        occurrences={occurrences}
         doctors={doctors}
         initialOccurrence={selectedOccurrenceForEdit}
         preselectedMatricula={preselectedMatriculaForOcc}
@@ -784,6 +875,16 @@ export default function App() {
         onLogin={handleLogin}
         currentUser={currentUser}
       />
+
+      {currentUser && (
+        <ChangePasswordModal
+          isOpen={changePasswordModalOpen}
+          onClose={() => setChangePasswordModalOpen(false)}
+          user={currentUser}
+          onSavePassword={handleSavePassword}
+          isFirstAccess={currentUser.must_change_password}
+        />
+      )}
 
       {/* Floating Toast Container */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">

@@ -34,7 +34,8 @@ import {
   FileSpreadsheet,
   FileBadge,
   Undo2,
-  Archive
+  Archive,
+  Pin
 } from 'lucide-react';
 
 interface OccurrencesViewProps {
@@ -51,7 +52,6 @@ interface OccurrencesViewProps {
   onOpenRetornoTrabalho?: (occ: Occurrence) => void;
   onPrintOccurrence: (occ: Occurrence) => void;
   onDeleteOccurrence: (id: string) => void;
-  onClearAllOccurrences?: () => Promise<void>;
   onViewEmployeeDetailByMatricula: (matricula: string) => void;
   onOpenExecutiveReport?: () => void;
   onOpenAuditTrail?: () => void;
@@ -71,7 +71,6 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   onOpenRetornoTrabalho,
   onPrintOccurrence,
   onDeleteOccurrence,
-  onClearAllOccurrences,
   onViewEmployeeDetailByMatricula,
   onOpenExecutiveReport,
   onOpenAuditTrail,
@@ -84,8 +83,15 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [historyModalOccurrence, setHistoryModalOccurrence] = useState<Occurrence | null>(null);
   const [occurrenceToDelete, setOccurrenceToDelete] = useState<Occurrence | null>(null);
-  const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
+  const [freezeColumns, setFreezeColumns] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('ipme_freeze_occurrences_columns');
+      return saved !== 'false'; // Padrão: ativado para facilitar visualização
+    } catch {
+      return true;
+    }
+  });
   const pageSize = 8;
 
   // Total de ocorrências com previsão de retorno em atraso
@@ -184,55 +190,45 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {onOpenExecutiveReport && (
             <button
               onClick={onOpenExecutiveReport}
-              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
               title="Emitir Relatório Gerencial em PDF Paisagem (Landscape)"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-blue-700" />
-              <span>Relatório Executivo PDF</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+              <span className="whitespace-nowrap">Relatório Executivo PDF</span>
             </button>
           )}
 
           {onOpenAuditTrail && (
             <button
               onClick={onOpenAuditTrail}
-              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3.5 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
               title="Acessar a Trilha de Auditoria e Histórico Completo de Alterações"
             >
-              <History className="w-3.5 h-3.5 text-purple-700" />
-              <span>Histórico / Trilha</span>
+              <History className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+              <span className="whitespace-nowrap">Histórico / Trilha</span>
             </button>
           )}
 
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5"
+            className="h-9 px-3.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
             title="Exportar dados para Excel / CSV"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Exportar CSV</span>
+            <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <span className="whitespace-nowrap">Exportar CSV</span>
           </button>
-
-          {onClearAllOccurrences && occurrences.length > 0 && (
-            <button
-              onClick={() => setIsClearAllModalOpen(true)}
-              className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Excluir todas as licenças de teste mantendo o cadastro de servidores intacto"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-600" />
-              <span>Limpar Licenças de Teste</span>
-            </button>
-          )}
 
           <button
             onClick={() => onOpenNewOccurrence()}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="h-9 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+            title="Cadastrar nova ocorrência pericial"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Nova Ocorrência</span>
+            <Plus className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">Nova Ocorrência</span>
           </button>
         </div>
       </div>
@@ -300,7 +296,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 <option value="EM_ATRASO">⚠️ Em Atraso ({totalEmAtraso})</option>
               )}
               <option value="Ativa">Ativa</option>
-              <option value="Prorrogada">Prorrogada</option>
+              <option value="Prorrogada">Ativa Prorrogada</option>
               <option value="Arquivado">Arquivado (Aposentado)</option>
               <option value="Concluída">Concluída</option>
               <option value="Cancelada">Cancelada</option>
@@ -348,11 +344,34 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
         </div>
 
         {/* Counts strip */}
-        <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-          <div>
-            Mostrando <span className="font-semibold text-slate-900 font-mono tabular-nums">{filteredOccurrences.length}</span> registros de afastamento
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">
           <div className="flex items-center gap-3">
+            <div>
+              Mostrando <span className="font-semibold text-slate-900 font-mono tabular-nums">{filteredOccurrences.length}</span> registros de afastamento
+            </div>
+
+            {/* Toggle de Congelar/Fixar Colunas */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextVal = !freezeColumns;
+                setFreezeColumns(nextVal);
+                try {
+                  localStorage.setItem('ipme_freeze_occurrences_columns', String(nextVal));
+                } catch {}
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs whitespace-nowrap ${
+                freezeColumns
+                  ? 'bg-blue-50 text-blue-800 border border-blue-300 hover:bg-blue-100 ring-1 ring-blue-300/50'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+              }`}
+              title="Congelar ou descongelar as colunas de Servidor e Tipo para mantê-las sempre visíveis ao navegar para as ações à direita"
+            >
+              <Pin className={`w-3.5 h-3.5 ${freezeColumns ? 'text-blue-600 fill-blue-600 rotate-45' : 'text-slate-400'} shrink-0`} />
+              <span className="whitespace-nowrap">{freezeColumns ? 'Colunas Fixadas: Ativo' : 'Fixar Servidor & Tipo'}</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
             {totalEmAtraso > 0 && (
               <button
                 type="button"
@@ -360,28 +379,28 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                   setSelectedStatus(selectedStatus === 'EM_ATRASO' ? 'ALL' : 'EM_ATRASO');
                   setCurrentPage(1);
                 }}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   selectedStatus === 'EM_ATRASO'
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200'
                 }`}
                 title="Clique para filtrar apenas as ocorrências com retorno em atraso"
               >
-                <AlertCircle className={`w-3.5 h-3.5 ${selectedStatus === 'EM_ATRASO' ? 'text-white' : 'text-rose-600'}`} />
-                <span>{totalEmAtraso} em Atraso</span>
+                <AlertCircle className={`w-3.5 h-3.5 ${selectedStatus === 'EM_ATRASO' ? 'text-white' : 'text-rose-600'} shrink-0`} />
+                <span className="whitespace-nowrap">{totalEmAtraso} em Atraso</span>
               </button>
             )}
-            <span className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>{occurrences.filter(o => o.status === 'Ativa').length} Ativas</span>
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <span className="whitespace-nowrap">{occurrences.filter(o => o.status === 'Ativa').length} Ativas</span>
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-              <span>{occurrences.filter(o => o.status === 'Prorrogada').length} Prorrogadas</span>
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+              <span className="whitespace-nowrap">{occurrences.filter(o => o.status === 'Prorrogada').length} Ativas Prorrogadas</span>
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-              <span>{occurrences.filter(o => o.status === 'Concluída').length} Concluídas</span>
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+              <span className="whitespace-nowrap">{occurrences.filter(o => o.status === 'Concluída').length} Concluídas</span>
             </span>
           </div>
         </div>
@@ -390,15 +409,61 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
       {/* Occurrences Data Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[1220px]">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-4 whitespace-nowrap">Código ID</th>
-                <th className="py-3 px-4 whitespace-nowrap">Servidor</th>
+              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                {/* 1. Código ID (Fixado) */}
+                <th className={`py-3 px-3.5 whitespace-nowrap transition-colors ${
+                  freezeColumns ? 'sticky left-0 z-20 bg-slate-50 min-w-[85px] w-[85px] max-w-[85px]' : 'min-w-[85px]'
+                }`}>
+                  <div className="flex items-center gap-1">
+                    <span>Código ID</span>
+                    {freezeColumns && (
+                      <span title="Coluna fixada na rolagem">
+                        <Pin className="w-2.5 h-2.5 text-blue-600 fill-blue-600 rotate-45 shrink-0" />
+                      </span>
+                    )}
+                  </div>
+                </th>
+
+                {/* 2. Servidor (Fixado) */}
+                <th className={`py-3 px-4 whitespace-nowrap transition-colors ${
+                  freezeColumns ? 'sticky left-[85px] z-20 bg-slate-50 min-w-[240px] w-[240px] max-w-[240px]' : 'min-w-[220px]'
+                }`}>
+                  <div className="flex items-center gap-1.5">
+                    <span>Servidor</span>
+                    {freezeColumns && (
+                      <span title="Nome e Matrícula fixados durante a navegação">
+                        <Pin className="w-2.5 h-2.5 text-blue-600 fill-blue-600 rotate-45 shrink-0" />
+                      </span>
+                    )}
+                  </div>
+                </th>
+
+                {/* 3. Tipo (Fixado logo ao lado do Servidor com divisor de sombra) */}
+                <th className={`py-3 px-4 whitespace-nowrap transition-colors ${
+                  freezeColumns ? 'sticky left-[325px] z-20 bg-slate-50 min-w-[155px] w-[155px] max-w-[155px] border-r-2 border-slate-300 shadow-[4px_0_12px_-3px_rgba(0,0,0,0.08)]' : 'min-w-[140px]'
+                }`}>
+                  <div className="flex items-center gap-1.5">
+                    <span>Tipo</span>
+                    {freezeColumns && (
+                      <span title="Tipo de afastamento fixado durante a navegação">
+                        <Pin className="w-2.5 h-2.5 text-blue-600 fill-blue-600 rotate-45 shrink-0" />
+                      </span>
+                    )}
+                  </div>
+                </th>
+
+                {/* 4. Cargo / Função */}
                 <th className="py-3 px-4 whitespace-nowrap">Cargo / Função</th>
+
+                {/* 5. Secretaria */}
                 <th className="py-3 px-4 whitespace-nowrap">Secretaria</th>
-                <th className="py-3 px-4 whitespace-nowrap">Tipo</th>
+
+                {/* 6. Data Afastamento */}
                 <th className="py-3 px-4 whitespace-nowrap">Data Afastamento</th>
+
+                {/* 7. Previsão de Retorno */}
                 <th className="py-3 px-4 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
                     <span>Prev. Retorno</span>
@@ -409,17 +474,24 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                     )}
                   </div>
                 </th>
+
+                {/* 8. Dias Pagos */}
                 <th className="py-3 px-4 text-center whitespace-nowrap" title="Dias pagos pelo IPME (os primeiros 15 dias são assumidos pela Prefeitura)">Dias Pagos</th>
-                <th className="py-3 px-4 whitespace-nowrap">CID-10</th>
+
+                {/* 9. Perito Oficial */}
                 <th className="py-3 px-4 whitespace-nowrap">Perito Oficial</th>
+
+                {/* 10. Status */}
                 <th className="py-3 px-4 whitespace-nowrap">Status</th>
+
+                {/* 11. Ações */}
                 <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {paginatedOccurrences.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-slate-400">
+                  <td colSpan={11} className="text-center py-12 text-slate-400">
                     <p className="text-sm font-medium text-slate-600">Nenhum afastamento ou readaptação encontrado.</p>
                     <p className="text-xs text-slate-400 mt-1">Ajuste os filtros de status, tipo ou datas.</p>
                   </td>
@@ -428,49 +500,44 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 paginatedOccurrences.map(occ => {
                   const isAtrasado = isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo);
                   const diasAtraso = isAtrasado ? calcularDiasAtraso(occ.data_termino) : 0;
+                  const stickyBgClass = isAtrasado
+                    ? 'bg-[#FFF8F8] group-hover:bg-rose-100/70'
+                    : 'bg-white group-hover:bg-slate-50/90';
 
                   return (
                     <tr key={occ.id} className={`hover:bg-slate-50/70 transition-colors group ${isAtrasado ? 'bg-rose-50/25' : ''}`}>
-                      {/* ID */}
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-xs font-mono">
+                      {/* 1. Código ID (Fixado) */}
+                      <td className={`py-3 px-3.5 font-mono font-bold whitespace-nowrap transition-colors ${
+                        freezeColumns ? `sticky left-0 z-10 ${stickyBgClass} min-w-[85px] w-[85px] max-w-[85px]` : ''
+                      }`}>
+                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-xs font-mono text-slate-900">
                           {occ.id}
                         </span>
                       </td>
 
-                      {/* Servidor (Matrícula + Nome sem quebra) */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
+                      {/* 2. Servidor (Fixado - Matrícula + Nome) */}
+                      <td className={`py-3 px-4 whitespace-nowrap transition-colors ${
+                        freezeColumns ? `sticky left-[85px] z-10 ${stickyBgClass} min-w-[240px] w-[240px] max-w-[240px]` : ''
+                      }`}>
+                        <div className="flex items-center gap-2 max-w-[225px]">
                           <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
                             {occ.matricula}
                           </span>
                           <button
                             onClick={() => onViewEmployeeDetailByMatricula(occ.matricula)}
-                            className="font-semibold text-slate-900 hover:text-emerald-700 text-left transition-colors whitespace-nowrap"
-                            title="Ver prontuário do servidor"
+                            className="font-semibold text-slate-900 hover:text-blue-700 text-left transition-colors truncate block"
+                            title={`Ver prontuário do servidor: ${occ.employee_nome || occ.matricula}`}
                           >
                             {occ.employee_nome || occ.matricula}
                           </button>
                         </div>
                       </td>
 
-                      {/* Cargo / Função (Coluna Separada) */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-medium text-slate-800 text-xs">
-                          {occ.employee_cargo || 'Servidor Municipal'}
-                        </span>
-                      </td>
-
-                      {/* Secretaria (Coluna Própria) */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-medium text-slate-700 text-xs" title={occ.employee_secretaria}>
-                          {occ.employee_secretaria || '-'}
-                        </span>
-                      </td>
-
-                      {/* Tipo */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-0.5 rounded text-[11px] font-semibold border ${
+                      {/* 3. Tipo (Fixado - Badge da ocorrência com divisor à direita) */}
+                      <td className={`py-3 px-4 whitespace-nowrap transition-colors ${
+                        freezeColumns ? `sticky left-[325px] z-10 ${stickyBgClass} min-w-[155px] w-[155px] max-w-[155px] border-r-2 border-slate-300 shadow-[4px_0_12px_-3px_rgba(0,0,0,0.08)]` : ''
+                      }`}>
+                        <span className={`inline-block px-2.5 py-0.5 rounded text-[11px] font-semibold border ${
                           occ.tipo === 'Licença Saúde' 
                             ? 'bg-amber-50 text-amber-800 border-amber-200' 
                             : occ.tipo === 'Readaptação'
@@ -483,12 +550,26 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                         </span>
                       </td>
 
-                      {/* Data Afastamento */}
+                      {/* 4. Cargo / Função */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="font-medium text-slate-800 text-xs">
+                          {occ.employee_cargo || 'Servidor Municipal'}
+                        </span>
+                      </td>
+
+                      {/* 5. Secretaria */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="font-medium text-slate-700 text-xs" title={occ.employee_secretaria}>
+                          {occ.employee_secretaria || '-'}
+                        </span>
+                      </td>
+
+                      {/* 6. Data Afastamento */}
                       <td className="py-3 px-4 whitespace-nowrap font-mono tabular-nums text-slate-800 font-medium text-xs">
                         {formatarDataBR(occ.data_inicio)}
                       </td>
 
-                      {/* Data Previsão Retorno */}
+                      {/* 7. Data Previsão Retorno */}
                       <td className="py-3 px-4 whitespace-nowrap font-mono tabular-nums text-xs">
                         {occ.tipo === 'Licença Definitiva' ? (
                           <div className="flex flex-col">
@@ -518,7 +599,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                         )}
                       </td>
 
-                      {/* Dias Pagos (15 primeiros dias assumidos pela prefeitura) */}
+                      {/* 8. Dias Pagos */}
                       <td className="py-3 px-4 whitespace-nowrap text-center">
                         {occ.quantidade_dias > 15 ? (
                           <div className="inline-flex flex-col items-center">
@@ -541,17 +622,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                         )}
                       </td>
 
-                      {/* CID */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-mono font-semibold text-slate-800">
-                          {occ.cid ? occ.cid.split(' - ')[0] : '-'}
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate max-w-[140px]" title={occ.cid}>
-                          {occ.cid && occ.cid.includes(' - ') ? occ.cid.split(' - ')[1] : 'Sigiloso'}
-                        </div>
-                      </td>
-
-                      {/* Perito & CRM */}
+                      {/* 9. Perito & CRM */}
                       <td className="py-3 px-4">
                         <div className="font-medium text-slate-800 truncate max-w-[150px]">
                           {occ.medico_perito}
@@ -561,26 +632,30 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Status */}
+                      {/* 10. Status */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {occ.status === 'Ativa' && (
+                        <div className="flex flex-col items-start gap-1">
+                          {/* Badge Principal: Se for Ativa ou Prorrogada, exibe 'Ativa' (verde) */}
+                          {(occ.status === 'Ativa' || occ.status === 'Prorrogada') && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                               Ativa
                             </span>
                           )}
+
+                          {/* Se for Prorrogada, exibe abaixo do badge Ativa o registro com número de vezes */}
                           {occ.status === 'Prorrogada' && (
                             <button
                               type="button"
                               onClick={() => setHistoryModalOccurrence(occ)}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors shadow-2xs group/btn cursor-pointer"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 hover:border-purple-300 transition-colors shadow-2xs group/btn cursor-pointer whitespace-nowrap"
                               title="Clique para ver o histórico detalhado de prorrogações deste afastamento"
                             >
-                              <History className="w-3 h-3 text-purple-600 group-hover/btn:rotate-[-45deg] transition-transform" />
+                              <History className="w-3 h-3 text-purple-600 group-hover/btn:rotate-[-45deg] transition-transform shrink-0" />
                               <span>Prorrogada ({occ.prorrogacoes?.length || 1}x)</span>
                             </button>
                           )}
+
                           {occ.status === 'Arquivado' && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
                               <Archive className="w-3 h-3 text-purple-700" />
@@ -597,110 +672,117 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                               Cancelada
                             </span>
                           )}
+
+                          {/* Em Atraso: exibe abaixo */}
                           {isAtrasado && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title={`Previsão de retorno expirada há ${diasAtraso} dias`}>
                               <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
-                              <span>Atraso</span>
+                              <span>Atraso ({diasAtraso}d)</span>
                             </span>
                           )}
                         </div>
                       </td>
 
-                      {/* Actions */}
+                      {/* 11. Ações */}
                       <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
                           
                           {/* Print Certificate Sheet */}
                           <button
                             onClick={() => onPrintOccurrence(occ)}
-                            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
-                            title="Visualizar e Imprimir Laudo Pericial Oficial"
+                            className="h-7 w-7 p-0 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors inline-flex items-center justify-center shrink-0 cursor-pointer"
+                            title={`Visualizar e Imprimir Laudo Pericial Oficial de ${occ.employee_nome || occ.matricula} (${occ.tipo})`}
                           >
-                            <Printer className="w-4 h-4" />
+                            <Printer className="w-4 h-4 shrink-0" />
                           </button>
 
                           {/* View Extension and Modification History */}
                           <button
                             onClick={() => setHistoryModalOccurrence(occ)}
-                            className="px-2.5 py-1 text-[11px] font-semibold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
-                            title="Ver Histórico Cronológico, Prorrogações e Trilha desta Ocorrência"
+                            className="h-7 px-2.5 text-[11px] font-semibold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs whitespace-nowrap shrink-0"
+                            title={`Ver Histórico Cronológico e Prorrogações de ${occ.employee_nome || occ.matricula}`}
                           >
-                            <History className="w-3.5 h-3.5 text-purple-700" />
-                            <span>Histórico</span>
+                            <History className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                            <span className="whitespace-nowrap">Histórico</span>
                           </button>
 
                           {/* Reversão de Aposentadoria / Retorno ao Trabalho para Licença Definitiva */}
                           {occ.tipo === 'Licença Definitiva' && onOpenRetornoTrabalho && (
                             <button
                               onClick={() => onOpenRetornoTrabalho(occ)}
-                              className="px-2 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
-                              title="Reversão pericial: homologar retorno do servidor da Licença Definitiva / Aposentadoria ao trabalho ativo"
+                              className="h-7 px-2.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                              title={`Reversão pericial: homologar retorno de ${occ.employee_nome || occ.matricula} ao trabalho ativo`}
                             >
-                              <Undo2 className="w-3.5 h-3.5 text-emerald-700" />
-                              <span>Retornar ao Trabalho</span>
+                              <Undo2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                              <span className="whitespace-nowrap">Retornar ao Trabalho</span>
                             </button>
                           )}
 
-                          {/* Quick Lifecycle Controls */}
+                          {/* Quick Lifecycle Controls: Prorrogar -> Concluir -> Tornar Definitiva */}
                           {(occ.status === 'Ativa' || occ.status === 'Prorrogada') && (
                             <>
-                              {occ.tipo !== 'Licença Definitiva' && (
-                                <button
-                                  onClick={() => onOpenConverterDefinitiva(occ)}
-                                  className="px-2.5 py-1 text-[11px] font-bold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
-                                  title="Mecanismo de Transformação: Converter esta licença em Licença Definitiva por incapacidade permanente"
-                                >
-                                  <FileBadge className="w-3.5 h-3.5 text-purple-700" />
-                                  <span>Tornar Definitiva</span>
-                                </button>
-                              )}
+                              {/* 1. Prorrogar */}
                               {occ.tipo !== 'Licença Definitiva' && (
                                 <button
                                   onClick={() => onOpenProrrogar(occ)}
-                                  className="px-2 py-1 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded transition-colors cursor-pointer"
-                                  title="Homologar prorrogação com novo período"
+                                  className="h-7 px-2.5 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 inline-flex items-center justify-center"
+                                  title={`Homologar prorrogação com novo período para ${occ.employee_nome || occ.matricula} (${occ.tipo})`}
                                 >
-                                  Prorrogar
+                                  <span className="whitespace-nowrap">Prorrogar</span>
                                 </button>
                               )}
+
+                              {/* 2. Concluir */}
                               <button
                                 onClick={() => onOpenConcluir(occ)}
-                                className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                                className={`h-7 px-2.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${
                                   occ.tipo === 'Licença Definitiva'
                                     ? 'text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300'
                                     : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
                                 }`}
-                                title={occ.tipo === 'Licença Definitiva' ? 'Concluir perícia e homologar aposentadoria definitiva (Arquivar)' : 'Concluir licença após perícia de retorno (restaura servidor para Ativo)'}
+                                title={occ.tipo === 'Licença Definitiva' ? `Concluir perícia e arquivar aposentadoria de ${occ.employee_nome || occ.matricula}` : `Concluir licença após perícia de retorno de ${occ.employee_nome || occ.matricula} (${occ.tipo})`}
                               >
                                 {occ.tipo === 'Licença Definitiva' ? (
                                   <>
-                                    <Archive className="w-3.5 h-3.5 text-purple-700" />
-                                    <span>Concluir / Arquivar</span>
+                                    <Archive className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                                    <span className="whitespace-nowrap">Concluir / Arquivar</span>
                                   </>
                                 ) : (
-                                  <span>Concluir</span>
+                                  <span className="whitespace-nowrap">Concluir</span>
                                 )}
                               </button>
+
+                              {/* 3. Tornar Definitiva */}
+                              {occ.tipo !== 'Licença Definitiva' && (
+                                <button
+                                  onClick={() => onOpenConverterDefinitiva(occ)}
+                                  className="h-7 px-2.5 text-[11px] font-bold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-md shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                  title={`Converter licença em Licença Definitiva por incapacidade permanente para ${occ.employee_nome || occ.matricula}`}
+                                >
+                                  <FileBadge className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                                  <span className="whitespace-nowrap">Tornar Definitiva</span>
+                                </button>
+                              )}
                             </>
                           )}
 
                           {/* Edit */}
                           <button
                             onClick={() => onOpenEditOccurrence(occ)}
-                            className="p-1.5 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded transition-colors"
-                            title="Editar dados da ocorrência"
+                            className="h-7 w-7 p-0 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors inline-flex items-center justify-center shrink-0 cursor-pointer"
+                            title={`Editar dados da ocorrência de ${occ.employee_nome || occ.matricula}`}
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4 shrink-0" />
                           </button>
 
                           {/* Cancel */}
                           {occ.status !== 'Cancelada' && occ.status !== 'Concluída' && (
                             <button
                               onClick={() => onOpenCancelar(occ)}
-                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
-                              title="Registrar cancelamento da licença"
+                              className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors inline-flex items-center justify-center shrink-0 cursor-pointer"
+                              title={`Registrar cancelamento da licença de ${occ.employee_nome || occ.matricula}`}
                             >
-                              <X className="w-4 h-4" />
+                              <X className="w-4 h-4 shrink-0" />
                             </button>
                           )}
 
@@ -708,10 +790,10 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                           {userRole === 'admin' && (
                             <button
                               onClick={() => setOccurrenceToDelete(occ)}
-                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                              title="Excluir ocorrência (Requer Administrador)"
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center shrink-0"
+                              title={`Excluir ocorrência de ${occ.employee_nome || occ.matricula} (Requer Administrador)`}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 shrink-0" />
                             </button>
                           )}
                         </div>
@@ -763,16 +845,16 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
 
       {/* Modal In-App: Confirmação de Exclusão de Ocorrência Individual */}
       {occurrenceToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-rose-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 bg-rose-900 text-white flex items-center justify-between border-b border-rose-800">
               <div className="flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-red-400" />
+                <Trash2 className="w-4 h-4 text-rose-200" />
                 <h3 className="text-sm font-bold">Confirmar Exclusão de Ocorrência</h3>
               </div>
               <button
                 onClick={() => setOccurrenceToDelete(null)}
-                className="text-slate-400 hover:text-white p-1 rounded transition-colors"
+                className="text-rose-200 hover:text-white p-1 rounded transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -834,67 +916,6 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>{isProcessingDelete ? 'Excluindo...' : 'Excluir Definitivamente'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal In-App: Confirmação de Limpeza Geral de Licenças de Teste */}
-      {isClearAllModalOpen && onClearAllOccurrences && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-red-400" />
-                <h3 className="text-sm font-bold">Limpar Todas as Licenças de Teste?</h3>
-              </div>
-              <button
-                onClick={() => setIsClearAllModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-900">Seus servidores cadastrados serão PRESERVADOS!</p>
-                  <p className="text-[11px] text-slate-600 mt-1">
-                    Esta ação apagará apenas os registros de licenças/afastamentos simulados ({occurrences.length} registros).
-                    Todos os servidores continuarão salvos no sistema e retornarão automaticamente ao status <strong>Ativo</strong>, prontos para você cadastrar as licenças reais do zero.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsClearAllModalOpen(false)}
-                  disabled={isProcessingDelete}
-                  className="flex-1 py-2.5 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setIsProcessingDelete(true);
-                    try {
-                      await onClearAllOccurrences();
-                      setIsClearAllModalOpen(false);
-                    } finally {
-                      setIsProcessingDelete(false);
-                    }
-                  }}
-                  disabled={isProcessingDelete}
-                  className="flex-1 py-2.5 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>{isProcessingDelete ? 'Limpando...' : `Limpar ${occurrences.length} Licenças`}</span>
                 </button>
               </div>
             </div>
