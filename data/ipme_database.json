@@ -21727,6 +21727,236 @@
   ],
   "audit_logs": [
     {
+      "id": "audit_1791994457656_s355",
+      "timestamp": "2026-10-14T16:14:17.656Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Novo e-mail institucional de confirmação de cadastro despachado para luiz plinio (plinio.catunda@ipmeusebio.ce.gov.br) com código 271877.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791994060320_hzen",
+      "timestamp": "2026-10-14T16:07:40.320Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Novo e-mail institucional de confirmação de cadastro despachado para luiz plinio (plinio.catunda@ipmeusebio.ce.gov.br) com código 812118.",
+      "changed_by": "Sistema IPME",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791994029679_joix",
+      "timestamp": "2026-10-14T16:07:09.679Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "CREATE",
+      "details": "Novo operador cadastrado pelo Administrador: luiz plinio (plinio.catunda@ipmeusebio.ce.gov.br), Cargo: Médico Perito Oficial. Lotação: IPME - Junta Médica Pericial. Senha inicial definida. E-mail de ativação despachado com código 916800.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993987914_8v5p",
+      "timestamp": "2026-10-14T16:06:27.914Z",
+      "entity_type": "user",
+      "entity_id": "plinio.eusebio@ipmeusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Luiz Plinio (plinio.eusebio@ipmeusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993909555_cpl7",
+      "timestamp": "2026-10-14T16:05:09.555Z",
+      "entity_type": "user",
+      "entity_id": "plinio.eusebio@ipmeusebio.ce.gov.br",
+      "action": "CREATE",
+      "details": "Novo operador cadastrado pelo Administrador: Luiz Plinio (plinio.eusebio@ipmeusebio.ce.gov.br), Cargo: Médico Perito Oficial. Lotação: IPME - Junta Médica Pericial. Senha inicial definida. E-mail de ativação despachado com código 233473.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993850407_27ae",
+      "timestamp": "2026-10-14T16:04:10.407Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993475564_jlym",
+      "timestamp": "2026-10-14T15:57:55.564Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Senha de acesso alterada pelo próprio usuário (Luiz Plinio - plinio.catunda@ipmeusebio.ce.gov.br).",
+      "changed_by": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "user_role": "operator"
+    },
+    {
+      "id": "audit_1791993447398_usyr",
+      "timestamp": "2026-10-14T15:57:27.398Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Cadastro do operador Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) confirmado e ativado com sucesso via validação de e-mail institucional.",
+      "changed_by": "Sistema IPME",
+      "user_role": "operator"
+    },
+    {
+      "id": "audit_1791993427324_my6i",
+      "timestamp": "2026-10-14T15:57:07.324Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Novo e-mail institucional de confirmação de cadastro despachado para Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) com código 451915.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993381178_kyny",
+      "timestamp": "2026-10-14T15:56:21.178Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Novo e-mail institucional de confirmação de cadastro despachado para Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) com código 619625.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993298790_pkp9",
+      "timestamp": "2026-10-14T15:54:58.790Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Novo e-mail institucional de confirmação de cadastro despachado para Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) com código 184038.",
+      "changed_by": "Sistema IPME",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791993047265_8o1k",
+      "timestamp": "2026-10-14T15:50:47.265Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "CREATE",
+      "details": "Novo operador cadastrado pelo Administrador: Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br), Cargo: Operador. Lotação: IPME - Junta Médica Pericial. Senha inicial definida. E-mail de ativação despachado com código 924256.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791992986088_3ttm",
+      "timestamp": "2026-10-14T15:49:46.088Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791992983877_oz0h",
+      "timestamp": "2026-10-14T15:49:43.877Z",
+      "entity_type": "user",
+      "entity_id": "andre.falcao@eusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Dr. André Falcão (andre.falcao@eusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791992955123_c0zj",
+      "timestamp": "2026-10-14T15:49:15.123Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Senha de acesso alterada pelo próprio usuário (Luiz Plinio - plinio.catunda@ipmeusebio.ce.gov.br).",
+      "changed_by": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "user_role": "operator"
+    },
+    {
+      "id": "audit_1791992864687_wo90",
+      "timestamp": "2026-10-14T15:47:44.687Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Operador Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br) atualizado. Cargo: Operador. Lotação: IPME - Junta Médica Pericial. Status: Ativo. E-mail Confirmado: Sim.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791990322693_kudr",
+      "timestamp": "2026-10-14T15:05:22.693Z",
+      "entity_type": "user",
+      "entity_id": "andre.falcao@eusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Senha de acesso alterada pelo próprio usuário (Dr. André Falcão - andre.falcao@eusebio.ce.gov.br).",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "operator"
+    },
+    {
+      "id": "audit_1791990310086_z0oj",
+      "timestamp": "2026-10-14T15:05:10.086Z",
+      "entity_type": "user",
+      "entity_id": "andre.falcao@eusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Cadastro do operador Dr. André Falcão (andre.falcao@eusebio.ce.gov.br) confirmado e ativado com sucesso via validação de e-mail institucional.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "operator"
+    },
+    {
+      "id": "audit_1791990303338_78e2",
+      "timestamp": "2026-10-14T15:05:03.338Z",
+      "entity_type": "user",
+      "entity_id": "andre.falcao@eusebio.ce.gov.br",
+      "action": "CREATE",
+      "details": "Novo operador cadastrado pelo Administrador: Dr. André Falcão (andre.falcao@eusebio.ce.gov.br), Cargo: Médico Perito Oficial. Lotação: IPME - Junta Médica. Senha inicial definida. E-mail de ativação despachado com código 929150.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791989577831_rgfi",
+      "timestamp": "2026-10-14T14:52:57.831Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "CREATE",
+      "details": "Novo operador cadastrado pelo Administrador: Luiz Plinio (plinio.catunda@ipmeusebio.ce.gov.br), Cargo: Operador. Lotação: IPME - Junta Médica Pericial.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791989542074_5nwf",
+      "timestamp": "2026-10-14T14:52:22.074Z",
+      "entity_type": "user",
+      "entity_id": "medico.perito@eusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Dr. Marcelo Cavalcante Holanda (medico.perito@eusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791989540175_29z3",
+      "timestamp": "2026-10-14T14:52:20.175Z",
+      "entity_type": "user",
+      "entity_id": "rh.operador@eusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Mariana Vasconcelos de Albuquerque (rh.operador@eusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1791989538225_rvdg",
+      "timestamp": "2026-10-14T14:52:18.225Z",
+      "entity_type": "user",
+      "entity_id": "juliana.castro@eusebio.ce.gov.br",
+      "action": "DELETE",
+      "details": "Operador Dra. Juliana Castro (juliana.castro@eusebio.ce.gov.br) excluído pelo Administrador Master.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
       "id": "audit_1791922927703_xqvx",
       "timestamp": "2026-10-13T20:22:07.703Z",
       "entity_type": "user",
@@ -22333,36 +22563,23 @@
       "created_at": "2026-01-01T08:00:00.000Z"
     },
     {
-      "id": "user_perito_medico",
-      "email": "medico.perito@eusebio.ce.gov.br",
-      "name": "Dr. Marcelo Cavalcante Holanda",
+      "id": "user_1791994029679",
+      "email": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "name": "luiz plinio",
       "role": "operator",
       "auth_provider": "corporate",
       "department": "IPME - Junta Médica Pericial",
-      "avatar_url": "/src/assets/images/avatar_perito_1790337176942.jpg",
-      "created_at": "2026-01-15T09:30:00.000Z"
-    },
-    {
-      "id": "user_rh_operador",
-      "email": "rh.operador@eusebio.ce.gov.br",
-      "name": "Mariana Vasconcelos de Albuquerque",
-      "role": "operator",
-      "auth_provider": "corporate",
-      "department": "SME / IPME - Recursos Humanos & Benefícios",
-      "created_at": "2026-02-01T10:00:00.000Z"
-    },
-    {
-      "id": "user_1791922927703",
-      "email": "juliana.castro@eusebio.ce.gov.br",
-      "name": "Dra. Juliana Castro",
-      "role": "operator",
-      "auth_provider": "corporate",
-      "department": "IPME - Junta Médica",
-      "cargo": "Médica Perita Oficial",
+      "cargo": "Médico Perito Oficial",
       "telefone": "",
       "ativo": true,
       "avatar_url": "",
-      "created_at": "2026-10-13T20:22:07.703Z"
+      "password": "101010",
+      "email_verified": true,
+      "confirmation_code": "271877",
+      "confirmation_token": "act_1791994457656_tx3v8il",
+      "confirmation_sent_at": "2026-10-14T16:14:17.656Z",
+      "must_change_password": true,
+      "created_at": "2026-10-14T16:07:09.679Z"
     }
   ],
   "secretarias": [

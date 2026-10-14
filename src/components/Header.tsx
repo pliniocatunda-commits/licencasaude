@@ -20,8 +20,7 @@ import {
   Layers,
   Upload,
   Palette,
-  KeyRound,
-  AlertTriangle
+  KeyRound
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -127,27 +126,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
         </div>
       </div>
-
-      {/* Temporary Password Notification Banner */}
-      {currentUser.must_change_password && onOpenChangePassword && (
-        <div className="bg-amber-500/90 text-amber-950 px-4 py-1.5 text-xs font-medium flex items-center justify-between border-b border-amber-600/30 animate-in fade-in">
-          <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-amber-950 shrink-0 animate-bounce" />
-              <span>
-                <strong>Atenção ({currentUser.name}):</strong> Você está utilizando uma senha provisória definida pelo Administrador. Recomendamos cadastrar sua nova senha pessoal.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenChangePassword}
-              className="px-2.5 py-0.5 bg-amber-950 text-white rounded text-[11px] font-bold hover:bg-black transition-colors cursor-pointer shrink-0 shadow-xs"
-            >
-              Definir Nova Senha
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Main Top Bar (Order of Resolution: 3-Zone Contract) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -541,6 +519,23 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline">Cores</span>
           </button>
 
+          {/* Quick Change Password Button */}
+          {onOpenChangePassword && (
+            <button
+              type="button"
+              onClick={onOpenChangePassword}
+              title="Alterar Minha Senha de Acesso"
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                theme === 'azul_ipme_light'
+                  ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900'
+                  : 'border-amber-400/30 bg-amber-500/15 hover:bg-amber-500/25 text-amber-200'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+              <span>Alterar Senha</span>
+            </button>
+          )}
+
           {/* User Account Dropdown */}
           <div className="relative">
             <button
@@ -669,17 +664,10 @@ export const Header: React.FC<HeaderProps> = ({
                         setProfileDropdownOpen(false);
                         onOpenChangePassword();
                       }}
-                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-white hover:bg-white/15 flex items-center justify-between transition-colors cursor-pointer group"
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-amber-200 hover:bg-white/10 hover:text-amber-100 flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <KeyRound className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
-                        <span className="font-medium">Alterar Senha de Acesso</span>
-                      </div>
-                      {currentUser.must_change_password && (
-                        <span className="text-[10px] bg-amber-500/30 text-amber-200 border border-amber-400/50 px-1.5 py-0.5 rounded font-bold animate-pulse">
-                          Pendente
-                        </span>
-                      )}
+                      <KeyRound className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Alterar Minha Senha</span>
                     </button>
                   )}
                   <button

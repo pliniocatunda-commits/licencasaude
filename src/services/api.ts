@@ -85,9 +85,12 @@ class ApiService {
           return await fallbackFn();
         }
         const errJson = await res.json().catch(() => null);
-        if (res.status === 400 || res.status === 422 || res.status === 403) {
-          const businessErr = new Error(errJson?.message || `Erro no servidor IPME (${res.status})`);
-          (businessErr as any).isBusinessError = true;
+        if (res.status >= 400 && res.status < 500) {
+          const businessErr: any = new Error(errJson?.message || `Erro no servidor IPME (${res.status})`);
+          businessErr.isBusinessError = true;
+          if (errJson && typeof errJson === 'object') {
+            Object.assign(businessErr, errJson);
+          }
           throw businessErr;
         }
         return await fallbackFn();
@@ -455,17 +458,21 @@ class ApiService {
 
   // --- Users ---
   public async getUsers(): Promise<AppUser[]> {
-    return this.request(
+    const users = await this.request(
       '/api/users',
       { method: 'GET' },
       () => clientDb.getUsers()
     );
+    if (Array.isArray(users)) {
+      clientDb.syncUsers(users);
+    }
+    return users;
   }
 
   public async createUser(user: Partial<AppUser>): Promise<AppUser> {
     const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
     const actorRole = this.currentUser?.role || 'admin';
-    return this.request(
+    const created = await this.request(
       '/api/users',
       {
         method: 'POST',
@@ -473,6 +480,10 @@ class ApiService {
       },
       () => clientDb.saveUser(user, actorEmail, actorRole)
     );
+    if (created) {
+      clientDb.upsertUser(created);
+    }
+    return created;
   }
 
   public async saveUser(user: Partial<AppUser>): Promise<AppUser> {
@@ -482,7 +493,7 @@ class ApiService {
   public async updateUser(email: string, user: Partial<AppUser>): Promise<AppUser> {
     const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
     const actorRole = this.currentUser?.role || 'admin';
-    return this.request(
+    const updated = await this.request(
       `/api/users/${email}`,
       {
         method: 'PUT',
@@ -490,6 +501,10 @@ class ApiService {
       },
       () => clientDb.saveUser({ ...user, email }, actorEmail, actorRole)
     );
+    if (updated) {
+      clientDb.upsertUser(updated);
+    }
+    return updated;
   }
 
   public async deleteUser(email: string): Promise<boolean> {
@@ -505,41 +520,67 @@ class ApiService {
     );
   }
 
-  public async login(
-    email: string, 
-    password?: string, 
-    name?: string, 
-    provider: 'google' | 'corporate' = 'corporate'
-  ): Promise<AppUser> {
+  public async login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string): Promise<AppUser> {
     const user = await this.request(
       '/api/auth/login',
       {
         method: 'POST',
-        body: JSON.stringify({ email, password, name, provider }),
+        body: JSON.stringify({ email, name, provider, password }),
       },
-      () => clientDb.login(email, password, name, provider)
+      () => clientDb.login(email, name, provider, password)
     );
+    if (user) {
+      clientDb.upsertUser(user);
+    }
     this.setCurrentUser(user);
     return user;
   }
 
-  public async changePassword(
-    email: string, 
-    currentPassword?: string, 
-    newPassword?: string
-  ): Promise<AppUser> {
-    const res = await this.request(
+  public async confirmEmail(email: string, codeOrToken: string): Promise<AppUser> {
+    const actorEmail = this.currentUser?.email || 'Sistema IPME';
+    const user = await this.request(
+      '/api/auth/confirm-email',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, code: codeOrToken, actorEmail }),
+      },
+      () => clientDb.confirmEmail(email, codeOrToken, actorEmail)
+    );
+    if (user) {
+      clientDb.upsertUser(user);
+    }
+    return user;
+  }
+
+  public async resendConfirmationEmail(email: string): Promise<{ success: boolean; code: string; token: string; email: string; name: string }> {
+    const actorEmail = this.currentUser?.email || 'Sistema IPME';
+    return this.request(
+      '/api/auth/resend-confirmation',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, actorEmail }),
+      },
+      () => clientDb.resendConfirmationEmail(email, actorEmail)
+    );
+  }
+
+  public async changePassword(email: string, currentPass: string, newPass: string): Promise<AppUser> {
+    const actorEmail = this.currentUser?.email || email;
+    const user = await this.request(
       '/api/auth/change-password',
       {
         method: 'POST',
-        body: JSON.stringify({ email, currentPassword, newPassword }),
+        body: JSON.stringify({ email, currentPassword: currentPass, newPassword: newPass, actorEmail }),
       },
-      () => clientDb.changePassword(email, currentPassword, newPassword)
+      () => clientDb.changePassword(email, currentPass, newPass, actorEmail)
     );
-    if (this.currentUser && this.currentUser.email.toLowerCase() === email.toLowerCase()) {
-      this.setCurrentUser(res);
+    if (user) {
+      clientDb.upsertUser(user);
     }
-    return res;
+    if (this.currentUser && this.currentUser.email.toLowerCase() === email.toLowerCase()) {
+      this.setCurrentUser(user);
+    }
+    return user;
   }
 
   public async importCadastroCSV(

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { AppUser } from '../types/index.ts';
-import { X, Lock, Mail, ShieldCheck, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, Mail, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (email: string, password?: string, name?: string, provider?: 'google' | 'corporate') => Promise<void>;
+  onLogin: (email: string, name?: string, provider?: 'google' | 'corporate', password?: string) => Promise<void>;
   currentUser: AppUser;
 }
 
@@ -17,7 +17,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,17 +25,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleCorporateLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
+    if (!email) {
       setError('Informe seu email corporativo.');
-      return;
-    }
-    if (!password.trim()) {
-      setError('Informe a senha de acesso da conta.');
       return;
     }
     setLoading(true);
     try {
-      await onLogin(email.trim().toLowerCase(), password.trim(), undefined, 'corporate');
+      await onLogin(email.trim().toLowerCase(), name.trim() || email.split('@')[0], 'corporate', password);
       onClose();
     } catch (err) {
       setError((err as Error).message || 'Erro ao autenticar.');
@@ -47,7 +43,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleGoogleMasterLogin = async () => {
     setLoading(true);
     try {
-      await onLogin('Pliniocatunda@gmail.com', undefined, 'Plínio Catunda (Superuser)', 'google');
+      await onLogin('Pliniocatunda@gmail.com', 'Plínio Catunda (Superuser)', 'google');
       onClose();
     } catch (err) {
       setError((err as Error).message || 'Erro ao conectar via Google.');
@@ -90,7 +86,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               type="button"
               onClick={handleGoogleMasterLogin}
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-semibold border border-slate-300 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-3 cursor-pointer"
+              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-semibold border border-slate-300 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-3"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -126,7 +122,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           {/* Corporate Email Login */}
           <form onSubmit={handleCorporateLogin} className="space-y-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              2. Autenticação de Operador (E-mail Corporativo & Senha)
+              2. Autenticação de Operador (E-mail Corporativo do Órgão)
             </span>
 
             <div>
@@ -147,27 +143,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Senha de Acesso *</span>
-                <span className="text-[10px] text-slate-400 font-normal">Definida pelo Administrador</span>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Senha de Acesso *
               </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Digite sua senha de acesso"
-                  className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Digite sua senha cadastrada"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
+              />
             </div>
 
             <button
@@ -176,7 +162,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Mail className="w-4 h-4" />
-              <span>{loading ? 'Validando...' : 'Acessar com E-mail e Senha'}</span>
+              <span>{loading ? 'Validando...' : 'Acessar com E-mail Corporativo'}</span>
             </button>
           </form>
 

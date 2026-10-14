@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AppUser } from '../types/index.ts';
+import { ActivateAccountModal } from './ActivateAccountModal.tsx';
+import { api } from '../services/api.ts';
 import { 
   ShieldCheck, 
   Lock, 
@@ -15,11 +17,12 @@ import {
   ArrowRight,
   ShieldAlert,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles
 } from 'lucide-react';
 
 interface LoginScreenProps {
-  onLogin: (email: string, password?: string, name?: string, provider?: 'google' | 'corporate') => Promise<void>;
+  onLogin: (email: string, name?: string, provider?: 'google' | 'corporate', password?: string) => Promise<void>;
   loading?: boolean;
 }
 
@@ -29,11 +32,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const [corporateEmail, setCorporateEmail] = useState('');
   const [corporatePassword, setCorporatePassword] = useState('');
-  const [showCorporatePassword, setShowCorporatePassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [showDemoHelp, setShowDemoHelp] = useState(false);
+
+  // Activation modal state
+  const [activateModalOpen, setActivateModalOpen] = useState(false);
+  const [activationEmail, setActivationEmail] = useState('');
+  const [activationCode, setActivationCode] = useState('');
 
   const isLoading = externalLoading || localLoading;
 
@@ -43,7 +51,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setSuccessMsg('');
     setLocalLoading(true);
     try {
-      await onLogin('Pliniocatunda@gmail.com', undefined, 'Plínio Catunda (Admin Master)', 'google');
+      await onLogin('Pliniocatunda@gmail.com', 'Plínio Catunda (Admin Master)', 'google');
       setSuccessMsg('Autenticação Google concluída com sucesso! Redirecionando...');
     } catch (err) {
       setError((err as Error).message || 'Erro ao autenticar com a conta Google Master.');
@@ -64,27 +72,48 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       return;
     }
 
-    if (!corporatePassword.trim()) {
-      setError('Por favor, digite a senha de acesso da conta.');
+    if (!corporatePassword) {
+      setError('Por favor, informe a senha cadastrada para seu e-mail corporativo.');
       return;
     }
 
     setLocalLoading(true);
     try {
-      await onLogin(emailTrim, corporatePassword.trim(), undefined, 'corporate');
+      await onLogin(emailTrim, undefined, 'corporate', corporatePassword);
       setSuccessMsg(`Autenticação corporativa confirmada para ${emailTrim}! Entrando...`);
-    } catch (err) {
-      setError((err as Error).message || 'Erro ao realizar login corporativo.');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao realizar login corporativo. Verifique e-mail e senha.');
     } finally {
       setLocalLoading(false);
     }
   };
 
   // Helper to fill demo operator
-  const handleFillDemo = (email: string) => {
+  const handleFillDemo = (email: string, pass: string) => {
     setCorporateEmail(email);
-    setCorporatePassword('123');
+    setCorporatePassword(pass);
     setError('');
+  };
+
+  const handleConfirmEmailApi = async (email: string, code: string) => {
+    await api.confirmEmail(email, code);
+  };
+
+  const handleResendEmailApi = async (email: string) => {
+    return await api.resendConfirmationEmail(email);
+  };
+
+  const handleSuccessActivatedLogin = async (email: string) => {
+    setCorporateEmail(email);
+    if (corporatePassword && corporatePassword.trim()) {
+      try {
+        await onLogin(email, undefined, 'corporate', corporatePassword.trim());
+      } catch {
+        setSuccessMsg(`Cadastro e e-mail confirmados com sucesso para ${email}! Digite sua senha cadastrada para entrar.`);
+      }
+    } else {
+      setSuccessMsg(`Cadastro e e-mail confirmados com sucesso para ${email}! Digite sua senha cadastrada para entrar.`);
+    }
   };
 
   return (
@@ -138,18 +167,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               Portal Integrado de Acesso Seguro
             </h1>
             <p className="text-xs sm:text-sm text-blue-200/80 max-w-xl mx-auto">
-              Identifique-se para acessar o painel de homologação pericial, emissão de certidões e gestão do corpo de servidores públicos municipais.
+              Identifique-se com sua conta Master Google ou com seu e-mail institucional corporativo e senha cadastrados.
             </p>
           </div>
 
           {/* Alert Messages */}
           {error && (
-            <div className="p-3.5 bg-red-950/80 border border-red-500/60 rounded-xl text-red-200 text-xs flex items-start gap-2.5 shadow-lg animate-in fade-in">
-              <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <span className="font-bold text-red-300">Atenção ao Acesso:</span>
-                <p className="text-[11px] leading-relaxed text-red-200/90">{error}</p>
+            <div className="p-3.5 bg-red-950/80 border border-red-500/60 rounded-xl text-red-200 text-xs flex items-start justify-between gap-2.5 shadow-lg animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-bold text-red-300">Atenção ao Acesso:</span>
+                  <p className="text-[11px] leading-relaxed text-red-200/90">{error}</p>
+                </div>
               </div>
+              {error.includes('pendente de confirmação') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivationEmail(corporateEmail);
+                    setActivateModalOpen(true);
+                  }}
+                  className="px-3 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold text-[11px] cursor-pointer whitespace-nowrap"
+                >
+                  Ativar Conta Agora
+                </button>
+              )}
             </div>
           )}
 
@@ -260,7 +303,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <UserCheck className="w-3 h-3 text-sky-300" />
                     <span>Usuários Operadores</span>
                   </span>
-                  <span className="text-[10px] text-sky-200/70 font-mono">E-mail Corporativo</span>
+                  <span className="text-[10px] text-sky-200/70 font-mono">E-mail + Senha</span>
                 </div>
 
                 <div>
@@ -268,12 +311,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <span>Acesso de Operadores</span>
                   </h2>
                   <p className="text-xs text-blue-200/80 mt-1 leading-relaxed">
-                    Para peritos médicos e analistas de RH credenciados pelo Administrador com e-mail institucional.
+                    Para peritos médicos e analistas de RH credenciados pelo Administrador com e-mail institucional e senha.
                   </p>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleCorporateLogin} className="space-y-3.5">
+                <form onSubmit={handleCorporateLogin} className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-200 mb-1">
                       E-mail Corporativo do Órgão *
@@ -289,33 +332,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                         className="w-full pl-9 pr-3 py-2.5 bg-[#0C1E37] border border-white/20 rounded-xl text-white placeholder-slate-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all"
                       />
                     </div>
-                    <span className="text-[10px] text-blue-200/60 block mt-1">
-                      O e-mail deve estar previamente cadastrado pelo Administrador.
-                    </span>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-200 mb-1 flex items-center justify-between">
-                      <span>Senha de Acesso da Conta *</span>
-                      <span className="text-[10px] text-sky-300 font-medium">Cadastrada pelo Administrador</span>
+                    <label className="block text-xs font-semibold text-slate-200 mb-1">
+                      Senha de Acesso *
                     </label>
                     <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
-                        type={showCorporatePassword ? 'text' : 'password'}
+                        type={showPassword ? 'text' : 'password'}
                         required
                         value={corporatePassword}
                         onChange={e => setCorporatePassword(e.target.value)}
-                        placeholder="Digite sua senha de acesso"
+                        placeholder="Informe sua senha cadastrada"
                         className="w-full pl-9 pr-9 py-2.5 bg-[#0C1E37] border border-white/20 rounded-xl text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowCorporatePassword(!showCorporatePassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-                        title={showCorporatePassword ? 'Ocultar senha' : 'Ver senha'}
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
                       >
-                        {showCorporatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -326,57 +364,66 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
                   >
                     <Mail className="w-4 h-4" />
-                    <span>{isLoading ? 'Verificando cadastro...' : 'Acessar com E-mail Corporativo'}</span>
+                    <span>{isLoading ? 'Autenticando...' : 'Acessar com E-mail e Senha'}</span>
                   </button>
                 </form>
 
                 {/* Quick demo helper toggle */}
-                <div className="pt-2">
+                <div className="pt-1">
                   <button
                     type="button"
                     onClick={() => setShowDemoHelp(!showDemoHelp)}
                     className="text-[11px] text-sky-300 hover:text-sky-200 flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     <Info className="w-3.5 h-3.5" />
-                    <span>{showDemoHelp ? 'Ocultar operadores de demonstração' : 'Ver operadores já credenciados no sistema'}</span>
+                    <span>{showDemoHelp ? 'Ocultar operadores de demonstração' : 'Ver operadores e senhas de teste'}</span>
                   </button>
 
                   {showDemoHelp && (
                     <div className="mt-2 p-2.5 bg-[#0C1E37] border border-sky-500/20 rounded-xl space-y-1.5 animate-in fade-in text-[11px]">
                       <div className="text-[10px] text-blue-200/60 font-semibold uppercase">
-                        Clique para preencher:
+                        Clique para preencher login e senha:
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleFillDemo('medico.perito@eusebio.ce.gov.br')}
-                        className="w-full text-left p-1.5 rounded hover:bg-white/10 flex items-center justify-between text-slate-200 transition-colors"
+                        onClick={() => handleFillDemo('medico.perito@eusebio.ce.gov.br', 'Perito@2026')}
+                        className="w-full text-left p-1.5 rounded hover:bg-white/10 flex items-center justify-between text-slate-200 transition-colors cursor-pointer"
                       >
                         <div>
                           <p className="font-semibold text-white">Dr. Marcelo Cavalcante Holanda</p>
                           <p className="text-[10px] text-sky-300 font-mono">medico.perito@eusebio.ce.gov.br</p>
                         </div>
-                        <span className="text-[10px] text-sky-200/70 font-mono">Perito Médico</span>
+                        <div className="text-right">
+                          <span className="text-[10px] text-emerald-300 font-mono block">Senha: Perito@2026</span>
+                          <span className="text-[10px] text-sky-200/60">Perito Médico</span>
+                        </div>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => handleFillDemo('rh.operador@eusebio.ce.gov.br')}
-                        className="w-full text-left p-1.5 rounded hover:bg-white/10 flex items-center justify-between text-slate-200 transition-colors"
+                        onClick={() => handleFillDemo('rh.operador@eusebio.ce.gov.br', 'RhOperador@2026')}
+                        className="w-full text-left p-1.5 rounded hover:bg-white/10 flex items-center justify-between text-slate-200 transition-colors cursor-pointer"
                       >
                         <div>
                           <p className="font-semibold text-white">Mariana Vasconcelos de Albuquerque</p>
                           <p className="text-[10px] text-sky-300 font-mono">rh.operador@eusebio.ce.gov.br</p>
                         </div>
-                        <span className="text-[10px] text-sky-200/70 font-mono">RH / Benefícios</span>
+                        <div className="text-right">
+                          <span className="text-[10px] text-emerald-300 font-mono block">Senha: RhOperador@2026</span>
+                          <span className="text-[10px] text-sky-200/60">RH Benefícios</span>
+                        </div>
                       </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-white/10 text-[10px] text-blue-200/60 flex items-center justify-between font-mono">
+              <div className="mt-3 pt-3 border-t border-white/10 text-[10px] text-blue-200/60 flex items-center justify-between font-mono">
                 <span>Domínio oficial: @eusebio.ce.gov.br</span>
-                <span>Validação em tempo real</span>
+                <span className="text-emerald-400/90 flex items-center gap-1 font-sans">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Acesso Direto Ativo
+                </span>
               </div>
             </div>
 
@@ -410,6 +457,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           IPME · Rua Irmã Ambrosina, nº 83 - Centro, Eusébio - CE · CEP: 61.760-000 · Tel: (85) 3260-1234
         </p>
       </footer>
+
+      {/* Activate Account Modal */}
+      <ActivateAccountModal
+        isOpen={activateModalOpen}
+        onClose={() => setActivateModalOpen(false)}
+        initialEmail={activationEmail}
+        initialCode={activationCode}
+        onConfirmEmail={handleConfirmEmailApi}
+        onResendEmail={handleResendEmailApi}
+        onSuccessLogin={handleSuccessActivatedLogin}
+      />
     </div>
   );
 };

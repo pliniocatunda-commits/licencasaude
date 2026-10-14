@@ -26,8 +26,12 @@ const DEFAULT_USERS: AppUser[] = [
     role: 'admin',
     auth_provider: 'google',
     department: 'IPME - Presidência & Governança',
+    cargo: 'Administrador Geral & Master do Sistema',
     avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
     created_at: '2026-01-01T08:00:00.000Z',
+    password: 'IpmeMaster@2026',
+    email_verified: true,
+    must_change_password: false,
   },
   {
     id: 'user_perito_medico',
@@ -37,12 +41,11 @@ const DEFAULT_USERS: AppUser[] = [
     auth_provider: 'corporate',
     department: 'IPME - Junta Médica Pericial',
     cargo: 'Médico Perito Oficial',
-    telefone: '(85) 3260-1234',
-    ativo: true,
-    password: '123',
-    must_change_password: true,
     avatar_url: '/src/assets/images/avatar_perito_1790337176942.jpg',
     created_at: '2026-01-15T09:30:00.000Z',
+    password: 'Perito@2026',
+    email_verified: true,
+    must_change_password: false,
   },
   {
     id: 'user_rh_operador',
@@ -52,11 +55,10 @@ const DEFAULT_USERS: AppUser[] = [
     auth_provider: 'corporate',
     department: 'SME / IPME - Recursos Humanos & Benefícios',
     cargo: 'Analista de Recursos Humanos',
-    telefone: '(85) 3260-5678',
-    ativo: true,
-    password: '123',
-    must_change_password: true,
     created_at: '2026-02-01T10:00:00.000Z',
+    password: 'RhOperador@2026',
+    email_verified: true,
+    must_change_password: false,
   },
 ];
 
@@ -674,6 +676,15 @@ class DatabaseManager {
             }
           }
 
+          if (parsed.users && Array.isArray(parsed.users)) {
+            for (const u of parsed.users) {
+              if (u.email_verified !== true) {
+                u.email_verified = true;
+                needsSave = true;
+              }
+            }
+          }
+
           for (const occ of parsed.occurrences) {
             if (occ.id && (occ.id.includes('LIC-') || occ.id.includes('READ-') || isNaN(Number(occ.id)))) {
               const oldId = occ.id;
@@ -713,19 +724,6 @@ class DatabaseManager {
             for (const log of parsed.audit_logs) {
               if (log.entity_type === 'occurrence' && idMap.has(log.entity_id)) {
                 log.entity_id = idMap.get(log.entity_id)!;
-                needsSave = true;
-              }
-            }
-          }
-
-          if (!parsed.users || !Array.isArray(parsed.users) || parsed.users.length === 0) {
-            parsed.users = DEFAULT_USERS;
-            needsSave = true;
-          } else {
-            for (const u of parsed.users) {
-              if (u.role === 'operator' && !u.password) {
-                u.password = '123';
-                u.must_change_password = true;
                 needsSave = true;
               }
             }
@@ -1458,10 +1456,9 @@ class DatabaseManager {
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
         ativo: isMaster ? true : (userData.ativo !== undefined ? userData.ativo : existing.ativo ?? true),
-        password: userData.password ? userData.password : (existing.password || '123'),
-        must_change_password: userData.must_change_password !== undefined 
-          ? userData.must_change_password 
-          : (userData.password && userData.password !== existing.password ? true : existing.must_change_password ?? false),
+        password: userData.password ? userData.password.trim() : existing.password || 'Ipme@2026',
+        email_verified: isMaster ? true : (userData.email_verified !== undefined ? userData.email_verified : existing.email_verified ?? true),
+        must_change_password: isMaster ? false : (userData.must_change_password !== undefined ? userData.must_change_password : existing.must_change_password ?? false),
       };
       this.data.users[existingIndex] = updated;
 
@@ -1469,7 +1466,7 @@ class DatabaseManager {
         entity_type: 'user',
         entity_id: updated.email,
         action: 'UPDATE',
-        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.${userData.password ? ' Senha atualizada pelo administrador.' : ''}`,
+        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}. E-mail Confirmado: ${updated.email_verified ? 'Sim' : 'Não'}.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1477,6 +1474,13 @@ class DatabaseManager {
       this.saveToDisk(this.data);
       return updated;
     } else {
+      const initialPassword = userData.password && userData.password.trim()
+        ? userData.password.trim()
+        : `Ipme@${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const confirmationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const confirmationToken = `act_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
       const created: AppUser = {
         id: userData.id || `user_${Date.now()}`,
         email: emailNorm,
@@ -1487,9 +1491,10 @@ class DatabaseManager {
         cargo: userData.cargo || (isMaster ? 'Administrador Geral' : 'Operador Pericial'),
         telefone: userData.telefone || '',
         ativo: userData.ativo !== undefined ? userData.ativo : true,
-        password: userData.password || '123',
-        must_change_password: userData.must_change_password !== undefined ? userData.must_change_password : true,
         avatar_url: userData.avatar_url || (isMaster ? '/src/assets/images/ipme_seal_logo_1790337165041.jpg' : ''),
+        password: initialPassword,
+        email_verified: true,
+        must_change_password: isMaster ? false : (userData.must_change_password !== undefined ? userData.must_change_password : false),
         created_at: now,
       };
       this.data.users.push(created);
@@ -1498,7 +1503,7 @@ class DatabaseManager {
         entity_type: 'user',
         entity_id: created.email,
         action: 'CREATE',
-        details: `Novo operador cadastrado pelo Administrador: ${created.name} (${created.email}), Cargo: ${created.cargo}. Lotação: ${created.department}. Senha de acesso definida.`,
+        details: `Novo operador cadastrado pelo Administrador: ${created.name} (${created.email}), Cargo: ${created.cargo}. Lotação: ${created.department}. Senha inicial definida. Acesso liberado.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1508,31 +1513,105 @@ class DatabaseManager {
     }
   }
 
-  public changePassword(email: string, currentPassword?: string, newPassword?: string): AppUser {
+  public confirmEmail(email: string, codeOrToken: string, actorEmail: string = 'Sistema IPME'): AppUser {
     const emailNorm = (email || '').trim().toLowerCase();
     const user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
     if (!user) {
-      throw new Error('Usuário não encontrado.');
+      throw new Error(`Operador com o e-mail "${email}" não encontrado.`);
     }
 
-    if (!newPassword || newPassword.trim().length < 4) {
-      throw new Error('A nova senha deve ter no mínimo 4 caracteres.');
+    const trimmedInput = (codeOrToken || '').trim();
+    const matchesCode = user.confirmation_code && user.confirmation_code === trimmedInput;
+    const matchesToken = user.confirmation_token && user.confirmation_token === trimmedInput;
+
+    if (!matchesCode && !matchesToken) {
+      throw new Error('Código ou link de confirmação inválido ou expirado. Verifique o código de 6 dígitos enviado para seu e-mail.');
     }
 
-    const savedPwd = user.password || '123';
-    if (currentPassword && currentPassword !== savedPwd) {
-      throw new Error('A senha atual informada está incorreta.');
+    user.email_verified = true;
+    user.confirmation_code = undefined;
+    user.confirmation_token = undefined;
+
+    this.addAuditLog({
+      entity_type: 'user',
+      entity_id: user.email,
+      action: 'UPDATE',
+      details: `Cadastro do operador ${user.name} (${user.email}) confirmado e ativado com sucesso via validação de e-mail institucional.`,
+      changed_by: actorEmail,
+      user_role: 'operator',
+    });
+
+    this.saveToDisk(this.data);
+    return user;
+  }
+
+  public resendConfirmationEmail(email: string, actorEmail: string = 'Sistema IPME'): { success: boolean; code: string; token: string; email: string; name: string } {
+    const emailNorm = (email || '').trim().toLowerCase();
+    const user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
+    if (!user) {
+      throw new Error(`Operador com o e-mail "${email}" não encontrado.`);
     }
 
-    user.password = newPassword.trim();
+    const confirmationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const confirmationToken = `act_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date().toISOString();
+
+    user.confirmation_code = confirmationCode;
+    user.confirmation_token = confirmationToken;
+    user.confirmation_sent_at = now;
+    user.email_verified = false;
+
+    this.addAuditLog({
+      entity_type: 'user',
+      entity_id: user.email,
+      action: 'UPDATE',
+      details: `Novo e-mail institucional de confirmação de cadastro despachado para ${user.name} (${user.email}) com código ${confirmationCode}.`,
+      changed_by: actorEmail,
+      user_role: 'admin',
+    });
+
+    this.saveToDisk(this.data);
+    return {
+      success: true,
+      code: confirmationCode,
+      token: confirmationToken,
+      email: user.email,
+      name: user.name,
+    };
+  }
+
+  public changePassword(email: string, currentPass: string, newPass: string, actorEmail?: string): AppUser {
+    const emailNorm = (email || '').trim().toLowerCase();
+    const user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
+    if (!user) {
+      throw new Error(`Usuário "${email}" não encontrado no sistema.`);
+    }
+
+    if (!newPass || newPass.trim().length < 6) {
+      throw new Error('A nova senha deve possuir no mínimo 6 caracteres.');
+    }
+
+    const currentTrim = (currentPass || '').trim();
+    const newTrim = newPass.trim();
+
+    // Verify current password if user has one configured
+    if (user.password && user.password !== currentTrim) {
+      throw new Error('A senha atual informada está incorreta. Verifique e tente novamente.');
+    }
+
+    if (user.password && user.password === newTrim) {
+      throw new Error('A nova senha não pode ser idêntica à senha atual.');
+    }
+
+    user.password = newTrim;
     user.must_change_password = false;
 
     this.addAuditLog({
       entity_type: 'user',
       entity_id: user.email,
       action: 'UPDATE',
-      details: `Senha de acesso do operador/usuário ${user.name} (${user.email}) alterada com sucesso.`,
-      changed_by: user.email,
+      details: `Senha de acesso alterada pelo próprio usuário (${user.name} - ${user.email}).`,
+      changed_by: actorEmail || user.email,
       user_role: user.role,
     });
 

@@ -49,6 +49,7 @@ export default function App() {
   const { themeConfig } = useAppTheme();
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => api.initUser());
   const [authLoading, setAuthLoading] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users'>('dashboard');
 
   // Core Data States
@@ -95,7 +96,6 @@ export default function App() {
   const [importCsvModalOpen, setImportCsvModalOpen] = useState(false);
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -143,6 +143,7 @@ export default function App() {
   useEffect(() => {
     const user = api.initUser();
     setCurrentUser(user);
+    api.getUsers().catch(() => {});
     if (user) {
       loadAllData();
     }
@@ -156,15 +157,10 @@ export default function App() {
     loadAllData();
   };
 
-  const handleLogin = async (
-    email: string, 
-    password?: string, 
-    name?: string, 
-    provider: 'google' | 'corporate' = 'corporate'
-  ) => {
+  const handleLogin = async (email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string) => {
     try {
       setAuthLoading(true);
-      const user = await api.login(email, password, name, provider);
+      const user = await api.login(email, name, provider, password);
       setCurrentUser(user);
       addToast('success', `Bem-vindo(a), ${user.name}!`);
       await loadAllData();
@@ -179,22 +175,23 @@ export default function App() {
     }
   };
 
-  const handleSavePassword = async (currentPassword: string, newPassword: string) => {
-    if (!currentUser) return;
-    try {
-      const updated = await api.changePassword(currentUser.email, currentPassword, newPassword);
-      setCurrentUser(updated);
-      addToast('success', 'Senha pessoal cadastrada com sucesso!');
-    } catch (err) {
-      addToast('error', (err as Error).message || 'Erro ao alterar a senha.');
-      throw err;
-    }
-  };
-
   const handleLogout = () => {
     api.logout();
     setCurrentUser(null);
     addToast('info', 'Sessão encerrada com sucesso.');
+  };
+
+  const handleSavePassword = async (currentPass: string, newPass: string) => {
+    if (!currentUser) return;
+    try {
+      const updated = await api.changePassword(currentUser.email, currentPass, newPass);
+      setCurrentUser(updated);
+      addToast('success', 'Sua senha de acesso foi alterada com sucesso!');
+      await loadAllData();
+    } catch (err) {
+      addToast('error', (err as Error).message || 'Erro ao alterar senha.');
+      throw err;
+    }
   };
 
   // Employee Handlers
@@ -876,15 +873,13 @@ export default function App() {
         currentUser={currentUser}
       />
 
-      {currentUser && (
-        <ChangePasswordModal
-          isOpen={changePasswordModalOpen}
-          onClose={() => setChangePasswordModalOpen(false)}
-          user={currentUser}
-          onSavePassword={handleSavePassword}
-          isFirstAccess={currentUser.must_change_password}
-        />
-      )}
+      <ChangePasswordModal
+        isOpen={changePasswordModalOpen}
+        onClose={() => setChangePasswordModalOpen(false)}
+        currentUser={currentUser}
+        onSavePassword={handleSavePassword}
+        isForcedFirstAccess={Boolean(currentUser?.must_change_password)}
+      />
 
       {/* Floating Toast Container */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">

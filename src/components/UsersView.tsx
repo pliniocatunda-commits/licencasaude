@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { AppUser, UserRole, Secretaria } from '../types/index.ts';
 import { formatarDataBR } from '../utils/validation.ts';
+import { EmailConfirmationModal } from './EmailConfirmationModal.tsx';
+import { SmtpConfigModal } from './SmtpConfigModal.tsx';
+import { api } from '../services/api.ts';
 import { 
   ShieldCheck, 
   UserPlus, 
@@ -23,9 +26,10 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Copy,
-  Check,
-  Share2
+  Sparkles,
+  Send,
+  Clock,
+  Server
 } from 'lucide-react';
 
 interface UsersViewProps {
@@ -56,35 +60,32 @@ export const UsersView: React.FC<UsersViewProps> = ({
   const [cargo, setCargo] = useState('Médico Perito Oficial');
   const [telefone, setTelefone] = useState('');
   const [ativo, setAtivo] = useState(true);
-  const [password, setPassword] = useState('123');
+
+  // Password & Security form states
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(true);
+  const [sendConfirmationEmail, setSendConfirmationEmail] = useState(true);
 
-  // Credential Success & Quick Reset Modal states
-  const [credentialSuccessData, setCredentialSuccessData] = useState<{
-    name: string;
-    email: string;
-    password: string;
-    cargo: string;
-    department: string;
-    isNew: boolean;
-    mustChange: boolean;
-  } | null>(null);
-
-  const [resetPasswordUser, setResetPasswordUser] = useState<AppUser | null>(null);
-  const [resetNewPassword, setResetNewPassword] = useState('123');
-  const [resetShowPassword, setResetShowPassword] = useState(false);
-  const [resetMustChange, setResetMustChange] = useState(true);
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetError, setResetError] = useState('');
-
-  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
-  const [copiedSuccessModal, setCopiedSuccessModal] = useState(false);
+  // Email Confirmation Modal state
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [previewUser, setPreviewUser] = useState<AppUser | null>(null);
+  const [smtpModalOpen, setSmtpModalOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState<string | null>(null);
+
+  // Helper to generate a random strong password
+  const handleGeneratePassword = () => {
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const newPwd = `Ipme@${randomDigits}#`;
+    setPassword(newPwd);
+    setConfirmPassword(newPwd);
+  };
 
   // Open modal for new operator
   const handleOpenNew = () => {
@@ -96,9 +97,12 @@ export const UsersView: React.FC<UsersViewProps> = ({
     setCargo('Médico Perito Oficial');
     setTelefone('');
     setAtivo(true);
-    setPassword('123');
-    setShowPassword(true);
-    setMustChangePassword(true);
+    const initialPass = `Ipme@${Math.floor(1000 + Math.random() * 9000)}`;
+    setPassword(initialPass);
+    setConfirmPassword(initialPass);
+    setShowPassword(false);
+    setMustChangePassword(false);
+    setSendConfirmationEmail(false);
     setError('');
     setModalOpen(true);
   };
@@ -114,26 +118,12 @@ export const UsersView: React.FC<UsersViewProps> = ({
     setTelefone(user.telefone || '');
     setAtivo(user.ativo !== false);
     setPassword('');
+    setConfirmPassword('');
     setShowPassword(false);
     setMustChangePassword(user.must_change_password ?? false);
+    setSendConfirmationEmail(false);
     setError('');
     setModalOpen(true);
-  };
-
-  const handleCopyAccessInfo = (targetUser: { name: string; email: string; password?: string; cargo?: string }) => {
-    const portalUrl = window.location.origin;
-    const pwdText = targetUser.password || '123';
-    const text = `*Portal IPME Eusébio - Credenciais de Acesso do Operador*\n\n` +
-      `Olá, ${targetUser.name}!\n` +
-      `Seu acesso institucional ao Sistema de Licenças Médicas & Readaptações do IPME foi configurado:\n\n` +
-      `🔗 *Link de Acesso:* ${portalUrl}\n` +
-      `📧 *E-mail Corporativo:* ${targetUser.email}\n` +
-      `🔑 *Senha de Acesso:* ${pwdText}\n\n` +
-      `No primeiro login, você poderá alterar esta senha para sua senha pessoal definitiva no menu do perfil.\n` +
-      `IPME - Instituto de Previdência do Município de Eusébio`;
-    navigator.clipboard.writeText(text);
-    setCopiedEmail(targetUser.email);
-    setTimeout(() => setCopiedEmail(null), 3000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,23 +134,35 @@ export const UsersView: React.FC<UsersViewProps> = ({
       return;
     }
 
-    // Validação de formato de e-mail corporativo
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailNorm)) {
       setError('Por favor, informe um endereço de e-mail válido.');
       return;
     }
 
-    if (!editingUser && (!password || password.trim().length < 3)) {
-      setError('Por favor, informe a senha de acesso da conta do operador (mínimo 3 caracteres).');
-      return;
+    if (!editingUser) {
+      if (!password || password.trim().length < 6) {
+        setError('A senha inicial do usuário deve possuir no mínimo 6 caracteres.');
+        return;
+      }
+      if (confirmPassword && confirmPassword.trim() !== password.trim()) {
+        setError('A confirmação da senha não coincide com a senha digitada.');
+        return;
+      }
+    } else if (password && password.trim()) {
+      if (password.trim().length < 6) {
+        setError('A nova senha deve possuir no mínimo 6 caracteres.');
+        return;
+      }
+      if (confirmPassword && confirmPassword.trim() !== password.trim()) {
+        setError('A confirmação da senha não coincide com a nova senha digitada.');
+        return;
+      }
     }
-
-    const effectivePassword = password.trim() ? password.trim() : (editingUser?.password || '123');
 
     setLoading(true);
     try {
-      await onSaveUser({
+      const payload: Partial<AppUser> = {
         email: emailNorm,
         name: name.trim(),
         role: emailNorm === 'pliniocatunda@gmail.com' ? 'admin' : role,
@@ -168,66 +170,28 @@ export const UsersView: React.FC<UsersViewProps> = ({
         cargo: cargo.trim(),
         telefone: telefone.trim(),
         ativo,
-        password: password.trim() ? password.trim() : undefined,
-        must_change_password: mustChangePassword,
         auth_provider: emailNorm === 'pliniocatunda@gmail.com' ? 'google' : 'corporate',
-      });
+        must_change_password: mustChangePassword,
+        email_verified: true,
+      };
 
-      const wasNew = !editingUser;
+      if (password && password.trim()) {
+        payload.password = password.trim();
+      }
+
+      await onSaveUser(payload);
       setModalOpen(false);
       setEditingUser(null);
       setError('');
-
-      // Open credentials confirmation modal with explicit access details
-      setCredentialSuccessData({
-        name: name.trim(),
-        email: emailNorm,
-        password: effectivePassword,
-        cargo: cargo.trim(),
-        department: department.trim(),
-        isNew: wasNew,
-        mustChange: mustChangePassword,
-      });
+      setSuccessBanner(
+        editingUser
+          ? `Operador "${name.trim()}" atualizado com sucesso!`
+          : `Operador "${name.trim()}" cadastrado com sucesso! Acesso corporativo liberado com a senha definida.`
+      );
     } catch (err) {
       setError((err as Error).message || 'Erro ao cadastrar operador.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Quick reset password submit
-  const handleConfirmResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetPasswordUser) return;
-    if (!resetNewPassword || resetNewPassword.trim().length < 3) {
-      setResetError('A nova senha deve possuir no mínimo 3 caracteres.');
-      return;
-    }
-
-    setResetLoading(true);
-    setResetError('');
-    try {
-      await onSaveUser({
-        email: resetPasswordUser.email,
-        password: resetNewPassword.trim(),
-        must_change_password: resetMustChange,
-      });
-
-      setCredentialSuccessData({
-        name: resetPasswordUser.name,
-        email: resetPasswordUser.email,
-        password: resetNewPassword.trim(),
-        cargo: resetPasswordUser.cargo || 'Operador Pericial',
-        department: resetPasswordUser.department || 'IPME',
-        isNew: false,
-        mustChange: resetMustChange,
-      });
-
-      setResetPasswordUser(null);
-    } catch (err) {
-      setResetError((err as Error).message || 'Erro ao redefinir senha do operador.');
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -256,6 +220,28 @@ export const UsersView: React.FC<UsersViewProps> = ({
     }
   };
 
+  // Handle immediate confirmation from email preview modal
+  const handleConfirmEmailNow = async (userEmail: string, code: string) => {
+    await api.confirmEmail(userEmail, code);
+    onRefresh();
+  };
+
+  // Resend confirmation email
+  const handleResendConfirmation = async (user: AppUser) => {
+    try {
+      const res = await api.resendConfirmationEmail(user.email);
+      setPreviewUser({
+        ...user,
+        confirmation_code: res.code,
+        confirmation_token: res.token,
+      });
+      setEmailModalOpen(true);
+      onRefresh();
+    } catch (err) {
+      alert((err as Error).message || 'Erro ao reenviar e-mail.');
+    }
+  };
+
   // Filtered users
   const filteredUsers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -278,6 +264,7 @@ export const UsersView: React.FC<UsersViewProps> = ({
     department: 'IPME - Presidência & Governança',
     cargo: 'Administrador Geral & Master do Sistema',
     ativo: true,
+    email_verified: true,
     created_at: '2026-01-01',
   };
 
@@ -295,17 +282,29 @@ export const UsersView: React.FC<UsersViewProps> = ({
             </h1>
           </div>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Área administrativa do IPME. O acesso master é restrito ao Administrador Geral (Google: <strong className="text-slate-700">pliniocatunda@gmail.com</strong>), que credencia e gerencia os operadores periciais e de RH com e-mail corporativo do órgão.
+            Área administrativa do IPME. O acesso master é restrito ao Administrador Geral (Google: <strong className="text-slate-700">pliniocatunda@gmail.com</strong>), que credencia e gerencia os operadores periciais e de RH com e-mail corporativo do órgão, senhas e autenticação por e-mail.
           </p>
         </div>
 
-        <button
-          onClick={handleOpenNew}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-2 self-start sm:self-auto cursor-pointer"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Cadastrar Novo Operador</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setSmtpModalOpen(true)}
+            className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+            title="Configurações de Envio de E-mail Real (SMTP)"
+          >
+            <Server className="w-4 h-4 text-sky-600" />
+            <span>Configuração de E-mail (SMTP)</span>
+          </button>
+
+          <button
+            onClick={handleOpenNew}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Cadastrar Novo Operador</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -369,86 +368,118 @@ export const UsersView: React.FC<UsersViewProps> = ({
                 Conta do Administrador Master do Sistema
               </h2>
               <p className="text-[11px] text-slate-500">
-                Superusuário permanente vinculado à conta Google oficial. Não pode ser excluído nem desativado.
+                Superusuário permanente com permissão irrestrita de gestão, cadastro de operadores e auditoria.
               </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
-            Admin Geral Permanente
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            Permanente & Inviolável
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200/80 text-xs">
-          <div>
-            <span className="text-[10px] text-amber-800 uppercase font-bold block">Nome</span>
-            <span className="font-bold text-slate-900">{masterUser.name}</span>
+        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-white border-2 border-amber-400 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+              <img
+                src={masterUser.avatar_url || '/src/assets/images/ipme_seal_logo_1790337165041.jpg'}
+                alt="Brasão IPME"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900 text-sm">{masterUser.name}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-800 border border-amber-400/40">
+                  ADMIN MASTER
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  E-mail Confirmado
+                </span>
+              </div>
+              <div className="text-xs font-mono text-slate-600 mt-0.5">
+                {masterUser.email}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                {masterUser.department} · {masterUser.cargo || 'Administrador Geral'}
+              </div>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] text-amber-800 uppercase font-bold block">E-mail Google Vinculado</span>
-            <span className="font-mono font-semibold text-slate-900">{masterUser.email}</span>
-          </div>
-          <div>
-            <span className="text-[10px] text-amber-800 uppercase font-bold block">Lotação / Atribuição</span>
-            <span className="text-slate-800">{masterUser.department || 'IPME - Presidência & Governança'}</span>
-          </div>
-          <div>
-            <span className="text-[10px] text-amber-800 uppercase font-bold block">Poderes de Acesso</span>
-            <span className="text-emerald-700 font-semibold">Total (RBAC, Auditoria, Exclusões)</span>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Acesso 100% Protegido contra exclusão</span>
           </div>
         </div>
       </div>
 
-      {/* OPERATORS SECTION */}
+      {/* OPERATORS MANAGEMENT TABLE */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-sky-600" />
-              <span>Operadores Periciais & RH Credenciados ({operators.length})</span>
-            </h2>
-            <p className="text-xs text-slate-500">
-              Usuários com e-mail corporativo institucional que possuem permissão de entrada no sistema.
+            <h3 className="text-sm font-bold text-slate-900">
+              Operadores Periciais & Analistas Credenciados
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Gerencie senhas, status de ativação por e-mail e permissões periciais.
             </p>
           </div>
 
-          {/* Search bar */}
           <div className="relative w-full sm:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
+              placeholder="Buscar operador..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Buscar operador..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
             />
           </div>
         </div>
 
-        {/* Table of Operators */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-4">Operador</th>
+        {/* Success Banner */}
+        {successBanner && (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center justify-between shadow-2xs animate-in fade-in">
+            <div className="flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{successBanner}</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setSuccessBanner(null)} 
+              className="text-emerald-700 hover:text-emerald-950 p-1 rounded-md hover:bg-emerald-100/60 cursor-pointer transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider font-semibold text-slate-700 border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-4">Operador / Servidor</th>
                 <th className="py-3 px-4">E-mail Corporativo</th>
                 <th className="py-3 px-4">Cargo / Função</th>
                 <th className="py-3 px-4">Lotação / Setor</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-center">Acesso & Senha</th>
+                <th className="py-3 px-4 text-center">Status</th>
                 <th className="py-3 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {operators.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
-                    Nenhum operador corporativo encontrado com os critérios de busca.
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    Nenhum operador corporativo cadastrado ou encontrado na busca.
                   </td>
                 </tr>
               ) : (
                 operators.map(op => {
                   const isAtivo = op.ativo !== false;
+
                   return (
-                    <tr key={op.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={op.id || op.email} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-4">
                         <div className="font-bold text-slate-900">{op.name}</div>
                         {op.telefone && (
@@ -459,20 +490,9 @@ export const UsersView: React.FC<UsersViewProps> = ({
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 block max-w-fit">
+                        <span className="font-mono font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
                           {op.email}
                         </span>
-                        {op.must_change_password ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.2 rounded mt-1 font-medium">
-                            <KeyRound className="w-2.5 h-2.5 text-amber-600" />
-                            <span>1º Acesso Pendente</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 mt-1 font-medium">
-                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                            <span>Senha Ativa</span>
-                          </span>
-                        )}
                       </td>
                       <td className="py-3 px-4 text-slate-700">
                         {op.cargo || 'Operador Pericial'}
@@ -480,7 +500,13 @@ export const UsersView: React.FC<UsersViewProps> = ({
                       <td className="py-3 px-4 text-slate-600">
                         {op.department || 'IPME'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Liberado com Senha</span>
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(op)}
@@ -496,19 +522,20 @@ export const UsersView: React.FC<UsersViewProps> = ({
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(op)}
-                            className="p-1 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-100 cursor-pointer"
-                            title="Editar Operador"
+                            className="p-1.5 text-slate-600 hover:text-sky-700 rounded hover:bg-slate-100 cursor-pointer flex items-center gap-1 text-[11px]"
+                            title="Editar Dados / Alterar Senha"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Editar / Senha</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmEmail(op.email)}
-                            className="p-1 text-red-500 hover:text-red-700 rounded hover:bg-red-50 cursor-pointer"
+                            className="p-1.5 text-red-500 hover:text-red-700 rounded hover:bg-red-50 cursor-pointer"
                             title="Excluir Acesso do Operador"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -533,21 +560,21 @@ export const UsersView: React.FC<UsersViewProps> = ({
               <div className="flex items-center gap-2">
                 <UserPlus className="w-4 h-4 text-sky-200" />
                 <h2 className="text-sm font-bold">
-                  {editingUser ? 'Editar Cadastro de Operador' : 'Cadastrar Novo Usuário Operador'}
+                  {editingUser ? 'Editar Cadastro & Senha de Operador' : 'Cadastrar Novo Usuário Operador'}
                 </h2>
               </div>
               <button 
                 onClick={() => setModalOpen(false)} 
                 className="text-white/80 hover:text-white cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs max-h-[82vh] overflow-y-auto">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
                   <span>{error}</span>
                 </div>
@@ -632,58 +659,80 @@ export const UsersView: React.FC<UsersViewProps> = ({
                 />
               </div>
 
-              {/* Senha de Acesso */}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+              {/* SENHA DO USUÁRIO & CREDENCIAIS DE ACESSO */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block font-semibold text-slate-800">
-                    {editingUser ? 'Redefinir Senha do Operador' : 'Senha de Acesso da Conta *'}
+                  <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <KeyRound className="w-4 h-4 text-emerald-600" />
+                    <span>{editingUser ? 'Definir / Redefinir Senha de Acesso' : 'Senha Inicial de Acesso *'}</span>
                   </label>
                   <button
                     type="button"
-                    onClick={() => {
-                      const randomPass = 'Ipme@' + Math.floor(1000 + Math.random() * 9000);
-                      setPassword(randomPass);
-                      setShowPassword(true);
-                    }}
-                    className="text-[11px] font-semibold text-sky-700 hover:text-sky-900 cursor-pointer flex items-center gap-1"
+                    onClick={handleGeneratePassword}
+                    className="text-[11px] text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1 cursor-pointer bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
                   >
-                    <KeyRound className="w-3 h-3" />
-                    <span>Gerar Senha Automática</span>
+                    <Sparkles className="w-3 h-3 text-emerald-600" />
+                    <span>Gerar Senha Segura</span>
                   </button>
                 </div>
 
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder={editingUser ? 'Deixe em branco para manter a senha atual' : 'Digite a senha inicial (ex: Ipme@2026 ou 123)'}
-                    className="w-full px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-slate-900 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {editingUser ? 'Nova Senha (vazio para manter)' : 'Senha do Usuário *'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required={!editingUser}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Ex: Ipme@2026"
+                        className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Confirmar Senha {editingUser && '(opcional)'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required={!editingUser && !!password}
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        placeholder="Repita a senha"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-600 select-none">
-                  <input
-                    type="checkbox"
-                    checked={mustChangePassword}
-                    onChange={e => setMustChangePassword(e.target.checked)}
-                    className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-3.5 h-3.5"
-                  />
-                  <span>Exigir que o operador altere esta senha no primeiro acesso</span>
-                </label>
+                <div className="space-y-1.5 pt-1">
+                  <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={mustChangePassword}
+                      onChange={e => setMustChangePassword(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Exigir que o operador altere esta senha no primeiro login (opcional)</span>
+                  </label>
 
-                <p className="text-[10px] text-slate-500 leading-normal">
-                  {editingUser
-                    ? 'Informe uma nova senha apenas se desejar redefinir a credencial do operador.'
-                    : 'Esta é a senha que o operador informará na tela de login para ter acesso ao sistema. O operador poderá alterá-la para uma senha pessoal no menu do perfil.'}
-                </p>
+                  <div className="p-2 bg-emerald-50/70 border border-emerald-200/80 rounded-lg text-[11px] text-emerald-900 flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Acesso imediato ativo: o operador poderá acessar o sistema diretamente com este e-mail corporativo e a senha definida acima.</span>
+                  </div>
+                </div>
               </div>
 
               {/* Status Ativo */}
@@ -720,7 +769,7 @@ export const UsersView: React.FC<UsersViewProps> = ({
                   className="px-4 py-2 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>{loading ? 'Salvando...' : editingUser ? 'Atualizar Operador' : 'Confirmar Cadastro'}</span>
+                  <span>{loading ? 'Salvando...' : editingUser ? 'Atualizar Operador' : 'Confirmar & Criar Acesso'}</span>
                 </button>
               </div>
             </form>
@@ -760,6 +809,20 @@ export const UsersView: React.FC<UsersViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* EMAIL CONFIRMATION MODAL PREVIEW */}
+      <EmailConfirmationModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        user={previewUser}
+        onConfirmNow={handleConfirmEmailNow}
+      />
+
+      {/* SMTP CONFIGURATION & TEST MODAL */}
+      <SmtpConfigModal
+        isOpen={smtpModalOpen}
+        onClose={() => setSmtpModalOpen(false)}
+      />
     </div>
   );
 };

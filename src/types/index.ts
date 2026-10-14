@@ -126,7 +126,12 @@ export interface AppUser {
   avatar_url?: string;
   created_at: string;
   last_login?: string;
+  // Credenciais e Segurança de Acesso
   password?: string;
+  email_verified?: boolean;
+  confirmation_code?: string;
+  confirmation_token?: string;
+  confirmation_sent_at?: string;
   must_change_password?: boolean;
 }
 

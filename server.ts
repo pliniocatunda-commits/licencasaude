@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { db } from './src/server/database.ts';
+import { emailService } from './src/server/emailService.ts';
 
 dotenv.config();
 
@@ -348,11 +349,22 @@ async function startServer() {
     }
   });
 
-  app.post('/api/users', (req: Request, res: Response) => {
+  app.post('/api/users', async (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
       const user = db.saveUser(req.body, actorEmail, actorRole);
-      res.status(201).json({ success: true, data: user });
+
+      let emailDispatch = null;
+      if (user.confirmation_code && user.email_verified === false) {
+        emailDispatch = await emailService.sendConfirmationEmail(
+          user.email,
+          user.name,
+          user.confirmation_code,
+          user.password
+        );
+      }
+
+      res.status(201).json({ success: true, data: user, emailDispatch });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
     }
@@ -535,7 +547,7 @@ async function startServer() {
   // Auth endpoint for Google Master and corporate operators
   app.post('/api/auth/login', (req: Request, res: Response) => {
     try {
-      const { email, password, name, provider } = req.body;
+      const { email, name, provider, password } = req.body;
       if (!email || !email.trim()) {
         return res.status(400).json({ success: false, message: 'Email é obrigatório para autenticação.' });
       }
@@ -557,6 +569,9 @@ async function startServer() {
               department: 'IPME - Presidência & Governança',
               cargo: 'Administrador Geral & Master do Sistema',
               ativo: true,
+              password: password || 'IpmeMaster@2026',
+              email_verified: true,
+              must_change_password: false,
               avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
             },
             'Sistema IPME',
@@ -577,16 +592,12 @@ async function startServer() {
         });
       }
 
-      // Validação de senha para operadores corporativos
-      if (!isMaster) {
-        if (!password || !password.trim()) {
-          return res.status(400).json({ success: false, message: 'Informe a senha de acesso da conta corporativa.' });
-        }
-        const savedPwd = user.password || '123';
-        if (password !== savedPwd) {
+      // Password check for corporate operators
+      if (provider === 'corporate' || !isMaster) {
+        if (password && user.password && user.password !== password.trim()) {
           return res.status(401).json({
             success: false,
-            message: 'Senha incorreta. Verifique os dados digitados ou solicite a redefinição ao Administrador Master.'
+            message: 'Senha de acesso incorreta. Verifique os caracteres e tente novamente.'
           });
         }
       }
@@ -597,15 +608,66 @@ async function startServer() {
     }
   });
 
+  // Confirm user email endpoint
+  app.post('/api/auth/confirm-email', (req: Request, res: Response) => {
+    try {
+      const { email, code, token } = req.body;
+      const { actorEmail } = getActor(req);
+      const user = db.confirmEmail(email, code || token, actorEmail);
+      res.json({ success: true, message: 'Cadastro e e-mail confirmados com sucesso! Você já pode realizar login.', data: user });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  // Resend confirmation email endpoint
+  app.post('/api/auth/resend-confirmation', async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      const { actorEmail } = getActor(req);
+      const result = db.resendConfirmationEmail(email, actorEmail);
+      const emailDispatch = await emailService.sendConfirmationEmail(
+        result.email,
+        result.name,
+        result.code
+      );
+      res.json({
+        success: true,
+        message: 'Novo código de confirmação gerado e enviado para o e-mail corporativo.',
+        data: result,
+        emailDispatch,
+      });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  // SMTP Email Status endpoint
+  app.get('/api/admin/email-status', (_req: Request, res: Response) => {
+    res.json({ success: true, data: emailService.getStatus() });
+  });
+
+  // Admin test email endpoint
+  app.post('/api/admin/test-email', async (req: Request, res: Response) => {
+    try {
+      const { to } = req.body;
+      if (!to) {
+        return res.status(400).json({ success: false, message: 'Informe o endereço de e-mail de destino para o teste.' });
+      }
+      const result = await emailService.sendTestEmail(to);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  });
+
   // Change password endpoint
   app.post('/api/auth/change-password', (req: Request, res: Response) => {
     try {
       const { email, currentPassword, newPassword } = req.body;
-      if (!email || !newPassword) {
-        return res.status(400).json({ success: false, message: 'E-mail e nova senha são obrigatórios.' });
-      }
-      const user = db.changePassword(email, currentPassword, newPassword);
-      res.json({ success: true, data: user, message: 'Senha alterada com sucesso.' });
+      const { actorEmail } = getActor(req);
+      const user = db.changePassword(email, currentPassword, newPassword, actorEmail);
+      res.json({ success: true, message: 'Senha de acesso alterada com sucesso!', data: user });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
     }
