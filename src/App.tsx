@@ -143,9 +143,9 @@ export default function App() {
   useEffect(() => {
     const user = api.initUser();
     setCurrentUser(user);
-    api.getUsers().catch(() => {});
     if (user) {
       loadAllData();
+      api.getUsers().catch(() => {});
     }
   }, [loadAllData]);
 
@@ -178,7 +178,16 @@ export default function App() {
   const handleLogout = () => {
     api.logout();
     setCurrentUser(null);
-    addToast('info', 'Sessão encerrada com sucesso.');
+    setMetrics(null);
+    setEmployees([]);
+    setSecretarias([]);
+    setDoctors([]);
+    setOccurrences([]);
+    setAuditLogs([]);
+    setUsers([]);
+    setActiveTab('dashboard');
+    setLoginModalOpen(false);
+    addToast('info', 'Sessão encerrada com sucesso. Faça login para acessar o sistema.');
   };
 
   const handleSavePassword = async (currentPass: string, newPass: string) => {

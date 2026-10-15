@@ -31,8 +31,8 @@ interface HeaderProps {
   onOpenNewEmployee: () => void;
   onOpenExecutiveReport?: () => void;
   onOpenImportCsv?: () => void;
-  onSwitchUser: (user: AppUser) => void;
-  onOpenLoginModal: () => void;
+  onSwitchUser?: (user: AppUser) => void;
+  onOpenLoginModal?: () => void;
   onOpenChangePassword?: () => void;
   onLogout?: () => void;
 }
@@ -56,13 +56,14 @@ export const Header: React.FC<HeaderProps> = ({
   const [cadastrosDropdownOpen, setCadastrosDropdownOpen] = useState(false);
   const [licencasDropdownOpen, setLicencasDropdownOpen] = useState(false);
 
-  const isCadastrosActive = ['employees', 'secretarias', 'doctors'].includes(activeTab);
+  const isCadastrosActive = ['employees', 'secretarias', 'doctors', 'users'].includes(activeTab);
   const isLicencasActive = activeTab === 'occurrences';
 
   const getActiveCadastroLabel = () => {
     if (activeTab === 'employees') return 'Servidores';
     if (activeTab === 'secretarias') return 'Secretarias';
     if (activeTab === 'doctors') return 'Médicos';
+    if (activeTab === 'users') return 'Operadores';
     return null;
   };
 
@@ -70,33 +71,6 @@ export const Header: React.FC<HeaderProps> = ({
     if (activeTab === 'occurrences') return 'Ocorrências';
     return null;
   };
-
-  const demoAccounts: { label: string; email: string; name: string; role: UserRole; provider: 'google' | 'corporate'; dept: string }[] = [
-    {
-      label: 'Admin Geral (Google Master)',
-      email: 'Pliniocatunda@gmail.com',
-      name: 'Plínio Catunda',
-      role: 'admin',
-      provider: 'google',
-      dept: 'IPME Presidência & Governança',
-    },
-    {
-      label: 'Médico Perito Oficial (Operador)',
-      email: 'medico.perito@eusebio.ce.gov.br',
-      name: 'Dr. Marcelo Cavalcante',
-      role: 'operator',
-      provider: 'corporate',
-      dept: 'Junta Médica Pericial IPME',
-    },
-    {
-      label: 'Analista de RH (Operador)',
-      email: 'rh.operador@eusebio.ce.gov.br',
-      name: 'Mariana Vasconcelos',
-      role: 'operator',
-      provider: 'corporate',
-      dept: 'Recursos Humanos Previdenciários',
-    },
-  ];
 
   return (
     <header className={`sticky top-0 z-30 ${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} transition-colors duration-200`}>
@@ -291,6 +265,34 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </button>
 
+                {/* 4. Operadores & Acessos (Admin Master) */}
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('users');
+                      setCadastrosDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors cursor-pointer ${
+                      activeTab === 'users'
+                        ? 'bg-white/20 text-white font-semibold'
+                        : 'text-white/85 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-white flex items-center justify-between">
+                        <span>Operadores & Acessos</span>
+                        {activeTab === 'users' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>}
+                      </div>
+                      <p className="text-[10px] text-blue-100/70 truncate">
+                        Usuários, senhas e permissões
+                      </p>
+                    </div>
+                  </button>
+                )}
+
                 {/* 4. Importador CSV */}
                 {onOpenImportCsv && (
                   <>
@@ -480,62 +482,10 @@ export const Header: React.FC<HeaderProps> = ({
             <History className={`w-4 h-4 shrink-0 ${activeTab === 'audit' ? 'text-blue-200' : 'opacity-70'}`} />
             <span>Histórico / Trilha</span>
           </button>
-
-          {/* 5. Operadores (Admin) */}
-          {currentUser.role === 'admin' && (
-            <button
-              onClick={() => {
-                setActiveTab('users');
-                setCadastrosDropdownOpen(false);
-                setLicencasDropdownOpen(false);
-              }}
-              className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'users'
-                  ? themeConfig.navActiveBgClass
-                  : themeConfig.navHoverClass
-              }`}
-              title="Cadastro e Gestão de Usuários Operadores"
-            >
-              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-300" />
-              <span>Operadores</span>
-            </button>
-          )}
         </nav>
 
-        {/* Zone 3: User Profile & Theme Switcher */}
+        {/* Zone 3: User Profile */}
         <div className="flex items-center gap-2">
-          {/* Quick Theme Switcher Button */}
-          <button
-            type="button"
-            onClick={() => setThemeModalOpen(true)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95 ${
-              theme === 'azul_ipme_light'
-                ? 'border-[#BED4EF] bg-[#F0F5FC] hover:bg-[#E4EEFA] text-[#1E426D]'
-                : 'border-white/25 bg-white/15 hover:bg-white/25 text-white'
-            }`}
-            title="Mudar paleta de cores do sistema (Variações Oficiais do Azul IPME)"
-          >
-            <Palette className="w-4 h-4 text-blue-200 shrink-0" />
-            <span className="hidden sm:inline">Cores</span>
-          </button>
-
-          {/* Quick Change Password Button */}
-          {onOpenChangePassword && (
-            <button
-              type="button"
-              onClick={onOpenChangePassword}
-              title="Alterar Minha Senha de Acesso"
-              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                theme === 'azul_ipme_light'
-                  ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900'
-                  : 'border-amber-400/30 bg-amber-500/15 hover:bg-amber-500/25 text-amber-200'
-              }`}
-            >
-              <KeyRound className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-              <span>Alterar Senha</span>
-            </button>
-          )}
-
           {/* User Account Dropdown */}
           <div className="relative">
             <button
@@ -620,43 +570,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </div>
 
-                {/* Role Switcher for Rapid Verification & Testing */}
-                <div className="px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-blue-200/70">
-                  Alternar Conta / Perfil (Simulação)
-                </div>
-
-                {demoAccounts.map(acc => (
-                  <button
-                    key={acc.email}
-                    onClick={() => {
-                      onSwitchUser({
-                        id: `user_${acc.email}`,
-                        email: acc.email,
-                        name: acc.name,
-                        role: acc.role,
-                        auth_provider: acc.provider,
-                        department: acc.dept,
-                        created_at: new Date().toISOString(),
-                      });
-                    }}
-                    className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between hover:bg-white/10 transition-colors ${
-                      currentUser.email.toLowerCase() === acc.email.toLowerCase() ? 'bg-white/20 text-white font-medium' : 'text-white/80'
-                    }`}
-                  >
-                    <div>
-                      <p className="font-medium text-white">{acc.name}</p>
-                      <p className="text-[10px] text-blue-100/70">{acc.email}</p>
-                    </div>
-                    {currentUser.email.toLowerCase() === acc.email.toLowerCase() ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
-                    ) : (
-                      <span className="text-[10px] text-blue-200/70 font-mono">
-                        {acc.role}
-                      </span>
-                    )}
-                  </button>
-                ))}
-
                 <div className="border-t border-white/10 mt-2 pt-2 px-2 space-y-1">
                   {onOpenChangePassword && (
                     <button
@@ -670,13 +583,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Alterar Minha Senha</span>
                     </button>
                   )}
-                  <button
-                    onClick={onOpenLoginModal}
-                    className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Tela de Acesso / Trocar Conta</span>
-                  </button>
                   {onLogout && (
                     <button
                       onClick={() => {

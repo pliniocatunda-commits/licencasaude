@@ -20,7 +20,11 @@ class ApiService {
   }
 
   public logout(): void {
-    this.setCurrentUser(null);
+    this.currentUser = null;
+    try {
+      localStorage.removeItem('ipme_current_user');
+      sessionStorage.removeItem('ipme_current_user');
+    } catch {}
   }
 
   public initUser(): AppUser | null {
@@ -36,15 +40,15 @@ class ApiService {
   }
 
   public hasUserSession(): boolean {
-    return !!this.currentUser && !!this.actorEmail;
+    return !!this.currentUser && !!this.currentUser.email;
   }
 
   private get actorEmail(): string {
-    return this.currentUser?.email || "Pliniocatunda@gmail.com";
+    return this.currentUser?.email || "";
   }
 
   private get actorRole(): "admin" | "operator" {
-    return this.currentUser?.role || "admin";
+    return this.currentUser?.role || "operator";
   }
 
   private getHeaders(): HeadersInit {
