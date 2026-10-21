@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useAppTheme } from '../context/ThemeContext.tsx';
+import { signInWithGoogle } from '../services/googleAuth.ts';
 import { 
   ShieldCheck, 
   Lock, 
   Mail, 
   UserCheck, 
   CheckCircle2, 
-  Building2, 
   KeyRound, 
   Info,
   ArrowRight,
@@ -26,13 +26,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const { theme, themeConfig } = useAppTheme();
 
-  // Mode selection: 'corporate' (default for operators) or 'google' (for master admin)
-  const [loginMode, setLoginMode] = useState<'corporate' | 'google'>('corporate');
+  // Mode selection: 'corporate' (for operators) or 'master' (for Plínio Catunda / Admin Master via Google)
+  const [loginMode, setLoginMode] = useState<'corporate' | 'master'>('master');
 
   // Corporate credentials state
   const [corporateEmail, setCorporateEmail] = useState('');
   const [corporatePassword, setCorporatePassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [showCorporatePassword, setShowCorporatePassword] = useState(false);
 
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +41,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const isLoading = externalLoading || localLoading;
 
-  // 1. Corporate Operator Login
+  // 1. Corporate Operator Login (Institutional email + password)
   const handleCorporateLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -49,36 +49,61 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     const emailTrim = corporateEmail.trim().toLowerCase();
     if (!emailTrim) {
-      setError('Por favor, informe seu e-mail corporativo institucional.');
+      setError('Por favor, informe seu e-mail corporativo.');
       return;
     }
 
-    if (!corporatePassword) {
+    if (!corporatePassword || !corporatePassword.trim()) {
       setError('Por favor, informe sua senha cadastrada.');
       return;
     }
 
     setLocalLoading(true);
     try {
-      await onLogin(emailTrim, undefined, 'corporate', corporatePassword);
+      await onLogin(emailTrim, undefined, 'corporate', corporatePassword.trim());
       setSuccessMsg(`Autenticado com sucesso como ${emailTrim}! Entrando no sistema...`);
     } catch (err: any) {
-      setError(err.message || 'Erro ao realizar login corporativo. Verifique seu e-mail e senha.');
+      setError(err.message || 'Senha incorreta ou e-mail corporativo não cadastrado. Verifique os dados e tente novamente.');
     } finally {
       setLocalLoading(false);
     }
   };
 
-  // 2. Google Master Login (Plínio Catunda - pliniocatunda@gmail.com)
+  // 2. Real Google Master Login (strictly linked to pliniocatunda@gmail.com without password)
   const handleGoogleMasterLogin = async () => {
     setError('');
     setSuccessMsg('');
     setLocalLoading(true);
     try {
-      await onLogin('Pliniocatunda@gmail.com', 'Plínio Catunda (Admin Master)', 'google');
-      setSuccessMsg('Autenticação Google Master realizada com sucesso! Entrando...');
-    } catch (err) {
-      setError((err as Error).message || 'Erro ao autenticar com a conta Google Master.');
+      // 1. Trigger real Google popup via Firebase Auth & Google Identity
+      const googleUser = await signInWithGoogle();
+      const authenticatedEmail = (googleUser.email || '').trim().toLowerCase();
+
+      // 2. Verify account matches pliniocatunda@gmail.com
+      if (authenticatedEmail !== 'pliniocatunda@gmail.com') {
+        throw new Error(
+          `Acesso não autorizado: você autenticou como "${googleUser.email}". O acesso de Administrador Master é restrito exclusivamente à conta Google oficial: pliniocatunda@gmail.com.`
+        );
+      }
+
+      // 3. Log in without password
+      await onLogin(
+        'Pliniocatunda@gmail.com',
+        googleUser.displayName || 'Plínio Catunda (Administrador Master)',
+        'google'
+      );
+      setSuccessMsg('Autenticação Google confirmada com sucesso! Entrando no sistema...');
+    } catch (err: any) {
+      console.error('Google Sign-In Error:', err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('A janela de login do Google foi fechada antes de concluir a autenticação.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('O navegador bloqueou a janela pop-up do Google. Por favor, habilite pop-ups para este site.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError('Tentativa de autenticação cancelada.');
+      } else {
+        setError(err.message || 'Erro ao realizar autenticação com a conta Google.');
+      }
     } finally {
       setLocalLoading(false);
     }
@@ -140,13 +165,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       <header className={`${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} px-4 sm:px-8 py-3.5 shadow-xs transition-colors`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/30 p-1 flex items-center justify-center shadow-xs overflow-hidden shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-white border border-white/30 p-1 flex items-center justify-center shadow-xs overflow-hidden shrink-0">
               <img 
-                src="/src/assets/images/ipme_seal_logo_1790337165041.jpg" 
-                alt="Brasão IPME Eusébio" 
+                src="/logo-ipme.png" 
+                alt="Logomarca Oficial IPME" 
                 className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
                 onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== '/logo-ipme.png') {
+                    target.src = '/logo-ipme.png';
+                  }
                 }}
               />
             </div>
@@ -183,14 +212,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <div className={`bg-white rounded-2xl border-2 ${getThemeCardBorder()} p-6 sm:p-8 shadow-xl relative overflow-hidden transition-all duration-200`}>
             
             {/* Top decorative badge */}
-            <div className="text-center space-y-2 mb-6">
-              <div className={`w-16 h-16 mx-auto rounded-2xl bg-white border-2 ${getThemeCardBorder()} p-2 shadow-sm flex items-center justify-center overflow-hidden`}>
+            <div className="text-center space-y-3 mb-6">
+              <div className={`w-28 h-28 mx-auto rounded-2xl bg-white border-2 ${getThemeCardBorder()} p-2 shadow-sm flex items-center justify-center overflow-hidden`}>
                 <img 
-                  src="/src/assets/images/ipme_seal_logo_1790337165041.jpg" 
-                  alt="Brasão IPME" 
+                  src="/logo-ipme.png" 
+                  alt="Logomarca Oficial IPME Eusébio" 
                   className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
                   onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== '/logo-ipme.png') {
+                      target.src = '/logo-ipme.png';
+                    }
                   }}
                 />
               </div>
@@ -212,7 +245,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
 
             {/* Mode Selector Tabs (Single Card Toggle) */}
-            <div className="p-1 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-1 mb-6">
+            <div className="p-1 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-1 mb-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('master');
+                  setError('');
+                  setSuccessMsg('');
+                }}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  loginMode === 'master'
+                    ? 'bg-amber-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Admin Master (Google)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -228,23 +278,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               >
                 <UserCheck className="w-3.5 h-3.5" />
                 <span>Operador Corporativo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMode('google');
-                  setError('');
-                  setSuccessMsg('');
-                }}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  loginMode === 'google'
-                    ? 'bg-amber-600 text-white shadow-xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Admin Master (Google)</span>
               </button>
             </div>
 
@@ -263,7 +296,105 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 1: CORPORATE OPERATOR LOGIN */}
+            {/* TAB 1: MASTER ADMIN LOGIN (LINKED TO GOOGLE ACCOUNT - NO PASSWORD NEEDED) */}
+            {loginMode === 'master' && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl text-left space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+                      <Lock className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <span className="font-bold text-slate-900 text-xs block">Administrador Master Geral</span>
+                      <span className="text-[10px] text-amber-800 font-mono">Vinculação à Conta Google</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed pt-1 border-t border-amber-100">
+                    Acesso exclusivo vinculado diretamente à conta Google <strong className="text-slate-900 font-mono">pliniocatunda@gmail.com</strong> sem necessidade de criar ou digitar senha do sistema.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center p-1.5 shadow-2xs">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24">
+                          <path
+                            fill="#4285F4"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          />
+                          <path
+                            fill="#34A853"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          />
+                          <path
+                            fill="#FBBC05"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          />
+                          <path
+                            fill="#EA4335"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-800 block">Conta Google Autorizada</span>
+                        <span className="text-[11px] font-mono text-slate-500">pliniocatunda@gmail.com</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Master
+                    </span>
+                  </div>
+
+                  {/* Real Google Sign-In Button */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleMasterLogin}
+                    disabled={isLoading}
+                    className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm hover:shadow transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 active:scale-98"
+                  >
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    <span>{isLoading ? 'Conectando ao Google...' : 'Entrar com Conta Google (pliniocatunda@gmail.com)'}</span>
+                  </button>
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Ao clicar, o Google validará sua conta oficial em janela segura.
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMode('corporate');
+                      setError('');
+                    }}
+                    className="text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold underline cursor-pointer transition-colors"
+                  >
+                    Acesso para operadores corporativos (e-mail institucional e senha)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: CORPORATE OPERATOR LOGIN (Institutional email + password) */}
             {loginMode === 'corporate' && (
               <div className="space-y-4 animate-in fade-in duration-150">
                 <p className="text-[11px] text-slate-500 leading-relaxed text-center">
@@ -295,7 +426,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <div className="relative">
                       <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type={showCorporatePassword ? 'text' : 'password'}
                         required
                         value={corporatePassword}
                         onChange={e => setCorporatePassword(e.target.value)}
@@ -304,10 +435,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() => setShowCorporatePassword(!showCorporatePassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                        title={showCorporatePassword ? 'Ocultar senha' : 'Exibir senha'}
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showCorporatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -322,14 +454,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   </button>
                 </form>
 
-                {/* Switch to Master Google link */}
+                {/* Switch to Master link */}
                 <div className="text-center pt-2">
                   <button
                     type="button"
-                    onClick={() => setLoginMode('google')}
+                    onClick={() => {
+                      setLoginMode('master');
+                      setError('');
+                    }}
                     className="text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold underline cursor-pointer transition-colors"
                   >
-                    É Administrador Geral? Clique para acessar via Google
+                    É Administrador Geral? Clique aqui para acesso Google Master
                   </button>
                 </div>
 
@@ -378,71 +513,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 2: GOOGLE MASTER ADMIN LOGIN */}
-            {loginMode === 'google' && (
-              <div className="space-y-4 animate-in fade-in duration-150 text-center">
-                <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-left space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
-                      <Lock className="w-4 h-4" />
-                    </span>
-                    <div>
-                      <span className="font-bold text-slate-900 text-xs block">Administrador Master Geral</span>
-                      <span className="text-[10px] text-amber-800 font-mono">Gestão Completa & Governança</span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-600 leading-relaxed pt-1 border-t border-amber-100">
-                    Acesso exclusivo vinculado à conta Google do Administrador (<strong className="text-slate-900 font-mono">pliniocatunda@gmail.com</strong>) com poderes de gestão, cadastro de operadores e auditoria.
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleGoogleMasterLogin}
-                    disabled={isLoading}
-                    className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 hover:shadow-md active:scale-98"
-                  >
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span>{isLoading ? 'Autenticando via Google...' : 'Acessar com Conta Google (Admin Master)'}</span>
-                  </button>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setLoginMode('corporate')}
-                    className="text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold underline cursor-pointer transition-colors"
-                  >
-                    Voltar para Acesso de Operadores (E-mail e Senha)
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Card footer indicator */}
             <div className="mt-5 pt-3 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between font-mono">
               <span>IPME · Eusébio - CE</span>
               <span className="text-emerald-700 flex items-center gap-1 font-sans font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                Sessão Segura
+                Sessão Segura & Auditada
               </span>
             </div>
 

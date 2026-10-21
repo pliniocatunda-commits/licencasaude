@@ -182,12 +182,18 @@ export const PrintCertificateModal: React.FC<PrintCertificateModalProps> = ({
           
           {/* Official Header */}
           <div className="text-center border-b-2 border-slate-900 pb-5 space-y-1">
-            <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden border border-emerald-900/30 flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-2 overflow-hidden flex items-center justify-center">
               <img 
-                src="/src/assets/images/ipme_seal_logo_1790337165041.jpg" 
-                alt="Brasão IPME"
-                className="w-full h-full object-cover" 
+                src="/logo-ipme.png" 
+                alt="Logomarca Oficial IPME"
+                className="w-full h-full object-contain" 
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== '/logo-ipme.png') {
+                    target.src = '/logo-ipme.png';
+                  }
+                }}
               />
             </div>
             <h1 className="text-sm font-bold tracking-wider uppercase">

@@ -21727,6 +21727,26 @@
   ],
   "audit_logs": [
     {
+      "id": "audit_1792520809736_yz3x",
+      "timestamp": "2026-10-20T18:26:49.736Z",
+      "entity_type": "user",
+      "entity_id": "Pliniocatunda@gmail.com",
+      "action": "UPDATE",
+      "details": "Operador Plínio Catunda (Pliniocatunda@gmail.com) atualizado. Cargo: Diretor-Presidente do IPME. Função: Diretor-Presidente do Instituto. Presidente: Sim. Lotação: IPME - Presidência & Governança. Status: Ativo.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "audit_1792520803196_cile",
+      "timestamp": "2026-10-20T18:26:43.196Z",
+      "entity_type": "user",
+      "entity_id": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "action": "UPDATE",
+      "details": "Operador luiz plinio (plinio.catunda@ipmeusebio.ce.gov.br) atualizado. Cargo: Médico Perito Oficial. Função: Perito Oficial. Presidente: Sim. Lotação: IPME - Junta Médica Pericial. Status: Ativo.",
+      "changed_by": "Pliniocatunda@gmail.com",
+      "user_role": "admin"
+    },
+    {
       "id": "audit_1791994457656_s355",
       "timestamp": "2026-10-14T16:14:17.656Z",
       "entity_type": "user",
@@ -22559,8 +22579,17 @@
       "role": "admin",
       "auth_provider": "google",
       "department": "IPME - Presidência & Governança",
-      "avatar_url": "/src/assets/images/ipme_seal_logo_1790337165041.jpg",
-      "created_at": "2026-01-01T08:00:00.000Z"
+      "avatar_url": "/logo-ipme.png",
+      "created_at": "2026-01-01T08:00:00.000Z",
+      "email_verified": true,
+      "password": "IpmeMaster@2026",
+      "cargo": "Diretor-Presidente do IPME",
+      "funcao_pericial": "Diretor-Presidente do Instituto",
+      "is_presidente": true,
+      "actorEmail": "Pliniocatunda@gmail.com",
+      "actorRole": "admin",
+      "ativo": true,
+      "must_change_password": false
     },
     {
       "id": "user_1791994029679",
@@ -22579,7 +22608,11 @@
       "confirmation_token": "act_1791994457656_tx3v8il",
       "confirmation_sent_at": "2026-10-14T16:14:17.656Z",
       "must_change_password": true,
-      "created_at": "2026-10-14T16:07:09.679Z"
+      "created_at": "2026-10-14T16:07:09.679Z",
+      "funcao_pericial": "Perito Oficial",
+      "is_presidente": false,
+      "actorEmail": "Pliniocatunda@gmail.com",
+      "actorRole": "admin"
     }
   ],
   "secretarias": [

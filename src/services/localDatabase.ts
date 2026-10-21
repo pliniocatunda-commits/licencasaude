@@ -248,8 +248,14 @@ const INITIAL_DATA: DatabaseSchema = {
       role: "admin",
       auth_provider: "google",
       department: "IPME - Presidência & Governança",
-      avatar_url: "/src/assets/images/ipme_seal_logo_1790337165041.jpg",
-      created_at: "2026-01-01T08:00:00.000Z"
+      cargo: "Diretor-Presidente do IPME",
+      funcao_pericial: "Diretor-Presidente do Instituto",
+      is_presidente: true,
+      avatar_url: "/logo-ipme.png",
+      created_at: "2026-01-01T08:00:00.000Z",
+      password: "IpmeMaster@2026",
+      email_verified: true,
+      must_change_password: false
     },
     {
       id: "user_perito_medico",
@@ -258,8 +264,14 @@ const INITIAL_DATA: DatabaseSchema = {
       role: "operator",
       auth_provider: "corporate",
       department: "IPME - Junta Médica Pericial",
+      cargo: "Médico Perito Oficial",
+      funcao_pericial: "Coordenador da Junta Médica Pericial Oficial",
+      is_presidente: false,
       avatar_url: "/src/assets/images/avatar_perito_1790337176942.jpg",
-      created_at: "2026-01-15T09:30:00.000Z"
+      created_at: "2026-01-15T09:30:00.000Z",
+      password: "Perito@2026",
+      email_verified: true,
+      must_change_password: false
     },
     {
       id: "user_rh_operador",
@@ -268,7 +280,13 @@ const INITIAL_DATA: DatabaseSchema = {
       role: "operator",
       auth_provider: "corporate",
       department: "SME / IPME - Recursos Humanos & Benefícios",
-      created_at: "2026-02-01T10:00:00.000Z"
+      cargo: "Analista de Recursos Humanos",
+      funcao_pericial: "Coordenação de Gestão de Pessoas & DHO",
+      is_presidente: false,
+      created_at: "2026-02-01T10:00:00.000Z",
+      password: "RhOperador@2026",
+      email_verified: true,
+      must_change_password: false
     }
   ],
   secretarias: [
@@ -413,6 +431,27 @@ export class ClientDatabase {
               !/\d{3}\.\d{3}\.\d{3}-\d{2}/.test(s.sigla) &&
               !/^\d{3}$/.test(s.nome)
             );
+          }
+
+          if (parsed.users && Array.isArray(parsed.users)) {
+            let hasPresidente = parsed.users.some((u: AppUser) => u.is_presidente === true);
+            for (const u of parsed.users) {
+              if (u.email?.toLowerCase() === 'pliniocatunda@gmail.com') {
+                if (!u.cargo || u.cargo.includes('Administrador')) {
+                  u.cargo = 'Diretor-Presidente do IPME';
+                }
+                if (!u.funcao_pericial) {
+                  u.funcao_pericial = 'Diretor-Presidente do Instituto';
+                }
+                if (!hasPresidente) {
+                  u.is_presidente = true;
+                  hasPresidente = true;
+                }
+              }
+            }
+            if (!hasPresidente && parsed.users.length > 0) {
+              parsed.users[0].is_presidente = true;
+            }
           }
           return parsed;
         }
@@ -1315,6 +1354,15 @@ export class ClientDatabase {
     const now = new Date().toISOString();
     const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === emailNorm);
 
+    // Regra institucional: Apenas um único usuário pode ser designado como Presidente do IPME
+    if (userData.is_presidente === true) {
+      this.data.users.forEach(u => {
+        if (u.email.toLowerCase() !== emailNorm) {
+          u.is_presidente = false;
+        }
+      });
+    }
+
     if (existingIndex >= 0) {
       const existing = this.data.users[existingIndex];
       const updated: AppUser = {
@@ -1323,6 +1371,9 @@ export class ClientDatabase {
         email: existing.email,
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
+        cargo: userData.cargo !== undefined ? userData.cargo.trim() : existing.cargo,
+        funcao_pericial: userData.funcao_pericial !== undefined ? userData.funcao_pericial.trim() : existing.funcao_pericial,
+        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (existing.is_presidente ?? (isMaster ? true : false)),
         ativo: isMaster ? true : (userData.ativo !== undefined ? userData.ativo : existing.ativo ?? true),
         password: userData.password ? userData.password.trim() : existing.password || 'Ipme@2026',
         email_verified: isMaster ? true : (userData.email_verified !== undefined ? userData.email_verified : existing.email_verified ?? true),
@@ -1333,7 +1384,7 @@ export class ClientDatabase {
         entity_type: 'user',
         entity_id: updated.email,
         action: 'UPDATE',
-        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}. E-mail Confirmado: ${updated.email_verified ? 'Sim' : 'Não'}.`,
+        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Função: ${updated.funcao_pericial || 'N/A'}. Presidente: ${updated.is_presidente ? 'Sim' : 'Não'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1354,10 +1405,12 @@ export class ClientDatabase {
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
         department: userData.department || 'Prefeitura Municipal de Eusébio',
-        cargo: userData.cargo || (isMaster ? 'Administrador Geral' : 'Operador Pericial'),
+        cargo: userData.cargo ? userData.cargo.trim() : (isMaster ? 'Diretor-Presidente do IPME' : 'Operador Pericial'),
+        funcao_pericial: userData.funcao_pericial ? userData.funcao_pericial.trim() : (isMaster ? 'Diretor-Presidente do Instituto' : 'Operador da Junta Médica Pericial'),
+        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (isMaster ? true : false),
         telefone: userData.telefone || '',
         ativo: userData.ativo !== undefined ? userData.ativo : true,
-        avatar_url: userData.avatar_url || (isMaster ? '/src/assets/images/ipme_seal_logo_1790337165041.jpg' : ''),
+        avatar_url: userData.avatar_url || (isMaster ? '/logo-ipme.png' : ''),
         password: initialPassword,
         email_verified: true,
         must_change_password: isMaster ? false : (userData.must_change_password !== undefined ? userData.must_change_password : false),
@@ -1368,7 +1421,7 @@ export class ClientDatabase {
         entity_type: 'user',
         entity_id: newUser.email,
         action: 'CREATE',
-        details: `Novo operador corporativo credenciado pelo Administrador: ${newUser.name} (${newUser.email}). Cargo: ${newUser.cargo}. Senha inicial definida. Acesso liberado.`,
+        details: `Novo operador corporativo credenciado pelo Administrador: ${newUser.name} (${newUser.email}). Cargo: ${newUser.cargo}. Função: ${newUser.funcao_pericial}. Presidente: ${newUser.is_presidente ? 'Sim' : 'Não'}. Senha inicial definida. Acesso liberado.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1525,7 +1578,7 @@ export class ClientDatabase {
             password: password || 'IpmeMaster@2026',
             email_verified: true,
             must_change_password: false,
-            avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
+            avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
           },
           'Sistema IPME',
           'admin'
@@ -1541,8 +1594,18 @@ export class ClientDatabase {
       throw new Error(`O acesso do operador "${user.name}" está inativo. Solicite a reativação ao Administrador Master.`);
     }
 
-    if (provider === 'corporate' || !isMaster) {
-      if (password && user.password && user.password !== password.trim()) {
+    if (provider === 'google') {
+      if (!isMaster) {
+        throw new Error('Acesso negado. Apenas a conta Google oficial (pliniocatunda@gmail.com) tem permissão de Administrador Master.');
+      }
+      // Autenticado com sucesso via Google - sem necessidade de senha de sistema!
+    } else {
+      // Validação obrigatória de senha para operadores corporativos
+      const userPassword = user.password || (isMaster ? 'IpmeMaster@2026' : 'Ipme@2026');
+      if (!password || !password.trim()) {
+        throw new Error('Por favor, informe sua senha de acesso para entrar no sistema.');
+      }
+      if (userPassword !== password.trim()) {
         throw new Error('Senha de acesso incorreta. Verifique os caracteres e tente novamente.');
       }
     }

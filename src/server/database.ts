@@ -26,8 +26,10 @@ const DEFAULT_USERS: AppUser[] = [
     role: 'admin',
     auth_provider: 'google',
     department: 'IPME - Presidência & Governança',
-    cargo: 'Administrador Geral & Master do Sistema',
-    avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
+    cargo: 'Diretor-Presidente do IPME',
+    funcao_pericial: 'Diretor-Presidente do Instituto',
+    is_presidente: true,
+    avatar_url: '/logo-ipme.png',
     created_at: '2026-01-01T08:00:00.000Z',
     password: 'IpmeMaster@2026',
     email_verified: true,
@@ -41,6 +43,8 @@ const DEFAULT_USERS: AppUser[] = [
     auth_provider: 'corporate',
     department: 'IPME - Junta Médica Pericial',
     cargo: 'Médico Perito Oficial',
+    funcao_pericial: 'Coordenador da Junta Médica Pericial Oficial',
+    is_presidente: false,
     avatar_url: '/src/assets/images/avatar_perito_1790337176942.jpg',
     created_at: '2026-01-15T09:30:00.000Z',
     password: 'Perito@2026',
@@ -55,6 +59,8 @@ const DEFAULT_USERS: AppUser[] = [
     auth_provider: 'corporate',
     department: 'SME / IPME - Recursos Humanos & Benefícios',
     cargo: 'Analista de Recursos Humanos',
+    funcao_pericial: 'Coordenação de Gestão de Pessoas & DHO',
+    is_presidente: false,
     created_at: '2026-02-01T10:00:00.000Z',
     password: 'RhOperador@2026',
     email_verified: true,
@@ -677,11 +683,35 @@ class DatabaseManager {
           }
 
           if (parsed.users && Array.isArray(parsed.users)) {
+            let hasPresidente = parsed.users.some((u: AppUser) => u.is_presidente === true);
             for (const u of parsed.users) {
               if (u.email_verified !== true) {
                 u.email_verified = true;
                 needsSave = true;
               }
+              if (u.email.toLowerCase() === 'pliniocatunda@gmail.com') {
+                if (!u.password) {
+                  u.password = 'IpmeMaster@2026';
+                  needsSave = true;
+                }
+                if (!u.cargo || u.cargo.includes('Administrador')) {
+                  u.cargo = 'Diretor-Presidente do IPME';
+                  needsSave = true;
+                }
+                if (!u.funcao_pericial) {
+                  u.funcao_pericial = 'Diretor-Presidente do Instituto';
+                  needsSave = true;
+                }
+                if (!hasPresidente) {
+                  u.is_presidente = true;
+                  hasPresidente = true;
+                  needsSave = true;
+                }
+              }
+            }
+            if (!hasPresidente && parsed.users.length > 0) {
+              parsed.users[0].is_presidente = true;
+              needsSave = true;
             }
           }
 
@@ -1447,6 +1477,15 @@ class DatabaseManager {
     const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === emailNorm);
     const now = new Date().toISOString();
 
+    // Regra institucional: Apenas um único usuário pode ser designado como Presidente do IPME
+    if (userData.is_presidente === true) {
+      this.data.users.forEach(u => {
+        if (u.email.toLowerCase() !== emailNorm) {
+          u.is_presidente = false;
+        }
+      });
+    }
+
     if (existingIndex >= 0) {
       const existing = this.data.users[existingIndex];
       const updated: AppUser = {
@@ -1455,6 +1494,9 @@ class DatabaseManager {
         email: existing.email,
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
+        cargo: userData.cargo !== undefined ? userData.cargo.trim() : existing.cargo,
+        funcao_pericial: userData.funcao_pericial !== undefined ? userData.funcao_pericial.trim() : existing.funcao_pericial,
+        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (existing.is_presidente ?? (isMaster ? true : false)),
         ativo: isMaster ? true : (userData.ativo !== undefined ? userData.ativo : existing.ativo ?? true),
         password: userData.password ? userData.password.trim() : existing.password || 'Ipme@2026',
         email_verified: isMaster ? true : (userData.email_verified !== undefined ? userData.email_verified : existing.email_verified ?? true),
@@ -1466,7 +1508,7 @@ class DatabaseManager {
         entity_type: 'user',
         entity_id: updated.email,
         action: 'UPDATE',
-        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}. E-mail Confirmado: ${updated.email_verified ? 'Sim' : 'Não'}.`,
+        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Função: ${updated.funcao_pericial || 'N/A'}. Presidente: ${updated.is_presidente ? 'Sim' : 'Não'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1488,10 +1530,12 @@ class DatabaseManager {
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
         department: userData.department || 'IPME - Junta Médica',
-        cargo: userData.cargo || (isMaster ? 'Administrador Geral' : 'Operador Pericial'),
+        cargo: userData.cargo ? userData.cargo.trim() : (isMaster ? 'Diretor-Presidente do IPME' : 'Operador Pericial'),
+        funcao_pericial: userData.funcao_pericial ? userData.funcao_pericial.trim() : (isMaster ? 'Diretor-Presidente do Instituto' : 'Operador da Junta Médica Pericial'),
+        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (isMaster ? true : false),
         telefone: userData.telefone || '',
         ativo: userData.ativo !== undefined ? userData.ativo : true,
-        avatar_url: userData.avatar_url || (isMaster ? '/src/assets/images/ipme_seal_logo_1790337165041.jpg' : ''),
+        avatar_url: userData.avatar_url || (isMaster ? '/logo-ipme.png' : ''),
         password: initialPassword,
         email_verified: true,
         must_change_password: isMaster ? false : (userData.must_change_password !== undefined ? userData.must_change_password : false),
@@ -1503,7 +1547,7 @@ class DatabaseManager {
         entity_type: 'user',
         entity_id: created.email,
         action: 'CREATE',
-        details: `Novo operador cadastrado pelo Administrador: ${created.name} (${created.email}), Cargo: ${created.cargo}. Lotação: ${created.department}. Senha inicial definida. Acesso liberado.`,
+        details: `Novo operador cadastrado pelo Administrador: ${created.name} (${created.email}), Cargo: ${created.cargo}. Função: ${created.funcao_pericial}. Presidente: ${created.is_presidente ? 'Sim' : 'Não'}. Lotação: ${created.department}. Senha inicial definida. Acesso liberado.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });

@@ -123,9 +123,10 @@ export const EmailConfirmationModal: React.FC<EmailConfirmationModalProps> = ({
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 p-0.5 flex items-center justify-center overflow-hidden">
                   <img 
-                    src="/src/assets/images/ipme_seal_logo_1790337165041.jpg" 
-                    alt="IPME Brasão" 
+                    src="/logo-ipme.png" 
+                    alt="Logomarca Oficial IPME" 
                     className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
                 <div>

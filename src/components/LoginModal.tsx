@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppUser } from '../types/index.ts';
 import { X, Lock, Mail, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { signInWithGoogle } from '../services/googleAuth.ts';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -42,11 +43,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleGoogleMasterLogin = async () => {
     setLoading(true);
+    setError('');
     try {
-      await onLogin('Pliniocatunda@gmail.com', 'Plínio Catunda (Superuser)', 'google');
+      const googleUser = await signInWithGoogle();
+      const authenticatedEmail = (googleUser.email || '').trim().toLowerCase();
+      if (authenticatedEmail !== 'pliniocatunda@gmail.com') {
+        throw new Error(
+          `Apenas a conta Google oficial do Administrador Master (pliniocatunda@gmail.com) tem acesso. A conta ${googleUser.email} não tem autorização.`
+        );
+      }
+      await onLogin('Pliniocatunda@gmail.com', googleUser.displayName || 'Plínio Catunda (Admin Master)', 'google');
       onClose();
-    } catch (err) {
-      setError((err as Error).message || 'Erro ao conectar via Google.');
+    } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('A janela do Google foi fechada antes de concluir.');
+      } else {
+        setError(err.message || 'Erro ao autenticar via Google.');
+      }
     } finally {
       setLoading(false);
     }

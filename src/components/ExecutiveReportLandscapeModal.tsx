@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Occurrence, Employee, Secretaria, DashboardMetrics, OccurrenceType, Doctor } from '../types/index.ts';
+import { Occurrence, Employee, Secretaria, DashboardMetrics, OccurrenceType, Doctor, AppUser } from '../types/index.ts';
 import { formatarDataBR, calcularDiasPagos, formatarCPF, isPrevisaoRetornoEmAtraso, calcularDiasAtraso } from '../utils/validation.ts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
@@ -30,6 +30,8 @@ interface ExecutiveReportLandscapeModalProps {
   secretarias: Secretaria[];
   metrics: DashboardMetrics | null;
   doctors?: Doctor[];
+  currentUser?: AppUser | null;
+  users?: AppUser[];
 }
 
 export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeModalProps> = ({
@@ -39,12 +41,51 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
   employees,
   secretarias,
   doctors = [],
+  currentUser,
+  users = [],
 }) => {
   // Obter Médico Diretor designado
   const diretorMedico = useMemo(() => {
     if (!doctors || doctors.length === 0) return null;
     return doctors.find(d => d.is_diretor && d.ativo) || doctors.find(d => d.is_diretor) || doctors.find(d => d.ativo) || doctors[0];
   }, [doctors]);
+
+  // Obter Presidente do IPME designado no cadastro de operadores (único no sistema)
+  const presidenteIpme = useMemo(() => {
+    if (!users || users.length === 0) {
+      return {
+        name: 'Plínio Catunda',
+        cargo: 'Diretor-Presidente do IPME',
+        funcao_pericial: 'Diretor-Presidente do Instituto',
+        department: 'Instituto de Previdência de Eusébio - IPME'
+      };
+    }
+    const pres = users.find(u => u.is_presidente && u.ativo !== false) 
+      || users.find(u => u.is_presidente)
+      || users.find(u => u.email?.toLowerCase() === 'pliniocatunda@gmail.com')
+      || users.find(u => u.role === 'admin');
+
+    return pres || {
+      name: 'Plínio Catunda',
+      cargo: 'Diretor-Presidente do IPME',
+      funcao_pericial: 'Diretor-Presidente do Instituto',
+      department: 'Instituto de Previdência de Eusébio - IPME'
+    };
+  }, [users]);
+
+  // Obter Operador atualmente logado no sistema (substitui Mariana Vasconcelos)
+  const operadorLogado = useMemo(() => {
+    if (currentUser) return currentUser;
+    if (users && users.length > 0) {
+      return users.find(u => u.role === 'operator' && u.ativo !== false) || users[0];
+    }
+    return {
+      name: 'Operador Responsável',
+      cargo: 'Operador da Junta Médica Pericial',
+      funcao_pericial: 'Operador da Junta Médica Pericial',
+      department: 'Instituto de Previdência de Eusébio - IPME'
+    };
+  }, [currentUser, users]);
 
   // 1. Filtros para Emissão do Relatório Executivo
   const [tipoFiltro, setTipoFiltro] = useState<'all' | OccurrenceType>('all');
@@ -1276,12 +1317,18 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                 
                 {/* Brasão & Títulos Institucionais */}
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-white shadow-2xs shrink-0 flex items-center justify-center">
+                  <div className="w-18 h-18 rounded-xl overflow-hidden border border-slate-200 bg-white shadow-2xs shrink-0 flex items-center justify-center p-1">
                     <img 
-                      src="/src/assets/images/ipme_seal_logo_1790337165041.jpg" 
-                      alt="Brasão Oficial IPME" 
-                      className="w-full h-full object-cover"
+                      src="/logo-ipme.png" 
+                      alt="Logomarca Oficial IPME - Instituto de Previdência do Município de Eusébio" 
+                      className="w-full h-full object-contain"
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== '/logo-ipme.png') {
+                          target.src = '/logo-ipme.png';
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -1810,31 +1857,33 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                   </span>
                 </div>
 
-                {/* Assinatura 2: Gestão de Pessoas */}
+                {/* Assinatura 2: Operador Responsável Logado */}
                 <div className="space-y-1">
                   <div className="border-b border-slate-400 w-3/4 mx-auto h-9"></div>
-                  <span className="font-bold text-slate-900 block text-xs">
-                    Mariana Vasconcelos de Alencar
+                  <span className="font-bold text-slate-900 block text-xs break-words">
+                    {operadorLogado?.name || 'Operador Responsável'}
                   </span>
-                  <span className="text-[10px] text-slate-600 block">
-                    Coordenação de Gestão de Pessoas & DHO
+                  <span className="text-[10px] text-slate-600 block leading-tight">
+                    {operadorLogado?.funcao_pericial || operadorLogado?.cargo || 'Operador da Junta Médica Pericial'}
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono block">
-                    Prefeitura Municipal de Eusébio
+                    {operadorLogado?.cargo && operadorLogado?.funcao_pericial && operadorLogado.cargo !== operadorLogado.funcao_pericial
+                      ? `${operadorLogado.cargo} · ${operadorLogado.department || 'IPME'}`
+                      : (operadorLogado?.department || 'Instituto de Previdência de Eusébio - IPME')}
                   </span>
                 </div>
 
-                {/* Assinatura 3: Diretor-Presidente IPME */}
+                {/* Assinatura 3: Diretor-Presidente do IPME */}
                 <div className="space-y-1">
                   <div className="border-b border-slate-400 w-3/4 mx-auto h-9"></div>
-                  <span className="font-bold text-slate-900 block text-xs">
-                    Plínio Catunda
+                  <span className="font-bold text-slate-900 block text-xs break-words">
+                    {presidenteIpme?.name || 'Plínio Catunda'}
                   </span>
-                  <span className="text-[10px] text-slate-600 block">
-                    Diretor-Presidente do IPME
+                  <span className="text-[10px] text-slate-600 block leading-tight">
+                    {presidenteIpme?.cargo || 'Diretor-Presidente do IPME'}
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono block">
-                    Instituto de Previdência de Eusébio
+                    {presidenteIpme?.department || 'Instituto de Previdência do Município de Eusébio - IPME'}
                   </span>
                 </div>
 

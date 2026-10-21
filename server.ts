@@ -572,7 +572,7 @@ async function startServer() {
               password: password || 'IpmeMaster@2026',
               email_verified: true,
               must_change_password: false,
-              avatar_url: '/src/assets/images/ipme_seal_logo_1790337165041.jpg',
+              avatar_url: '/logo-ipme.png',
             },
             'Sistema IPME',
             'admin'
@@ -592,9 +592,24 @@ async function startServer() {
         });
       }
 
-      // Password check for corporate operators
-      if (provider === 'corporate' || !isMaster) {
-        if (password && user.password && user.password !== password.trim()) {
+      if (provider === 'google') {
+        if (!isMaster) {
+          return res.status(403).json({
+            success: false,
+            message: 'Acesso negado. Apenas a conta Google oficial (pliniocatunda@gmail.com) tem permissão de Administrador Master.'
+          });
+        }
+        // Autenticado com sucesso via Google - sem necessidade de senha de sistema!
+      } else {
+        // Validação obrigatória de senha para operadores corporativos
+        const userPassword = user.password || (isMaster ? 'IpmeMaster@2026' : 'Ipme@2026');
+        if (!password || !password.trim()) {
+          return res.status(401).json({
+            success: false,
+            message: 'Por favor, informe sua senha de acesso para entrar no sistema.'
+          });
+        }
+        if (userPassword !== password.trim()) {
           return res.status(401).json({
             success: false,
             message: 'Senha de acesso incorreta. Verifique os caracteres e tente novamente.'
@@ -602,10 +617,16 @@ async function startServer() {
         }
       }
 
+      user.last_login = new Date().toISOString();
       res.json({ success: true, data: user });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
     }
+  });
+
+  // Logout endpoint
+  app.post('/api/auth/logout', (_req: Request, res: Response) => {
+    res.json({ success: true, message: 'Sessão encerrada com sucesso.' });
   });
 
   // Confirm user email endpoint

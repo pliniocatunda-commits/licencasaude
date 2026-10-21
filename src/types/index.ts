@@ -121,6 +121,8 @@ export interface AppUser {
   auth_provider: 'google' | 'corporate';
   department: string;
   cargo?: string;
+  funcao_pericial?: string;
+  is_presidente?: boolean;
   telefone?: string;
   ativo?: boolean;
   avatar_url?: string;

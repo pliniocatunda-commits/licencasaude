@@ -1,5 +1,6 @@
 import { Employee, Occurrence, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor } from '../types/index.ts';
 import { clientDb } from './localDatabase.ts';
+import { signOutGoogle } from './googleAuth.ts';
 
 class ApiService {
   private currentUser: AppUser | null = null;
@@ -24,6 +25,12 @@ class ApiService {
     try {
       localStorage.removeItem('ipme_current_user');
       sessionStorage.removeItem('ipme_current_user');
+    } catch {}
+    try {
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    } catch {}
+    try {
+      signOutGoogle().catch(() => {});
     } catch {}
   }
 

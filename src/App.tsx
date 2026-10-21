@@ -851,6 +851,8 @@ export default function App() {
         secretarias={secretarias}
         metrics={metrics}
         doctors={doctors}
+        currentUser={currentUser}
+        users={users}
       />
 
       <ImportCsvModal

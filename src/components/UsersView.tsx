@@ -29,7 +29,8 @@ import {
   Sparkles,
   Send,
   Clock,
-  Server
+  Server,
+  Award
 } from 'lucide-react';
 
 interface UsersViewProps {
@@ -58,8 +59,17 @@ export const UsersView: React.FC<UsersViewProps> = ({
   const [role, setRole] = useState<UserRole>('operator');
   const [department, setDepartment] = useState('IPME - Junta Médica Pericial');
   const [cargo, setCargo] = useState('Médico Perito Oficial');
+  const [funcaoPericial, setFuncaoPericial] = useState('Operador da Junta Médica Pericial');
+  const [isPresidente, setIsPresidente] = useState(false);
   const [telefone, setTelefone] = useState('');
   const [ativo, setAtivo] = useState(true);
+
+  // Identificar o atual Presidente do IPME no sistema
+  const currentPresidente = useMemo(() => {
+    return users.find(u => u.is_presidente && u.ativo !== false) 
+      || users.find(u => u.is_presidente) 
+      || users.find(u => u.email?.toLowerCase() === 'pliniocatunda@gmail.com');
+  }, [users]);
 
   // Password & Security form states
   const [password, setPassword] = useState('');
@@ -95,6 +105,8 @@ export const UsersView: React.FC<UsersViewProps> = ({
     setRole('operator');
     setDepartment('IPME - Junta Médica Pericial');
     setCargo('Médico Perito Oficial');
+    setFuncaoPericial('Operador da Junta Médica Pericial');
+    setIsPresidente(false);
     setTelefone('');
     setAtivo(true);
     const initialPass = `Ipme@${Math.floor(1000 + Math.random() * 9000)}`;
@@ -114,7 +126,9 @@ export const UsersView: React.FC<UsersViewProps> = ({
     setName(user.name);
     setRole(user.role);
     setDepartment(user.department || 'IPME - Junta Médica Pericial');
-    setCargo(user.cargo || (user.role === 'admin' ? 'Administrador Master' : 'Operador Pericial'));
+    setCargo(user.cargo || (user.role === 'admin' ? 'Diretor-Presidente do IPME' : 'Operador Pericial'));
+    setFuncaoPericial(user.funcao_pericial || (user.is_presidente ? 'Diretor-Presidente do Instituto' : 'Operador da Junta Médica Pericial'));
+    setIsPresidente(!!user.is_presidente);
     setTelefone(user.telefone || '');
     setAtivo(user.ativo !== false);
     setPassword('');
@@ -168,6 +182,8 @@ export const UsersView: React.FC<UsersViewProps> = ({
         role: emailNorm === 'pliniocatunda@gmail.com' ? 'admin' : role,
         department: department.trim(),
         cargo: cargo.trim(),
+        funcao_pericial: funcaoPericial.trim(),
+        is_presidente: isPresidente,
         telefone: telefone.trim(),
         ativo,
         auth_provider: emailNorm === 'pliniocatunda@gmail.com' ? 'google' : 'corporate',
@@ -381,9 +397,10 @@ export const UsersView: React.FC<UsersViewProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-white border-2 border-amber-400 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
               <img
-                src={masterUser.avatar_url || '/src/assets/images/ipme_seal_logo_1790337165041.jpg'}
-                alt="Brasão IPME"
+                src={masterUser.avatar_url || '/logo-ipme.png'}
+                alt="Logomarca Oficial IPME"
                 className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
               />
             </div>
             <div>
@@ -481,7 +498,15 @@ export const UsersView: React.FC<UsersViewProps> = ({
                   return (
                     <tr key={op.id || op.email} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-bold text-slate-900">{op.name}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900">{op.name}</span>
+                          {op.is_presidente && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                              <Award className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Presidente IPME</span>
+                            </span>
+                          )}
+                        </div>
                         {op.telefone && (
                           <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                             <Phone className="w-3 h-3" />
@@ -495,7 +520,12 @@ export const UsersView: React.FC<UsersViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-slate-700">
-                        {op.cargo || 'Operador Pericial'}
+                        <div className="font-medium text-slate-800">{op.cargo || 'Operador Pericial'}</div>
+                        {op.funcao_pericial && op.funcao_pericial !== op.cargo && (
+                          <div className="text-[11px] text-slate-500 font-normal mt-0.5">
+                            {op.funcao_pericial}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-slate-600">
                         {op.department || 'IPME'}
@@ -614,11 +644,11 @@ export const UsersView: React.FC<UsersViewProps> = ({
                 </span>
               </div>
 
-              {/* Cargo / Função */}
+              {/* Cargo no Órgão & Função Pericial */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Cargo / Função Pericial *
+                    Cargo no Órgão / Cargo Efetivo *
                   </label>
                   <input
                     type="text"
@@ -628,8 +658,67 @@ export const UsersView: React.FC<UsersViewProps> = ({
                     placeholder="Ex: Médico Perito Oficial"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
                   />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    Cargo de provimento ou nomeação.
+                  </span>
                 </div>
 
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Função Pericial (Assinatura em Relatórios) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={funcaoPericial}
+                    onChange={e => setFuncaoPericial(e.target.value)}
+                    placeholder="Ex: Operador da Junta Médica Pericial"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    Aparecerá abaixo do nome na assinatura do relatório executivo.
+                  </span>
+                </div>
+              </div>
+
+              {/* DESIGNAÇÃO INSTITUCIONAL: PRESIDENTE DO IPME */}
+              <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <label htmlFor="is-presidente-toggle" className="font-bold text-slate-800 text-xs flex items-center gap-1.5 cursor-pointer">
+                      <Award className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Designar como Presidente do IPME</span>
+                    </label>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Define este usuário como o <strong>Diretor-Presidente do Instituto</strong>. Ele assinará oficialmente a 3ª via institucional nos Relatórios Executivos e Documentos do IPME.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                    <input
+                      id="is-presidente-toggle"
+                      type="checkbox"
+                      checked={isPresidente}
+                      onChange={e => setIsPresidente(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
+                {isPresidente ? (
+                  <div className="text-[10px] text-amber-900 bg-amber-100/90 px-2.5 py-1.5 rounded-lg border border-amber-300/80 font-medium">
+                    ⚡ <strong>Regra de Unicidade:</strong> Apenas um único usuário do sistema pode ser definido como Presidente do IPME. Ao salvar este cadastro com a opção ativa, qualquer outro operador anteriormente definido como presidente será desmarcado automaticamente.
+                  </div>
+                ) : currentPresidente && currentPresidente.email.toLowerCase() !== email.toLowerCase() && (
+                  <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                    <span>Presidente atualmente designado:</span>
+                    <strong className="text-slate-700">{currentPresidente.name}</strong>
+                    <span className="font-mono text-slate-400">({currentPresidente.email})</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Telefone e Lotação */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Telefone / Ramal Institucional
@@ -642,21 +731,20 @@ export const UsersView: React.FC<UsersViewProps> = ({
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
                   />
                 </div>
-              </div>
 
-              {/* Lotação / Setor */}
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Lotação / Departamento / Setor *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={department}
-                  onChange={e => setDepartment(e.target.value)}
-                  placeholder="Ex: IPME - Junta Médica Pericial"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
-                />
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Lotação / Departamento / Setor *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={department}
+                    onChange={e => setDepartment(e.target.value)}
+                    placeholder="Ex: IPME - Junta Médica Pericial"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
+                  />
+                </div>
               </div>
 
               {/* SENHA DO USUÁRIO & CREDENCIAIS DE ACESSO */}
