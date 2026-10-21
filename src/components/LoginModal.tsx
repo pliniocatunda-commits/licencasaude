@@ -145,10 +145,63 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
           )}
 
-          {/* Master Google Login Option */}
+          {/* Corporate Email Login (Opção 1 Principal) */}
+          <form onSubmit={handleCorporateLogin} className="space-y-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
+              1. Autenticação de Operador (E-mail Corporativo e Senha)
+            </span>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                E-mail Corporativo Institucional *
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="operador@eusebio.ce.gov.br"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3868A0] font-mono text-slate-900"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                O e-mail deve estar previamente cadastrado pelo Administrador.
+              </span>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Senha de Acesso *
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Digite sua senha cadastrada"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3868A0] text-slate-900"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 px-4 bg-[#3868A0] hover:bg-[#2B5485] text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Mail className="w-4 h-4" />
+              <span>{loading ? 'Validando...' : 'Acessar com E-mail Corporativo'}</span>
+            </button>
+          </form>
+
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="flex-shrink mx-3 text-slate-400 text-[10px] uppercase font-bold tracking-wider">OU</span>
+            <div className="flex-grow border-t border-slate-200"></div>
+          </div>
+
+          {/* Master Google Login Option (Opção 2) */}
           <div className="space-y-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              1. Conta Master Administrador Geral (Google Login)
+              2. Administrador Geral Master (Google / Senha Master)
             </span>
             <button
               type="button"
@@ -246,59 +299,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               )}
             </div>
           </div>
-
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-slate-200"></div>
-            <span className="flex-shrink mx-3 text-slate-400 text-[10px] uppercase font-bold tracking-wider">OU</span>
-            <div className="flex-grow border-t border-slate-200"></div>
-          </div>
-
-          {/* Corporate Email Login */}
-          <form onSubmit={handleCorporateLogin} className="space-y-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              2. Autenticação de Operador (E-mail Corporativo do Órgão)
-            </span>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                E-mail Corporativo Institucional *
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="operador@eusebio.ce.gov.br"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3868A0] font-mono text-slate-900"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                O e-mail deve estar previamente cadastrado pelo Administrador.
-              </span>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Senha de Acesso *
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Digite sua senha cadastrada"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3868A0] text-slate-900"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-[#3868A0] hover:bg-[#2B5485] text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <Mail className="w-4 h-4" />
-              <span>{loading ? 'Validando...' : 'Acessar com E-mail Corporativo'}</span>
-            </button>
-          </form>
 
           {/* Current Session Note */}
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-500 text-[11px]">

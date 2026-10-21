@@ -31,7 +31,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const { theme, themeConfig } = useAppTheme();
 
   // Mode selection: 'corporate' (for operators) or 'master' (for Plínio Catunda / Admin Master via Google)
-  const [loginMode, setLoginMode] = useState<'corporate' | 'master'>('master');
+  const [loginMode, setLoginMode] = useState<'corporate' | 'master'>('corporate');
 
   // Corporate credentials state
   const [corporateEmail, setCorporateEmail] = useState('');
@@ -294,25 +294,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             </div>
 
-            {/* Mode Selector Tabs (Single Card Toggle) */}
+            {/* Mode Selector Tabs (Single Card Toggle) - Operador Corporativo Primeiro */}
             <div className="p-1 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-1 mb-5">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMode('master');
-                  setError('');
-                  setSuccessMsg('');
-                }}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  loginMode === 'master'
-                    ? 'bg-amber-600 text-white shadow-xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Admin Master (Google)</span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -328,6 +311,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               >
                 <UserCheck className="w-3.5 h-3.5" />
                 <span>Operador Corporativo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('master');
+                  setError('');
+                  setSuccessMsg('');
+                }}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  loginMode === 'master'
+                    ? 'bg-amber-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Admin Master (Google)</span>
               </button>
             </div>
 
@@ -346,7 +346,126 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 1: MASTER ADMIN LOGIN (LINKED TO GOOGLE ACCOUNT - NO PASSWORD NEEDED) */}
+            {/* TAB 1: CORPORATE OPERATOR LOGIN (Institutional email + password) - PRINCIPAL */}
+            {loginMode === 'corporate' && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <p className="text-[11px] text-slate-500 leading-relaxed text-center">
+                  Para médicos peritos e analistas com e-mail institucional e senha cadastrada.
+                </p>
+
+                <form onSubmit={handleCorporateLogin} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      E-mail Corporativo *
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        value={corporateEmail}
+                        onChange={e => setCorporateEmail(e.target.value)}
+                        placeholder="operador@eusebio.ce.gov.br"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#3868A0] focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Senha de Acesso *
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showCorporatePassword ? 'text' : 'password'}
+                        required
+                        value={corporatePassword}
+                        onChange={e => setCorporatePassword(e.target.value)}
+                        placeholder="Informe sua senha cadastrada"
+                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-[#3868A0] focus:border-transparent transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCorporatePassword(!showCorporatePassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                        title={showCorporatePassword ? 'Ocultar senha' : 'Exibir senha'}
+                      >
+                        {showCorporatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2 ${getThemeButtonClass()}`}
+                  >
+                    <span>{isLoading ? 'Autenticando...' : 'Acessar com E-mail e Senha'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+
+                {/* Switch to Master link */}
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMode('master');
+                      setError('');
+                    }}
+                    className="text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold underline cursor-pointer transition-colors"
+                  >
+                    É Administrador Geral? Clique aqui para acesso Google Master
+                  </button>
+                </div>
+
+                {/* Collapsible Demo operators for fast evaluation */}
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDemoHelp(!showDemoHelp)}
+                    className="text-[11px] text-slate-500 hover:text-[#2B5485] flex items-center justify-center gap-1 mx-auto cursor-pointer transition-colors"
+                  >
+                    <Info className="w-3.5 h-3.5 text-[#3868A0]" />
+                    <span>{showDemoHelp ? 'Ocultar operadores de demonstração' : 'Ver operadores de teste pré-cadastrados'}</span>
+                  </button>
+
+                  {showDemoHelp && (
+                    <div className="mt-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 animate-in fade-in text-[11px]">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                        Clique para preencher:
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFillDemo('medico.perito@eusebio.ce.gov.br', 'Perito@2026')}
+                        className="w-full text-left p-1.5 rounded hover:bg-slate-200/60 flex items-center justify-between text-slate-700 transition-colors cursor-pointer"
+                      >
+                        <div>
+                          <p className="font-semibold text-slate-900">Dr. Marcelo Cavalcante</p>
+                          <p className="text-[10px] text-[#3868A0] font-mono">medico.perito@eusebio.ce.gov.br</p>
+                        </div>
+                        <span className="text-[10px] text-emerald-700 font-mono font-medium">Perito@2026</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleFillDemo('rh.operador@eusebio.ce.gov.br', 'RhOperador@2026')}
+                        className="w-full text-left p-1.5 rounded hover:bg-slate-200/60 flex items-center justify-between text-slate-700 transition-colors cursor-pointer"
+                      >
+                        <div>
+                          <p className="font-semibold text-slate-900">Mariana Vasconcelos (RH)</p>
+                          <p className="text-[10px] text-[#3868A0] font-mono">rh.operador@eusebio.ce.gov.br</p>
+                        </div>
+                        <span className="text-[10px] text-emerald-700 font-mono font-medium">RhOperador@2026</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: MASTER ADMIN LOGIN (LINKED TO GOOGLE ACCOUNT) */}
             {loginMode === 'master' && (
               <div className="space-y-4 animate-in fade-in duration-150">
                 <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl text-left space-y-2">
@@ -535,125 +654,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   >
                     Acesso para operadores corporativos (e-mail institucional e senha)
                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: CORPORATE OPERATOR LOGIN (Institutional email + password) */}
-            {loginMode === 'corporate' && (
-              <div className="space-y-4 animate-in fade-in duration-150">
-                <p className="text-[11px] text-slate-500 leading-relaxed text-center">
-                  Para médicos peritos e analistas com e-mail institucional e senha cadastrada.
-                </p>
-
-                <form onSubmit={handleCorporateLogin} className="space-y-3.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      E-mail Corporativo *
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        required
-                        value={corporateEmail}
-                        onChange={e => setCorporateEmail(e.target.value)}
-                        placeholder="operador@eusebio.ce.gov.br"
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#3868A0] focus:border-transparent transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Senha de Acesso *
-                    </label>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showCorporatePassword ? 'text' : 'password'}
-                        required
-                        value={corporatePassword}
-                        onChange={e => setCorporatePassword(e.target.value)}
-                        placeholder="Informe sua senha cadastrada"
-                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-[#3868A0] focus:border-transparent transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCorporatePassword(!showCorporatePassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                        title={showCorporatePassword ? 'Ocultar senha' : 'Exibir senha'}
-                      >
-                        {showCorporatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2 ${getThemeButtonClass()}`}
-                  >
-                    <span>{isLoading ? 'Autenticando...' : 'Acessar com E-mail e Senha'}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </form>
-
-                {/* Switch to Master link */}
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginMode('master');
-                      setError('');
-                    }}
-                    className="text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold underline cursor-pointer transition-colors"
-                  >
-                    É Administrador Geral? Clique aqui para acesso Google Master
-                  </button>
-                </div>
-
-                {/* Collapsible Demo operators for fast evaluation */}
-                <div className="pt-2 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowDemoHelp(!showDemoHelp)}
-                    className="text-[11px] text-slate-500 hover:text-[#2B5485] flex items-center justify-center gap-1 mx-auto cursor-pointer transition-colors"
-                  >
-                    <Info className="w-3.5 h-3.5 text-[#3868A0]" />
-                    <span>{showDemoHelp ? 'Ocultar operadores de demonstração' : 'Ver operadores de teste pré-cadastrados'}</span>
-                  </button>
-
-                  {showDemoHelp && (
-                    <div className="mt-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 animate-in fade-in text-[11px]">
-                      <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                        Clique para preencher:
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleFillDemo('medico.perito@eusebio.ce.gov.br', 'Perito@2026')}
-                        className="w-full text-left p-1.5 rounded hover:bg-slate-200/60 flex items-center justify-between text-slate-700 transition-colors cursor-pointer"
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-900">Dr. Marcelo Cavalcante</p>
-                          <p className="text-[10px] text-[#3868A0] font-mono">medico.perito@eusebio.ce.gov.br</p>
-                        </div>
-                        <span className="text-[10px] text-emerald-700 font-mono font-medium">Perito@2026</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleFillDemo('rh.operador@eusebio.ce.gov.br', 'RhOperador@2026')}
-                        className="w-full text-left p-1.5 rounded hover:bg-slate-200/60 flex items-center justify-between text-slate-700 transition-colors cursor-pointer"
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-900">Mariana Vasconcelos (RH)</p>
-                          <p className="text-[10px] text-[#3868A0] font-mono">rh.operador@eusebio.ce.gov.br</p>
-                        </div>
-                        <span className="text-[10px] text-emerald-700 font-mono font-medium">RhOperador@2026</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
