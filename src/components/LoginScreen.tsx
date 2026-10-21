@@ -12,7 +12,11 @@ import {
   ArrowRight,
   ShieldAlert,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertTriangle,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 
 interface LoginScreenProps {
@@ -33,6 +37,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [corporateEmail, setCorporateEmail] = useState('');
   const [corporatePassword, setCorporatePassword] = useState('');
   const [showCorporatePassword, setShowCorporatePassword] = useState(false);
+
+  // Master fallback state (for when Firebase domain authorization is pending or direct password desired)
+  const [showMasterPasswordForm, setShowMasterPasswordForm] = useState(false);
+  const [masterPassword, setMasterPassword] = useState('IpmeMaster@2026');
+  const [showMasterPassword, setShowMasterPassword] = useState(false);
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +84,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const handleGoogleMasterLogin = async () => {
     setError('');
     setSuccessMsg('');
+    setUnauthorizedDomain(null);
     setLocalLoading(true);
     try {
       // 1. Trigger real Google popup via Firebase Auth & Google Identity
@@ -95,7 +107,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       setSuccessMsg('Autenticação Google confirmada com sucesso! Entrando no sistema...');
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
+      const isUnauthorizedDomain = err.code === 'auth/unauthorized-domain' || 
+        (err.message && err.message.includes('auth/unauthorized-domain'));
+
+      if (isUnauthorizedDomain) {
+        const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'este domínio';
+        setUnauthorizedDomain(currentHost);
+        setShowMasterPasswordForm(true);
+        setError(`O domínio "${currentHost}" não está na lista de domínios autorizados do Firebase Authentication. Utilize a senha Master abaixo para acesso imediato.`);
+      } else if (err.code === 'auth/popup-closed-by-user') {
         setError('A janela de login do Google foi fechada antes de concluir a autenticação.');
       } else if (err.code === 'auth/popup-blocked') {
         setError('O navegador bloqueou a janela pop-up do Google. Por favor, habilite pop-ups para este site.');
@@ -106,6 +126,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       }
     } finally {
       setLocalLoading(false);
+    }
+  };
+
+  // 3. Master Password Fallback Login (Guaranteed immediate access even if Google domain is pending)
+  const handleMasterPasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    const pass = masterPassword.trim();
+    if (!pass) {
+      setError('Por favor, informe a senha do Administrador Master.');
+      return;
+    }
+    setLocalLoading(true);
+    try {
+      await onLogin('Pliniocatunda@gmail.com', 'Plínio Catunda (Administrador Master)', 'corporate', pass);
+      setSuccessMsg('Autenticado com sucesso como Administrador Master! Entrando no sistema...');
+    } catch (err: any) {
+      setError(err.message || 'Senha incorreta para o Administrador Master.');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleCopyDomain = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.hostname).then(() => {
+        setCopiedDomain(true);
+        setTimeout(() => setCopiedDomain(false), 3000);
+      });
     }
   };
 
@@ -377,6 +427,101 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   <p className="text-[10px] text-slate-400 text-center">
                     Ao clicar, o Google validará sua conta oficial em janela segura.
                   </p>
+
+                  {/* Unauthorized Domain Warning & Firebase Whitelist Guidance */}
+                  {unauthorizedDomain && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-left animate-in fade-in">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold text-amber-900 text-xs block">
+                            Domínio Pendente no Firebase Console
+                          </span>
+                          <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+                            O Firebase exige cadastrar o domínio de acesso para permitir autenticação pop-up:
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 p-1.5 bg-white border border-amber-300 rounded-lg">
+                        <code className="text-[10px] font-mono font-bold text-amber-950 truncate">
+                          {unauthorizedDomain}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={handleCopyDomain}
+                          className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-bold rounded flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                        >
+                          {copiedDomain ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedDomain ? 'Copiado!' : 'Copiar'}</span>
+                        </button>
+                      </div>
+
+                      <p className="text-[10px] text-amber-700 leading-snug">
+                        <strong>Passo a passo:</strong> No <em>Firebase Console &gt; Authentication &gt; Settings &gt; Authorized Domains</em>, adicione o domínio acima.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Contingency Master Password Access (Always available or auto-opened on domain error) */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowMasterPasswordForm(!showMasterPasswordForm)}
+                      className="w-full text-center text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold cursor-pointer py-1 flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>
+                        {showMasterPasswordForm
+                          ? 'Ocultar acesso com senha Master'
+                          : 'Acessar com Senha Master (Contingência imediata)'}
+                      </span>
+                    </button>
+
+                    {showMasterPasswordForm && (
+                      <form onSubmit={handleMasterPasswordLogin} className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 animate-in fade-in">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-800">
+                            Entrar com Senha de Administrador Master
+                          </span>
+                          <span className="text-[9px] font-bold uppercase bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                            Master Bypass
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Acesso garantido para <strong className="text-slate-800">pliniocatunda@gmail.com</strong> sem bloqueios de domínio ou rede.
+                        </p>
+
+                        <div className="relative">
+                          <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type={showMasterPassword ? 'text' : 'password'}
+                            required
+                            value={masterPassword}
+                            onChange={e => setMasterPassword(e.target.value)}
+                            placeholder="Senha Master (padrão: IpmeMaster@2026)"
+                            className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowMasterPassword(!showMasterPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                          >
+                            {showMasterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>{isLoading ? 'Autenticando Master...' : 'Acessar como Administrador Master'}</span>
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 text-center">

@@ -73,7 +73,18 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className={`sticky top-0 z-30 ${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} transition-colors duration-200`}>
+    <header className={`sticky top-0 z-40 ${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} transition-colors duration-200`}>
+      {/* Invisible backdrop to dismiss open dropdowns when clicking outside */}
+      {(cadastrosDropdownOpen || licencasDropdownOpen || profileDropdownOpen) && (
+        <div 
+          className="fixed inset-0 z-30 bg-transparent" 
+          onClick={() => {
+            setCadastrosDropdownOpen(false);
+            setLicencasDropdownOpen(false);
+            setProfileDropdownOpen(false);
+          }} 
+        />
+      )}
       {/* Tier 1: Main Brand & User Profile Row (Logomarca em dobro e Nome Institucional Completo) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex items-center justify-between gap-4">
         
@@ -124,9 +135,14 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User Profile & Direct Logout (Alinhamento harmonioso no topo) */}
         <div className="flex items-center gap-2 shrink-0">
           {/* User Account Dropdown */}
-          <div className="relative">
+          <div className="relative z-50">
             <button
-              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              type="button"
+              onClick={() => {
+                setProfileDropdownOpen(!profileDropdownOpen);
+                setCadastrosDropdownOpen(false);
+                setLicencasDropdownOpen(false);
+              }}
               className={`flex items-center gap-2.5 p-1.5 sm:p-2 rounded-xl transition-colors text-left border shadow-2xs ${themeConfig.profileBtnHoverClass} ${themeConfig.profileBtnBorderClass}`}
             >
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-700 border border-emerald-400/30 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden shadow-xs">
@@ -257,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Tier 2: Dedicated Navigation & Operations Bar (Linha dedicada abaixo para Menus com alinhamento perfeito) */}
-      <div className={`border-t ${
+      <div className={`relative z-20 border-t ${
         theme === 'azul_ipme_light' 
           ? 'bg-[#F2F6FC] border-[#C8DCF4]' 
           : 'bg-black/20 border-white/10'
@@ -265,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between gap-3">
           
           {/* Menu Principal de Navegação (Deslocado para a linha de baixo com total destaque) */}
-          <nav className={`flex items-center gap-1.5 sm:gap-2 font-medium text-xs sm:text-sm ${themeConfig.navTextClass} overflow-x-auto py-0.5 no-scrollbar`}>
+          <nav className={`flex items-center gap-1.5 sm:gap-2 font-medium text-xs sm:text-sm ${themeConfig.navTextClass} py-0.5`}>
             {/* 1. Painel */}
             <button
               onClick={() => {
@@ -284,8 +300,9 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* 2. MENU DROPDOWN DE CADASTROS */}
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 z-50">
               <button
+                type="button"
                 onClick={() => {
                   setCadastrosDropdownOpen(!cadastrosDropdownOpen);
                   setLicencasDropdownOpen(false);
@@ -311,8 +328,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Dropdown Menu Box - Cadastros */}
               {cadastrosDropdownOpen && (
                 <div 
-                  className={`absolute left-0 mt-2 w-64 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 overflow-hidden py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100`}
-                  onMouseLeave={() => setCadastrosDropdownOpen(false)}
+                  className={`absolute left-0 top-full mt-2 w-64 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100`}
                 >
                   <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-200/80 border-b border-white/10 mb-1">
                     Módulos de Cadastro
@@ -455,8 +471,9 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* 3. MENU DROPDOWN DE LICENÇAS E READAPTAÇÕES */}
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 z-50">
               <button
+                type="button"
                 onClick={() => {
                   setLicencasDropdownOpen(!licencasDropdownOpen);
                   setCadastrosDropdownOpen(false);
@@ -482,8 +499,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Dropdown Menu Box - Licenças e Readaptações */}
               {licencasDropdownOpen && (
                 <div 
-                  className={`absolute left-0 mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 overflow-hidden py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100`}
-                  onMouseLeave={() => setLicencasDropdownOpen(false)}
+                  className={`absolute left-0 top-full mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100`}
                 >
                   <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-200/80 border-b border-white/10 mb-1">
                     Gestão Pericial & Afastamentos
