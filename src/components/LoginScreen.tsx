@@ -38,12 +38,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [corporatePassword, setCorporatePassword] = useState('');
   const [showCorporatePassword, setShowCorporatePassword] = useState(false);
 
-  // Master fallback state (for when Firebase domain authorization is pending or direct password desired)
-  const [showMasterPasswordForm, setShowMasterPasswordForm] = useState(false);
+  // Master state
+  const [showMasterPasswordFallback, setShowMasterPasswordFallback] = useState(false);
   const [masterPassword, setMasterPassword] = useState('IpmeMaster@2026');
   const [showMasterPassword, setShowMasterPassword] = useState(false);
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
   const [copiedDomain, setCopiedDomain] = useState(false);
+  const [copiedOrigin, setCopiedOrigin] = useState(false);
+
+  const handleCopyOrigin = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.origin).then(() => {
+        setCopiedOrigin(true);
+        setTimeout(() => setCopiedOrigin(false), 3000);
+      });
+    }
+  };
 
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
@@ -106,23 +116,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       );
       setSuccessMsg('Autenticação Google confirmada com sucesso! Entrando no sistema...');
     } catch (err: any) {
-      console.error('Google Sign-In Error:', err);
-      const isUnauthorizedDomain = err.code === 'auth/unauthorized-domain' || 
-        (err.message && err.message.includes('auth/unauthorized-domain'));
+      const isUserClosure = 
+        err?.code === 'auth/popup-closed-by-user' || 
+        err?.code === 'auth/cancelled-popup-request';
+
+      if (!isUserClosure) {
+        console.warn('Google Sign-In notice:', err?.message || err);
+      } else {
+        console.info('Google popup window was closed by user.');
+      }
+
+      const isUnauthorizedDomain = err?.code === 'auth/unauthorized-domain' || 
+        (err?.message && err.message.includes('auth/unauthorized-domain'));
 
       if (isUnauthorizedDomain) {
         const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'este domínio';
         setUnauthorizedDomain(currentHost);
-        setShowMasterPasswordForm(true);
         setError(`O domínio "${currentHost}" não está na lista de domínios autorizados do Firebase Authentication. Utilize a senha Master abaixo para acesso imediato.`);
-      } else if (err.code === 'auth/popup-closed-by-user') {
+      } else if (err?.code === 'auth/popup-closed-by-user') {
         setError('A janela de login do Google foi fechada antes de concluir a autenticação.');
-      } else if (err.code === 'auth/popup-blocked') {
+      } else if (err?.code === 'auth/popup-blocked') {
         setError('O navegador bloqueou a janela pop-up do Google. Por favor, habilite pop-ups para este site.');
-      } else if (err.code === 'auth/cancelled-popup-request') {
+      } else if (err?.code === 'auth/cancelled-popup-request') {
         setError('Tentativa de autenticação cancelada.');
       } else {
-        setError(err.message || 'Erro ao realizar autenticação com a conta Google.');
+        setError(err?.message || 'Erro ao realizar autenticação com a conta Google.');
       }
     } finally {
       setLocalLoading(false);
@@ -436,6 +454,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
                         Clique para preencher:
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleFillDemo('pliniocatunda@gmail.com', 'IpmeMaster@2026')}
+                        className="w-full text-left p-1.5 rounded bg-amber-50/70 border border-amber-200 hover:bg-amber-100/70 flex items-center justify-between text-slate-700 transition-colors cursor-pointer"
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-slate-900">Plínio Catunda</p>
+                            <span className="text-[9px] uppercase font-bold bg-amber-200 text-amber-900 px-1 rounded">Master</span>
+                          </div>
+                          <p className="text-[10px] text-amber-800 font-mono">pliniocatunda@gmail.com</p>
+                        </div>
+                        <span className="text-[10px] text-amber-800 font-mono font-bold">IpmeMaster@2026</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleFillDemo('medico.perito@eusebio.ce.gov.br', 'Perito@2026')}
@@ -465,184 +499,181 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 2: MASTER ADMIN LOGIN (LINKED TO GOOGLE ACCOUNT) */}
+            {/* TAB 2: MASTER ADMIN LOGIN (PLÍNIO CATUNDA) - PRIORIDADE GOOGLE LOGIN */}
             {loginMode === 'master' && (
               <div className="space-y-4 animate-in fade-in duration-150">
                 <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl text-left space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
-                      <Lock className="w-4 h-4" />
-                    </span>
-                    <div>
-                      <span className="font-bold text-slate-900 text-xs block">Administrador Master Geral</span>
-                      <span className="text-[10px] text-amber-800 font-mono">Vinculação à Conta Google</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+                        <Lock className="w-4 h-4" />
+                      </span>
+                      <div>
+                        <span className="font-bold text-slate-900 text-xs block">Administrador Master Geral</span>
+                        <span className="text-[10px] text-amber-800 font-mono">Vinculação à Conta Google</span>
+                      </div>
                     </div>
+                    <span className="text-[10px] font-bold uppercase bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                      Superusuário
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 leading-relaxed pt-1 border-t border-amber-100">
-                    Acesso exclusivo vinculado diretamente à conta Google <strong className="text-slate-900 font-mono">pliniocatunda@gmail.com</strong> sem necessidade de criar ou digitar senha do sistema.
+                  <p className="text-[11px] text-slate-600 leading-relaxed pt-1 border-t border-amber-200/60">
+                    Acesso exclusivo vinculado diretamente à conta Google oficial <strong className="text-slate-900 font-mono">pliniocatunda@gmail.com</strong> sem necessidade de criar ou digitar senha do sistema.
                   </p>
                 </div>
 
-                <div className="space-y-3 pt-1">
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center p-1.5 shadow-2xs">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24">
-                          <path
-                            fill="#4285F4"
-                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                          />
-                          <path
-                            fill="#34A853"
-                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                          />
-                          <path
-                            fill="#FBBC05"
-                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                          />
-                          <path
-                            fill="#EA4335"
-                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <span className="font-semibold text-slate-800 block">Conta Google Autorizada</span>
-                        <span className="text-[11px] font-mono text-slate-500">pliniocatunda@gmail.com</span>
-                      </div>
+                {/* Card da Conta Google Autorizada */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-2xs">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                      </svg>
                     </div>
-                    <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Master
-                    </span>
+                    <div className="text-left">
+                      <span className="text-[10px] text-slate-500 font-medium block">Conta Google Autorizada</span>
+                      <span className="text-xs font-bold text-slate-900 font-mono">pliniocatunda@gmail.com</span>
+                    </div>
                   </div>
+                  <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                    Master
+                  </span>
+                </div>
 
-                  {/* Real Google Sign-In Button */}
+                {/* BOTÃO PRINCIPAL GOOGLE - Prioridade 1 Direta */}
+                <div className="space-y-1.5 pt-1">
                   <button
                     type="button"
                     onClick={handleGoogleMasterLogin}
                     disabled={isLoading}
-                    className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm hover:shadow transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 active:scale-98"
+                    className="w-full py-3 px-4 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 font-bold text-xs rounded-xl border-2 border-slate-300 hover:border-slate-400 shadow-sm hover:shadow transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 group active:scale-98"
                   >
                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
-                    <span>{isLoading ? 'Conectando ao Google...' : 'Entrar com Conta Google (pliniocatunda@gmail.com)'}</span>
+                    <span className="text-slate-800 group-hover:text-slate-900 font-bold">
+                      {isLoading ? 'Conectando à Conta Google...' : 'Entrar com Conta Google (pliniocatunda@gmail.com)'}
+                    </span>
                   </button>
-                  <p className="text-[10px] text-slate-400 text-center">
+                  <p className="text-[10px] text-slate-500 text-center">
                     Ao clicar, o Google validará sua conta oficial em janela segura.
                   </p>
-
-                  {/* Unauthorized Domain Warning & Firebase Whitelist Guidance */}
-                  {unauthorizedDomain && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-left animate-in fade-in">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-bold text-amber-900 text-xs block">
-                            Domínio Pendente no Firebase Console
-                          </span>
-                          <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
-                            O Firebase exige cadastrar o domínio de acesso para permitir autenticação pop-up:
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 p-1.5 bg-white border border-amber-300 rounded-lg">
-                        <code className="text-[10px] font-mono font-bold text-amber-950 truncate">
-                          {unauthorizedDomain}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={handleCopyDomain}
-                          className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-bold rounded flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                        >
-                          {copiedDomain ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                          <span>{copiedDomain ? 'Copiado!' : 'Copiar'}</span>
-                        </button>
-                      </div>
-
-                      <p className="text-[10px] text-amber-700 leading-snug">
-                        <strong>Passo a passo:</strong> No <em>Firebase Console &gt; Authentication &gt; Settings &gt; Authorized Domains</em>, adicione o domínio acima.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Contingency Master Password Access (Always available or auto-opened on domain error) */}
-                  <div className="pt-2 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setShowMasterPasswordForm(!showMasterPasswordForm)}
-                      className="w-full text-center text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold cursor-pointer py-1 flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <Lock className="w-3.5 h-3.5 text-amber-600" />
-                      <span>
-                        {showMasterPasswordForm
-                          ? 'Ocultar acesso com senha Master'
-                          : 'Acessar com Senha Master (Contingência imediata)'}
-                      </span>
-                    </button>
-
-                    {showMasterPasswordForm && (
-                      <form onSubmit={handleMasterPasswordLogin} className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 animate-in fade-in">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-slate-800">
-                            Entrar com Senha de Administrador Master
-                          </span>
-                          <span className="text-[9px] font-bold uppercase bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                            Master Bypass
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500">
-                          Acesso garantido para <strong className="text-slate-800">pliniocatunda@gmail.com</strong> sem bloqueios de domínio ou rede.
-                        </p>
-
-                        <div className="relative">
-                          <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type={showMasterPassword ? 'text' : 'password'}
-                            required
-                            value={masterPassword}
-                            onChange={e => setMasterPassword(e.target.value)}
-                            placeholder="Senha Master (padrão: IpmeMaster@2026)"
-                            className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowMasterPassword(!showMasterPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                          >
-                            {showMasterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          <ShieldCheck className="w-4 h-4" />
-                          <span>{isLoading ? 'Autenticando Master...' : 'Acessar como Administrador Master'}</span>
-                        </button>
-                      </form>
-                    )}
-                  </div>
                 </div>
 
+                {/* Se houver aviso de domínio não autorizado no Firebase */}
+                {unauthorizedDomain && (
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-2 text-left animate-in fade-in text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                      <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>Configuração de Domínio no Firebase Authentication</span>
+                    </div>
+                    <p className="text-[11px] text-slate-700 leading-relaxed">
+                      Para autorizar este domínio na autenticação Google, basta cadastrá-lo em <strong>Domínios autorizados</strong> no Firebase Console do projeto <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-semibold">gen-lang-client-0791870171</code>:
+                    </p>
+                    <div className="flex items-center justify-between gap-2 p-1.5 bg-white border border-amber-200 rounded-lg">
+                      <span className="font-mono text-[11px] font-bold text-slate-800 truncate">
+                        {unauthorizedDomain}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyDomain}
+                        className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-bold rounded flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        {copiedDomain ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedDomain ? 'Copiado!' : 'Copiar Domínio'}</span>
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1 text-[10px]">
+                      <a
+                        href="https://console.firebase.google.com/project/gen-lang-client-0791870171/authentication/settings"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[#2B5485] hover:underline font-bold"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Configurações Firebase Auth</span>
+                      </a>
+                      <span className="text-slate-300">·</span>
+                      <a
+                        href="https://console.cloud.google.com/apis/credentials?project=gen-lang-client-0791870171"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[#2B5485] hover:underline font-bold"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Credenciais Google Cloud</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Opção de contingência: Senha Master (Secundária) */}
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowMasterPasswordFallback(!showMasterPasswordFallback)}
+                    className="w-full text-center text-[11px] text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1 py-1 cursor-pointer transition-colors"
+                  >
+                    <KeyRound className="w-3 h-3 text-slate-400" />
+                    <span>
+                      {showMasterPasswordFallback
+                        ? 'Ocultar login alternativo por Senha Master'
+                        : 'Acesso alternativo com Senha Master de contingência'}
+                    </span>
+                  </button>
+
+                  {showMasterPasswordFallback && (
+                    <form onSubmit={handleMasterPasswordLogin} className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 animate-in fade-in text-left">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700">Senha Master do Titular:</span>
+                        <button
+                          type="button"
+                          onClick={() => setMasterPassword('IpmeMaster@2026')}
+                          className="text-[10px] text-amber-700 hover:text-amber-900 font-medium underline cursor-pointer"
+                        >
+                          Preencher padrão
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showMasterPassword ? 'text' : 'password'}
+                          required
+                          value={masterPassword}
+                          onChange={e => setMasterPassword(e.target.value)}
+                          placeholder="Informe a senha Master"
+                          className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowMasterPassword(!showMasterPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                          title={showMasterPassword ? 'Ocultar senha' : 'Exibir senha'}
+                        >
+                          {showMasterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>{isLoading ? 'Autenticando...' : 'Acessar com Senha Master'}</span>
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {/* Link para voltar ao Operador Corporativo */}
                 <div className="pt-2 border-t border-slate-100 text-center">
                   <button
                     type="button"
@@ -652,7 +683,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     }}
                     className="text-[11px] text-[#2B5485] hover:text-[#1E426D] font-semibold underline cursor-pointer transition-colors"
                   >
-                    Acesso para operadores corporativos (e-mail institucional e senha)
+                    Acesso para operadores corporativos (médicos e analistas)
                   </button>
                 </div>
               </div>
