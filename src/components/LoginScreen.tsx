@@ -257,9 +257,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   Instituto de Previdência do Município de Eusébio
                 </span>
               </div>
-              <p className={`text-[10px] font-mono hidden sm:block ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-100/75'}`}>
-                RPPS Eusébio · Autarquia Municipal Criada pela Lei nº 465/2002 · Ceará
-              </p>
             </div>
           </div>
 
