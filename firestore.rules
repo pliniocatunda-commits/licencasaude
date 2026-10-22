@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isMasterAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email.lower() == 'pliniocatunda@gmail.com' ||
+         request.auth.token.email.lower() == 'atendimento@ipme.ce.gov.br');
+    }
+
+    function getUserRole() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower()))
+        ? get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.role
+        : (isMasterAdmin() ? 'admin' : 'operator');
+    }
+
+    function isAdmin() {
+      return isMasterAdmin() || getUserRole() == 'admin';
+    }
+
+    // Servidores Municipais
+    match /employees/{matricula} {
+      allow read: if isAuthenticated() || true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Ocorrências / Laudos Periciais / Licenças
+    match /occurrences/{occurrenceId} {
+      allow read: if isAuthenticated() || true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Médicos Peritos
+    match /doctors/{doctorId} {
+      allow read: if isAuthenticated() || true;
+      allow create, update, delete: if isAdmin() || isAuthenticated();
+    }
+
+    // Secretarias
+    match /secretarias/{secretariaId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin();
+    }
+
+    // Usuários do Sistema
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || (isAuthenticated() && request.auth.token.email.lower() == userId.lower());
+      allow delete: if isAdmin();
+    }
+
+    // Trilha de Auditoria (Rastreabilidade Jurídica: Append-only)
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Imutável por exigência pericial
+    }
+
+    // Coleção de teste de conexão
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { Employee, Occurrence, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor } from '../types/index.ts';
 import { clientDb } from './localDatabase.ts';
 import { signOutGoogle } from './googleAuth.ts';
+import { firestoreService } from './firestore.ts';
 
 class ApiService {
   private currentUser: AppUser | null = null;

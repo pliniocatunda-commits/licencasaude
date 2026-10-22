@@ -9,6 +9,7 @@ import {
   Doctor
 } from './types/index.ts';
 import { api } from './services/api.ts';
+import { firestoreService } from './services/firestore.ts';
 import { Header } from './components/Header.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
 import { EmployeesView } from './components/EmployeesView.tsx';
@@ -132,6 +133,15 @@ export default function App() {
       setOccurrences(occs);
       setAuditLogs(logs);
       setUsers(usrs);
+
+      // Sincroniza dados com o Cloud Firestore de forma transparente
+      firestoreService.syncInitialDataIfEmpty({
+        employees: emps,
+        occurrences: occs,
+        doctors: docs,
+        secretarias: secs,
+        users: usrs,
+      }).catch(() => {});
     } catch (error) {
       console.error('Failed to load data:', error);
       addToast('error', 'Erro ao carregar dados do servidor IPME.');

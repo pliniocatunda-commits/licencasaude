@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Servidor público do município de Eusébio com dados funcionais e previdenciários.",
+      "type": "object",
+      "properties": {
+        "matricula": { "type": "string", "description": "Matrícula funcional única do servidor" },
+        "nome": { "type": "string", "description": "Nome completo do servidor" },
+        "cpf": { "type": "string", "description": "CPF formatado do servidor" },
+        "telefone": { "type": "string", "description": "Telefone de contato" },
+        "secretaria": { "type": "string", "description": "Secretaria municipal de lotação" },
+        "setor": { "type": "string", "description": "Setor de exercício" },
+        "cargo": { "type": "string", "description": "Cargo ou função do servidor" },
+        "status": { "type": "string", "enum": ["Ativo", "Licenciado", "Readaptado", "Aposentado"], "description": "Status funcional" },
+        "data_admissao": { "type": "string", "description": "Data de admissão (YYYY-MM-DD)" },
+        "email": { "type": "string", "description": "E-mail funcional ou pessoal" },
+        "created_at": { "type": "string", "description": "Timestamp ISO de criação" },
+        "updated_at": { "type": "string", "description": "Timestamp ISO de atualização" },
+        "created_by": { "type": "string", "description": "Identificador do criador" }
+      },
+      "required": ["matricula", "nome", "cpf", "status"]
+    },
+    "Occurrence": {
+      "title": "Occurrence",
+      "description": "Laudo pericial, licença saúde ou readaptação homologada pelo IPME.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador sequencial único da ocorrência" },
+        "matricula": { "type": "string", "description": "Matrícula do servidor vinculado" },
+        "employee_nome": { "type": "string", "description": "Nome do servidor" },
+        "employee_cargo": { "type": "string", "description": "Cargo do servidor" },
+        "employee_secretaria": { "type": "string", "description": "Secretaria do servidor" },
+        "tipo": { "type": "string", "enum": ["Licença Saúde", "Readaptação", "Licença Definitiva"], "description": "Natureza do ato pericial" },
+        "data_inicio": { "type": "string", "description": "Data de início do afastamento" },
+        "data_termino": { "type": "string", "description": "Data final do afastamento" },
+        "quantidade_dias": { "type": "number", "description": "Quantidade total de dias" },
+        "cid": { "type": "string", "description": "Código e descrição CID-10" },
+        "medico_perito": { "type": "string", "description": "Nome do médico perito responsável" },
+        "crm": { "type": "string", "description": "Registro CRM do médico perito" },
+        "status": { "type": "string", "enum": ["Ativa", "Prorrogada", "Concluída", "Cancelada"], "description": "Status da ocorrência" },
+        "created_at": { "type": "string", "description": "Timestamp ISO" },
+        "updated_at": { "type": "string", "description": "Timestamp ISO" },
+        "created_by": { "type": "string", "description": "Autor da concessão" }
+      },
+      "required": ["id", "matricula", "tipo", "data_inicio", "data_termino", "status"]
+    },
+    "Doctor": {
+      "title": "Doctor",
+      "description": "Médico perito oficial credenciado junto à Junta Médica Pericial do IPME.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID sequencial único do médico" },
+        "nome": { "type": "string", "description": "Nome completo do médico" },
+        "crm": { "type": "string", "description": "Número do registro no CRM com UF" },
+        "especialidade": { "type": "string", "description": "Especialidade médica" },
+        "vinculo": { "type": "string", "enum": ["Efetivo", "Comissionado", "Temporário"], "description": "Vínculo institucional" },
+        "is_diretor": { "type": "boolean", "description": "Indica se é o Médico Diretor Técnico" },
+        "ativo": { "type": "boolean", "description": "Status ativo ou inativo" },
+        "created_at": { "type": "string", "description": "Timestamp ISO" },
+        "updated_at": { "type": "string", "description": "Timestamp ISO" },
+        "created_by": { "type": "string", "description": "Usuário criador" }
+      },
+      "required": ["id", "nome", "crm", "ativo"]
+    },
+    "Secretaria": {
+      "title": "Secretaria",
+      "description": "Secretaria ou órgão da administração direta/indireta de Eusébio.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Código da secretaria" },
+        "sigla": { "type": "string", "description": "Sigla oficial" },
+        "nome": { "type": "string", "description": "Nome por extenso" },
+        "secretario": { "type": "string", "description": "Titular da pasta" },
+        "email": { "type": "string", "description": "E-mail de contato" },
+        "telefone": { "type": "string", "description": "Telefone de contato" },
+        "endereco": { "type": "string", "description": "Endereço físico" },
+        "ativa": { "type": "boolean", "description": "Status ativa" },
+        "created_at": { "type": "string", "description": "Timestamp ISO" },
+        "updated_at": { "type": "string", "description": "Timestamp ISO" },
+        "created_by": { "type": "string", "description": "Usuário criador" }
+      },
+      "required": ["id", "sigla", "nome", "ativa"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Trilha de auditoria e rastreabilidade pericial do IPME.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID único do evento de auditoria" },
+        "entity_type": { "type": "string", "enum": ["employee", "occurrence", "user", "secretaria", "doctor", "settings"], "description": "Tipo de entidade alterada" },
+        "entity_id": { "type": "string", "description": "Identificador da entidade alterada" },
+        "action": { "type": "string", "description": "Ação executada" },
+        "details": { "type": "string", "description": "Descrição detalhada da ação" },
+        "changed_by": { "type": "string", "description": "E-mail do operador responsável" },
+        "user_role": { "type": "string", "enum": ["admin", "operator"], "description": "Perfil do operador" },
+        "timestamp": { "type": "string", "description": "Timestamp ISO da ocorrência do evento" }
+      },
+      "required": ["id", "entity_type", "entity_id", "action", "changed_by", "timestamp"]
+    },
+    "AppUser": {
+      "title": "AppUser",
+      "description": "Operador ou administrador cadastrado no sistema IPME.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador do usuário" },
+        "email": { "type": "string", "description": "E-mail corporativo ou Google" },
+        "name": { "type": "string", "description": "Nome completo" },
+        "role": { "type": "string", "enum": ["admin", "operator"], "description": "Papel de acesso" },
+        "auth_provider": { "type": "string", "enum": ["google", "corporate"], "description": "Provedor de autenticação" },
+        "department": { "type": "string", "description": "Lotação" },
+        "cargo": { "type": "string", "description": "Cargo funcional" },
+        "email_verified": { "type": "boolean", "description": "E-mail confirmado" },
+        "created_at": { "type": "string", "description": "Timestamp ISO" }
+      },
+      "required": ["email", "name", "role", "auth_provider"]
+    }
+  },
+  "firestore": {
+    "/employees/{matricula}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Coleção com todos os servidores públicos municipais de Eusébio."
+    },
+    "/occurrences/{occurrenceId}": {
+      "schema": { "$ref": "#/entities/Occurrence" },
+      "description": "Coleção de laudos periciais, licenças médicas e readaptações funcionais homologadas."
+    },
+    "/doctors/{doctorId}": {
+      "schema": { "$ref": "#/entities/Doctor" },
+      "description": "Coleção de médicos peritos da Junta Médica Oficial do IPME."
+    },
+    "/secretarias/{secretariaId}": {
+      "schema": { "$ref": "#/entities/Secretaria" },
+      "description": "Coleção de secretarias e órgãos municipais conveniados."
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Trilha de auditoria oficial imutável para rastreabilidade jurídica e pericial."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/AppUser" },
+      "description": "Usuários e operadores autorizados com controle de acesso RBAC."
+    }
+  }
+}
