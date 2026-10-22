@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppUser, UserRole } from '../types/index.ts';
 import { useAppTheme } from '../context/ThemeContext.tsx';
 import { ThemeSelectorModal } from './ThemeSelectorModal.tsx';
@@ -56,6 +56,31 @@ export const Header: React.FC<HeaderProps> = ({
   const [cadastrosDropdownOpen, setCadastrosDropdownOpen] = useState(false);
   const [licencasDropdownOpen, setLicencasDropdownOpen] = useState(false);
 
+  const cadastrosRef = useRef<HTMLDivElement>(null);
+  const licencasRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns cleanly when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (cadastrosRef.current && !cadastrosRef.current.contains(target)) {
+        setCadastrosDropdownOpen(false);
+      }
+      if (licencasRef.current && !licencasRef.current.contains(target)) {
+        setLicencasDropdownOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const isCadastrosActive = ['employees', 'secretarias', 'doctors', 'users'].includes(activeTab);
   const isLicencasActive = activeTab === 'occurrences';
 
@@ -74,17 +99,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className={`sticky top-0 z-40 ${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} transition-colors duration-200`}>
-      {/* Invisible backdrop to dismiss open dropdowns when clicking outside */}
-      {(cadastrosDropdownOpen || licencasDropdownOpen || profileDropdownOpen) && (
-        <div 
-          className="fixed inset-0 z-30 bg-transparent" 
-          onClick={() => {
-            setCadastrosDropdownOpen(false);
-            setLicencasDropdownOpen(false);
-            setProfileDropdownOpen(false);
-          }} 
-        />
-      )}
       {/* Tier 1: Main Brand & User Profile Row (Logomarca em dobro e Nome Institucional Completo) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex items-center justify-between gap-4">
         
@@ -135,13 +149,11 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User Profile & Direct Logout (Alinhamento harmonioso no topo) */}
         <div className="flex items-center gap-2 shrink-0">
           {/* User Account Dropdown */}
-          <div className="relative z-50">
+          <div ref={profileRef} className="relative z-50">
             <button
               type="button"
               onClick={() => {
                 setProfileDropdownOpen(!profileDropdownOpen);
-                setCadastrosDropdownOpen(false);
-                setLicencasDropdownOpen(false);
               }}
               className={`flex items-center gap-2.5 p-1.5 sm:p-2 rounded-xl transition-colors text-left border shadow-2xs ${themeConfig.profileBtnHoverClass} ${themeConfig.profileBtnBorderClass}`}
             >
@@ -273,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Tier 2: Dedicated Navigation & Operations Bar (Linha dedicada abaixo para Menus com alinhamento perfeito) */}
-      <div className={`relative z-20 border-t ${
+      <div className={`relative z-30 border-t ${
         theme === 'azul_ipme_light' 
           ? 'bg-[#F2F6FC] border-[#C8DCF4]' 
           : 'bg-black/20 border-white/10'
@@ -284,6 +296,7 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className={`flex items-center gap-1.5 sm:gap-2 font-medium text-xs sm:text-sm ${themeConfig.navTextClass} py-0.5`}>
             {/* 1. Painel */}
             <button
+              type="button"
               onClick={() => {
                 setActiveTab('dashboard');
                 setCadastrosDropdownOpen(false);
@@ -300,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* 2. MENU DROPDOWN DE CADASTROS */}
-            <div className="relative shrink-0 z-50">
+            <div ref={cadastrosRef} className="relative shrink-0 z-50">
               <button
                 type="button"
                 onClick={() => {
@@ -328,7 +341,8 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Dropdown Menu Box - Cadastros */}
               {cadastrosDropdownOpen && (
                 <div 
-                  className={`absolute left-0 top-full mt-2 w-64 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`absolute left-0 top-full mt-2 w-64 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 py-1.5 shadow-2xl`}
                 >
                   <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-200/80 border-b border-white/10 mb-1">
                     Módulos de Cadastro
@@ -336,6 +350,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* 1. Servidores */}
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveTab('employees');
                       setCadastrosDropdownOpen(false);
@@ -362,6 +377,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* 2. Secretarias */}
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveTab('secretarias');
                       setCadastrosDropdownOpen(false);
@@ -388,6 +404,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* 3. Médicos Peritos */}
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveTab('doctors');
                       setCadastrosDropdownOpen(false);
@@ -415,6 +432,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* 4. Operadores & Acessos (Admin Master) */}
                   {currentUser.role === 'admin' && (
                     <button
+                      type="button"
                       onClick={() => {
                         setActiveTab('users');
                         setCadastrosDropdownOpen(false);
@@ -445,6 +463,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <>
                       <div className="my-1 border-t border-white/10"></div>
                       <button
+                        type="button"
                         onClick={() => {
                           onOpenImportCsv();
                           setCadastrosDropdownOpen(false);
@@ -459,7 +478,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <span>Importar CSV</span>
                             <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-1 py-0.2 rounded font-mono font-bold">Oficial</span>
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate">
+                          <p className="text-[10px] text-blue-100/70 truncate">
                             Servidores & secretarias
                           </p>
                         </div>
@@ -471,7 +490,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* 3. MENU DROPDOWN DE LICENÇAS E READAPTAÇÕES */}
-            <div className="relative shrink-0 z-50">
+            <div ref={licencasRef} className="relative shrink-0 z-50">
               <button
                 type="button"
                 onClick={() => {
@@ -499,7 +518,8 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Dropdown Menu Box - Licenças e Readaptações */}
               {licencasDropdownOpen && (
                 <div 
-                  className={`absolute left-0 top-full mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`absolute left-0 top-full mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} z-50 py-1.5 shadow-2xl`}
                 >
                   <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-200/80 border-b border-white/10 mb-1">
                     Gestão Pericial & Afastamentos
@@ -507,6 +527,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* 1. Licenças e readaptações */}
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveTab('occurrences');
                       setLicencasDropdownOpen(false);
@@ -533,6 +554,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* 2. Nova Ocorrência */}
                   <button
+                    type="button"
                     onClick={() => {
                       onOpenNewOccurrence();
                       setLicencasDropdownOpen(false);
@@ -557,6 +579,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* 3. Auditoria */}
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveTab('audit');
                       setLicencasDropdownOpen(false);
@@ -584,6 +607,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* 4. Relatório Executivo */}
                   {onOpenExecutiveReport && (
                     <button
+                      type="button"
                       onClick={() => {
                         onOpenExecutiveReport();
                         setLicencasDropdownOpen(false);
@@ -612,6 +636,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* 4. HISTÓRICO & TRILHA DE AUDITORIA */}
             <button
+              type="button"
               onClick={() => {
                 setActiveTab('audit');
                 setCadastrosDropdownOpen(false);
@@ -632,13 +657,13 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Atalhos Rápidos Operacionais alinhados à direita na barra de navegação */}
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {onOpenExecutiveReport && (
               <button
                 type="button"
                 onClick={onOpenExecutiveReport}
                 title="Abrir Relatório Executivo Oficial (A4 Paisagem)"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border shadow-2xs ${
+                className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border shadow-2xs ${
                   theme === 'azul_ipme_light'
                     ? 'bg-white border-[#BED4EF] text-[#2B5485] hover:bg-[#EBF3FC]'
                     : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
