@@ -44,6 +44,7 @@ export const DoctorsView: React.FC<DoctorsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [vinculoFilter, setVinculoFilter] = useState<'ALL' | DoctorVinculo>('ALL');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [directorConfirmDoctor, setDirectorConfirmDoctor] = useState<Doctor | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessingDirector, setIsProcessingDirector] = useState(false);
@@ -89,11 +90,14 @@ export const DoctorsView: React.FC<DoctorsViewProps> = ({
 
   const handleDelete = async (id: string) => {
     setActionError(null);
+    setIsDeletingId(id);
     try {
       await onDeleteDoctor(id);
       setDeleteConfirmId(null);
     } catch (err) {
       setActionError((err as Error).message || 'Erro ao excluir médico.');
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -462,15 +466,17 @@ export const DoctorsView: React.FC<DoctorsViewProps> = ({
                           <span className="text-[11px] text-red-600 font-medium">Excluir médico?</span>
                           <button
                             onClick={() => handleDelete(doc.id)}
-                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold cursor-pointer"
+                            disabled={isDeletingId === doc.id}
+                            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
                           >
-                            Sim
+                            {isDeletingId === doc.id ? 'Excluindo...' : 'Sim, excluir'}
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
+                            disabled={isDeletingId === doc.id}
+                            className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer transition-colors"
                           >
-                            Não
+                            Cancelar
                           </button>
                         </div>
                       ) : (

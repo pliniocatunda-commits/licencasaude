@@ -1862,8 +1862,18 @@ class DatabaseManager {
     });
   }
 
-  public getDoctorById(id: string): Doctor | undefined {
-    return this.getDoctors().find(d => d.id === id);
+  public getDoctorById(idOrCrm: string): Doctor | undefined {
+    if (!idOrCrm) return undefined;
+    const search = String(idOrCrm).trim();
+    const searchLower = search.toLowerCase();
+    const searchDigits = search.replace(/\D/g, '');
+    return this.getDoctors().find(d => {
+      if (String(d.id).trim() === search) return true;
+      if (d.crm.trim().toLowerCase() === searchLower) return true;
+      if (searchDigits && searchDigits.length >= 4 && d.crm.replace(/\D/g, '') === searchDigits) return true;
+      if (d.nome.toLowerCase().trim() === searchLower) return true;
+      return false;
+    });
   }
 
   public saveDoctor(
@@ -1992,33 +2002,32 @@ class DatabaseManager {
     return doc;
   }
 
-  public deleteDoctor(id: string, actorEmail: string, actorRole: 'admin' | 'operator'): boolean {
+  public deleteDoctor(idOrCrm: string, actorEmail: string, actorRole: 'admin' | 'operator'): boolean {
     if (actorRole !== 'admin') {
       throw new Error('Apenas Administradores podem excluir médicos do cadastro.');
     }
-    const doc = this.getDoctorById(id);
+    const doc = this.getDoctorById(idOrCrm);
     if (!doc) return false;
 
-    // Check if doctor has occurrences associated
-    const associatedOccurrences = this.data.occurrences.filter(
-      o =>
-        (o.crm && o.crm.toLowerCase().includes(doc.crm.toLowerCase())) ||
-        (o.medico_perito && o.medico_perito.toLowerCase().includes(doc.nome.toLowerCase()))
+    const wasDirector = Boolean(doc.is_diretor);
+    const docIdStr = String(doc.id);
+    const docCrmStr = doc.crm.trim().toLowerCase();
+
+    this.data.doctors = this.data.doctors.filter(d => 
+      String(d.id) !== docIdStr && d.crm.trim().toLowerCase() !== docCrmStr
     );
 
-    if (associatedOccurrences.length > 0) {
-      throw new Error(
-        `Não é possível excluir o Dr(a). ${doc.nome} pois existem ${associatedOccurrences.length} laudo(s) ou licença(s) vinculado(s) ao seu CRM. Desative o cadastro em vez de excluir para preservar a rastreabilidade pericial.`
-      );
+    // Se o médico excluído era o diretor oficial e ainda restarem médicos, definir o primeiro ativo como diretor
+    if (wasDirector && this.data.doctors.length > 0) {
+      const nextDirector = this.data.doctors.find(d => d.ativo) || this.data.doctors[0];
+      nextDirector.is_diretor = true;
     }
-
-    this.data.doctors = this.data.doctors.filter(d => d.id !== doc.id);
 
     this.addAuditLog({
       entity_type: 'doctor',
       entity_id: doc.crm,
       action: 'DELETE',
-      details: `Médico ${doc.nome} (${doc.crm}) excluído do sistema IPME.`,
+      details: `Médico ${doc.nome} (${doc.crm}) excluído do sistema IPME por ${actorEmail}. Histórico pericial arquivado preservado.`,
       changed_by: actorEmail,
       user_role: actorRole,
     });

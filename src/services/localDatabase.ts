@@ -1237,17 +1237,56 @@ export class ClientDatabase {
     }
   }
 
-  public deleteDoctor(crm: string, actorEmail: string, actorRole: 'admin' | 'operator'): boolean {
-    const index = this.data.doctors.findIndex(d => d.crm === crm);
-    if (index === -1) throw new Error('Médico não encontrado.');
+  public getDoctorById(idOrCrm: string): Doctor | undefined {
+    if (!idOrCrm) return undefined;
+    const search = String(idOrCrm).trim();
+    const searchLower = search.toLowerCase();
+    const searchDigits = search.replace(/\D/g, '');
+    return this.data.doctors.find(d => {
+      if (String(d.id).trim() === search) return true;
+      if (d.crm.trim().toLowerCase() === searchLower) return true;
+      if (searchDigits && searchDigits.length >= 4 && d.crm.replace(/\D/g, '') === searchDigits) return true;
+      if (d.nome.toLowerCase().trim() === searchLower) return true;
+      return false;
+    });
+  }
+
+  public deleteDoctor(idOrCrm: string, actorEmail: string, actorRole: 'admin' | 'operator'): boolean {
+    if (actorRole !== 'admin') {
+      throw new Error('Apenas Administradores podem excluir médicos do cadastro.');
+    }
+    const search = String(idOrCrm).trim();
+    const searchLower = search.toLowerCase();
+    const searchDigits = search.replace(/\D/g, '');
+
+    const index = this.data.doctors.findIndex(d => {
+      if (String(d.id).trim() === search) return true;
+      if (d.crm.trim().toLowerCase() === searchLower) return true;
+      if (searchDigits && searchDigits.length >= 4 && d.crm.replace(/\D/g, '') === searchDigits) return true;
+      if (d.nome.toLowerCase().trim() === searchLower) return true;
+      return false;
+    });
+
+    if (index === -1) {
+      throw new Error('Médico não localizado no cadastro.');
+    }
+
     const doc = this.data.doctors[index];
+    const wasDirector = Boolean(doc.is_diretor);
 
     this.data.doctors.splice(index, 1);
+
+    // Se o médico excluído era o diretor oficial e ainda restarem médicos, definir o primeiro ativo como diretor
+    if (wasDirector && this.data.doctors.length > 0) {
+      const nextDirector = this.data.doctors.find(d => d.ativo) || this.data.doctors[0];
+      nextDirector.is_diretor = true;
+    }
+
     this.addAudit({
       entity_type: 'doctor',
-      entity_id: crm,
+      entity_id: doc.crm,
       action: 'DELETE',
-      details: `Médico ${doc.nome} (${doc.crm}) excluído do sistema IPME.`,
+      details: `Médico ${doc.nome} (${doc.crm}) excluído do sistema IPME por ${actorEmail}. Registros e laudos anteriores mantidos no histórico documental.`,
       changed_by: actorEmail,
       user_role: actorRole,
     });
@@ -1255,9 +1294,9 @@ export class ClientDatabase {
     return true;
   }
 
-  public toggleDoctorStatus(id: string, actorEmail: string, actorRole: 'admin' | 'operator'): Doctor {
-    const doc = this.data.doctors.find(d => d.id === id || d.crm === id);
-    if (!doc) throw new Error('Médico não encontrado.');
+  public toggleDoctorStatus(idOrCrm: string, actorEmail: string, actorRole: 'admin' | 'operator'): Doctor {
+    const doc = this.getDoctorById(idOrCrm);
+    if (!doc) throw new Error('Médico não localizado no cadastro.');
     doc.ativo = !doc.ativo;
     doc.updated_at = new Date().toISOString();
     this.addAudit({
@@ -1272,13 +1311,14 @@ export class ClientDatabase {
     return doc;
   }
 
-  public setDoctorDiretor(id: string, actorEmail: string, actorRole: 'admin' | 'operator'): Doctor {
-    const doc = this.data.doctors.find(d => d.id === id || d.crm === id);
-    if (!doc) throw new Error('Médico não encontrado.');
+  public setDoctorDiretor(idOrCrm: string, actorEmail: string, actorRole: 'admin' | 'operator'): Doctor {
+    const doc = this.getDoctorById(idOrCrm);
+    if (!doc) throw new Error('Médico não localizado no cadastro.');
     for (const d of this.data.doctors) {
       d.is_diretor = false;
     }
     doc.is_diretor = true;
+    doc.ativo = true;
     doc.updated_at = new Date().toISOString();
     this.addAudit({
       entity_type: 'doctor',

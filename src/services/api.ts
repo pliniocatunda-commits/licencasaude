@@ -408,47 +408,47 @@ class ApiService {
     );
   }
 
-  public async updateDoctor(crm: string, doc: Partial<Doctor>): Promise<Doctor> {
+  public async updateDoctor(idOrCrm: string, doc: Partial<Doctor>): Promise<Doctor> {
     return this.request(
-      `/api/doctors/${crm}`,
+      `/api/doctors/${encodeURIComponent(idOrCrm)}`,
       {
         method: 'PUT',
         body: JSON.stringify({ ...doc, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveDoctor({ ...doc, crm }, this.actorEmail, this.actorRole)
+      () => clientDb.saveDoctor({ ...doc, id: doc.id || idOrCrm }, this.actorEmail, this.actorRole)
     );
   }
 
-  public async deleteDoctor(crm: string): Promise<boolean> {
+  public async deleteDoctor(idOrCrm: string): Promise<boolean> {
     return this.request(
-      `/api/doctors/${crm}`,
+      `/api/doctors/${encodeURIComponent(idOrCrm)}`,
       {
         method: 'DELETE',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteDoctor(crm, this.actorEmail, this.actorRole)
+      () => clientDb.deleteDoctor(idOrCrm, this.actorEmail, this.actorRole)
     );
   }
 
-  public async toggleDoctorStatus(id: string): Promise<Doctor> {
+  public async toggleDoctorStatus(idOrCrm: string): Promise<Doctor> {
     return this.request(
-      `/api/doctors/${id}/toggle`,
+      `/api/doctors/${encodeURIComponent(idOrCrm)}/toggle`,
       {
         method: 'PATCH',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.toggleDoctorStatus(id, this.actorEmail, this.actorRole)
+      () => clientDb.toggleDoctorStatus(idOrCrm, this.actorEmail, this.actorRole)
     );
   }
 
-  public async setDoctorDiretor(id: string): Promise<Doctor> {
+  public async setDoctorDiretor(idOrCrm: string): Promise<Doctor> {
     return this.request(
-      `/api/doctors/${id}/set-diretor`,
+      `/api/doctors/${encodeURIComponent(idOrCrm)}/set-diretor`,
       {
         method: 'PATCH',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.setDoctorDiretor(id, this.actorEmail, this.actorRole)
+      () => clientDb.setDoctorDiretor(idOrCrm, this.actorEmail, this.actorRole)
     );
   }
 

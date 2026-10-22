@@ -345,7 +345,7 @@ export default function App() {
     try {
       await api.deleteDoctor(id);
       addToast('success', 'Médico excluído com sucesso.');
-      loadAllData();
+      await loadAllData();
     } catch (err) {
       addToast('error', (err as Error).message || 'Erro ao excluir médico.');
       throw err;
@@ -356,7 +356,7 @@ export default function App() {
     try {
       const updated = await api.toggleDoctorStatus(id);
       addToast('info', `Status do Dr(a). ${updated.nome} alterado para ${updated.ativo ? 'Ativo' : 'Inativo'}.`);
-      loadAllData();
+      await loadAllData();
     } catch (err) {
       addToast('error', (err as Error).message || 'Erro ao alterar status do médico.');
       throw err;
@@ -367,7 +367,7 @@ export default function App() {
     try {
       const updated = await api.setDoctorDiretor(id);
       addToast('success', `${updated.nome} definido como Médico Diretor da Junta Pericial Oficial.`);
-      loadAllData();
+      await loadAllData();
     } catch (err) {
       addToast('error', (err as Error).message || 'Erro ao definir médico diretor.');
       throw err;

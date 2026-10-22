@@ -503,7 +503,8 @@ async function startServer() {
   app.put('/api/doctors/:id', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const saved = db.saveDoctor({ ...req.body, id: req.params.id }, actorEmail, actorRole);
+      const doctorIdOrCrm = decodeURIComponent(req.params.id);
+      const saved = db.saveDoctor({ ...req.body, id: doctorIdOrCrm }, actorEmail, actorRole);
       res.json({ success: true, data: saved });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -513,7 +514,8 @@ async function startServer() {
   app.patch('/api/doctors/:id/set-diretor', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const doc = db.setDoctorDiretor(req.params.id, actorEmail, actorRole);
+      const doctorIdOrCrm = decodeURIComponent(req.params.id);
+      const doc = db.setDoctorDiretor(doctorIdOrCrm, actorEmail, actorRole);
       res.json({ success: true, data: doc });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -523,7 +525,8 @@ async function startServer() {
   app.patch('/api/doctors/:id/toggle', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const doc = db.toggleDoctorStatus(req.params.id, actorEmail, actorRole);
+      const doctorIdOrCrm = decodeURIComponent(req.params.id);
+      const doc = db.toggleDoctorStatus(doctorIdOrCrm, actorEmail, actorRole);
       res.json({ success: true, data: doc });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -536,8 +539,9 @@ async function startServer() {
       if (actorRole !== 'admin') {
         return res.status(403).json({ success: false, message: 'Apenas Administradores podem excluir médicos.' });
       }
-      const ok = db.deleteDoctor(req.params.id, actorEmail, actorRole);
-      if (!ok) return res.status(404).json({ success: false, message: 'Médico não encontrado.' });
+      const doctorIdOrCrm = decodeURIComponent(req.params.id);
+      const ok = db.deleteDoctor(doctorIdOrCrm, actorEmail, actorRole);
+      if (!ok) return res.status(404).json({ success: false, message: 'Médico não localizado no cadastro.' });
       res.json({ success: true, message: 'Médico excluído com sucesso.' });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
