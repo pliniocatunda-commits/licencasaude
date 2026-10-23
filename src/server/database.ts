@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo, TenantInfo, TenantEnvironment } from '../types/index.ts';
+import type { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo, TenantInfo, TenantEnvironment } from '../types/index.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -628,7 +628,13 @@ const DEFAULT_DOCTORS: Doctor[] = [
 ];
 
 export class TenantDatabaseScope {
-  constructor(private manager: DatabaseManager, public readonly tenantId: string) {}
+  private manager: DatabaseManager;
+  public readonly tenantId: string;
+
+  constructor(manager: DatabaseManager, tenantId: string) {
+    this.manager = manager;
+    this.tenantId = tenantId;
+  }
 
   public getEmployees(search?: string, secretaria?: string, status?: string) {
     return this.manager.withTenant(this.tenantId, () => this.manager.getEmployees(search, secretaria, status));
