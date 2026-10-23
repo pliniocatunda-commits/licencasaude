@@ -1,13 +1,42 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo } from '../types/index.ts';
+import { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo, TenantInfo, TenantEnvironment } from '../types/index.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const DB_FILE = path.join(DATA_DIR, 'ipme_database.json');
+const TENANTS_DIR = path.join(DATA_DIR, 'tenants');
+const REGISTRY_FILE = path.join(DATA_DIR, 'tenants_registry.json');
+
+export const DEFAULT_TENANTS: TenantInfo[] = [
+  {
+    id: 'ipme_eusebio',
+    nome: 'IPME - Instituto de Previdência do Município de Eusébio',
+    sigla: 'IPME Eusébio',
+    cnpj: '05.123.456/0001-78',
+    cidade: 'Eusébio',
+    uf: 'CE',
+    ambiente: 'producao',
+    ativo: true,
+    created_at: '2026-01-01T08:00:00.000Z',
+    descricao: 'Base Oficial de Produção Previdenciária do Município de Eusébio - CE. Isolada e auditada.',
+  },
+  {
+    id: 'studio_sandbox',
+    nome: 'Ambiente de Testes & Homologação Studio',
+    sigla: 'Studio Sandbox',
+    cnpj: '00.000.000/0001-00',
+    cidade: 'Eusébio (Ambiente de Testes)',
+    uf: 'CE',
+    ambiente: 'homologacao',
+    ativo: true,
+    created_at: '2026-01-01T08:00:00.000Z',
+    descricao: 'Ambiente seguro para testes no Google AI Studio. Os testes aqui realizados NUNCA afetam a base oficial do cliente.',
+  },
+];
 
 interface DatabaseSchema {
   employees: Employee[];
@@ -598,20 +627,339 @@ const DEFAULT_DOCTORS: Doctor[] = [
   },
 ];
 
+export class TenantDatabaseScope {
+  constructor(private manager: DatabaseManager, public readonly tenantId: string) {}
+
+  public getEmployees(search?: string, secretaria?: string, status?: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getEmployees(search, secretaria, status));
+  }
+  public getEmployeeByMatricula(matricula: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getEmployeeByMatricula(matricula));
+  }
+  public saveEmployee(emp: any, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.saveEmployee(emp, actorEmail, actorRole));
+  }
+  public deleteEmployee(matricula: string, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.deleteEmployee(matricula, actorEmail, actorRole));
+  }
+  public clearAllEmployees(actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.clearAllEmployees(actorEmail, actorRole));
+  }
+  public getOccurrences(matricula?: string, tipo?: string, status?: string, dataInicio?: string, dataTermino?: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getOccurrences(matricula, tipo, status, dataInicio, dataTermino));
+  }
+  public getOccurrenceById(id: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getOccurrenceById(id));
+  }
+  public saveOccurrence(occ: any, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.saveOccurrence(occ, actorEmail, actorRole));
+  }
+  public prorrogarOccurrence(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.prorrogarOccurrence as any)(...args));
+  }
+  public concluirOccurrence(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.concluirOccurrence as any)(...args));
+  }
+  public retornarTrabalhoOccurrence(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.retornarTrabalhoOccurrence as any)(...args));
+  }
+  public converterOccurrenceDefinitiva(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.converterOccurrenceDefinitiva as any)(...args));
+  }
+  public cancelarOccurrence(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.cancelarOccurrence as any)(...args));
+  }
+  public deleteOccurrence(id: string, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.deleteOccurrence(id, actorEmail, actorRole));
+  }
+  public clearOccurrences(actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.clearOccurrences(actorEmail, actorRole));
+  }
+  public getDoctors(search?: string, ativoOnly?: boolean) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getDoctors(search, ativoOnly));
+  }
+  public getDoctorById(idOrCrm: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getDoctorById(idOrCrm));
+  }
+  public saveDoctor(doc: any, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.saveDoctor(doc, actorEmail, actorRole));
+  }
+  public deleteDoctor(idOrCrm: string, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.deleteDoctor(idOrCrm, actorEmail, actorRole));
+  }
+  public toggleDoctorStatus(id: string, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.toggleDoctorStatus(id, actorEmail, actorRole));
+  }
+  public setDoctorDiretor(id: string, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.setDoctorDiretor(id, actorEmail, actorRole));
+  }
+  public getSecretarias(search?: string, ativaOnly?: boolean) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getSecretarias(search, ativaOnly));
+  }
+  public getSecretariaById(id: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getSecretariaById(id));
+  }
+  public saveSecretaria(sec: any, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.saveSecretaria(sec, actorEmail, actorRole));
+  }
+  public deleteSecretaria(id: string, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.deleteSecretaria(id, actorEmail, actorRole));
+  }
+  public getUsers() {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getUsers());
+  }
+  public saveUser(user: any, actorEmail: string, actorRole: 'admin' | 'operator') {
+    return this.manager.withTenant(this.tenantId, () => this.manager.saveUser(user, actorEmail, actorRole));
+  }
+  public confirmEmail(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.confirmEmail as any)(...args));
+  }
+  public resendConfirmationEmail(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.resendConfirmationEmail as any)(...args));
+  }
+  public changePassword(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.changePassword as any)(...args));
+  }
+  public getMetrics() {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getMetrics());
+  }
+  public getAuditLogs(entityType?: string, search?: string) {
+    return this.manager.withTenant(this.tenantId, () => this.manager.getAuditLogs(entityType, search));
+  }
+  public importCadastroCSV(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.importCadastroCSV as any)(...args));
+  }
+}
+
 class DatabaseManager {
-  private data: DatabaseSchema;
+  private activeTenantId: string = 'ipme_eusebio';
+  private tenantCaches: Map<string, DatabaseSchema> = new Map();
+  private tenants: TenantInfo[] = [];
 
   constructor() {
-    this.data = this.load();
+    this.initTenants();
   }
 
-  private load(): DatabaseSchema {
+  public resolveTenant(tenantId?: string): string {
+    if (!tenantId || typeof tenantId !== 'string') return 'ipme_eusebio';
+    const clean = tenantId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    return clean || 'ipme_eusebio';
+  }
+
+  private initTenants() {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      if (!fs.existsSync(TENANTS_DIR)) {
+        fs.mkdirSync(TENANTS_DIR, { recursive: true });
+      }
+
+      // 1. Carrega ou cria registro de tenants
+      if (fs.existsSync(REGISTRY_FILE)) {
+        try {
+          const raw = fs.readFileSync(REGISTRY_FILE, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.tenants = parsed;
+          } else {
+            this.tenants = [...DEFAULT_TENANTS];
+            this.saveRegistry();
+          }
+        } catch {
+          this.tenants = [...DEFAULT_TENANTS];
+          this.saveRegistry();
+        }
+      } else {
+        this.tenants = [...DEFAULT_TENANTS];
+        this.saveRegistry();
+      }
+
+      if (!this.tenants.some(t => t.id === 'ipme_eusebio')) {
+        this.tenants.unshift(DEFAULT_TENANTS[0]);
+        this.saveRegistry();
+      }
+      if (!this.tenants.some(t => t.id === 'studio_sandbox')) {
+        this.tenants.push(DEFAULT_TENANTS[1]);
+        this.saveRegistry();
+      }
+
+      // 2. Garante partição de produção: ipme_eusebio.json
+      const prodFile = path.join(TENANTS_DIR, 'ipme_eusebio.json');
+      if (!fs.existsSync(prodFile)) {
+        if (fs.existsSync(DB_FILE)) {
+          try {
+            fs.copyFileSync(DB_FILE, prodFile);
+          } catch (e) {
+            console.error('Erro ao migrar base legado para ipme_eusebio:', e);
+          }
+        }
+      }
+
+      // 3. Garante partição de homologação: studio_sandbox.json
+      const sandboxFile = path.join(TENANTS_DIR, 'studio_sandbox.json');
+      if (!fs.existsSync(sandboxFile)) {
+        const sandboxSeed: DatabaseSchema = {
+          employees: DEFAULT_EMPLOYEES,
+          occurrences: DEFAULT_OCCURRENCES,
+          audit_logs: DEFAULT_AUDIT_LOGS,
+          users: DEFAULT_USERS,
+          secretarias: DEFAULT_SECRETARIAS,
+          doctors: DEFAULT_DOCTORS,
+        };
+        fs.writeFileSync(sandboxFile, JSON.stringify(sandboxSeed, null, 2), 'utf-8');
+      }
+    } catch (e) {
+      console.error('Erro ao inicializar diretório de tenants:', e);
+    }
+  }
+
+  private saveRegistry() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(REGISTRY_FILE, JSON.stringify(this.tenants, null, 2), 'utf-8');
+    } catch (e) {
+      console.error('Erro ao salvar registro de tenants:', e);
+    }
+  }
+
+  public getTenants(): TenantInfo[] {
+    return this.tenants;
+  }
+
+  public getTenantById(id: string): TenantInfo | undefined {
+    const tid = this.resolveTenant(id);
+    return this.tenants.find(t => t.id === tid);
+  }
+
+  public saveTenant(tenantData: Partial<TenantInfo> & { nome: string; sigla: string }): TenantInfo {
+    const rawId = tenantData.id || tenantData.sigla.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const id = this.resolveTenant(rawId);
+    const existingIndex = this.tenants.findIndex(t => t.id === id);
+    const now = new Date().toISOString();
+
+    if (existingIndex >= 0) {
+      const updated: TenantInfo = {
+        ...this.tenants[existingIndex],
+        ...tenantData,
+        id,
+      };
+      this.tenants[existingIndex] = updated;
+      this.saveRegistry();
+      return updated;
+    } else {
+      const created: TenantInfo = {
+        id,
+        nome: tenantData.nome.trim(),
+        sigla: tenantData.sigla.trim(),
+        cnpj: tenantData.cnpj?.trim() || '00.000.000/0001-00',
+        cidade: tenantData.cidade?.trim() || 'Município Conveniado',
+        uf: tenantData.uf?.trim() || 'CE',
+        ambiente: tenantData.ambiente || 'producao',
+        ativo: tenantData.ativo !== undefined ? tenantData.ativo : true,
+        created_at: now,
+        descricao: tenantData.descricao || `Partição de banco de dados isolada para ${tenantData.nome}.`,
+      };
+      this.tenants.push(created);
+      this.saveRegistry();
+
+      const tenantFile = path.join(TENANTS_DIR, `${id}.json`);
+      if (!fs.existsSync(tenantFile)) {
+        const seed: DatabaseSchema = {
+          employees: [],
+          occurrences: [],
+          audit_logs: [
+            {
+              id: `audit_init_${Date.now()}`,
+              entity_type: 'user',
+              entity_id: id,
+              action: 'CREATE',
+              details: `Partição de dados isolada criada para o cliente ${created.nome} (${created.sigla}).`,
+              changed_by: 'Sistema Multi-Tenant',
+              user_role: 'admin',
+              timestamp: now,
+            }
+          ],
+          users: DEFAULT_USERS,
+          secretarias: DEFAULT_SECRETARIAS,
+          doctors: DEFAULT_DOCTORS,
+        };
+        fs.writeFileSync(tenantFile, JSON.stringify(seed, null, 2), 'utf-8');
+      }
+
+      return created;
+    }
+  }
+
+  public resetSandbox(actorEmail: string): void {
+    const sandboxFile = path.join(TENANTS_DIR, 'studio_sandbox.json');
+    const sandboxSeed: DatabaseSchema = {
+      employees: DEFAULT_EMPLOYEES,
+      occurrences: DEFAULT_OCCURRENCES,
+      audit_logs: [
+        {
+          id: `audit_reset_${Date.now()}`,
+          entity_type: 'user',
+          entity_id: 'studio_sandbox',
+          action: 'DELETE',
+          details: `Ambiente de Homologação / Testes Studio reinicializado com dados simulados por ${actorEmail}. Produção oficial intacta.`,
+          changed_by: actorEmail,
+          user_role: 'admin',
+          timestamp: new Date().toISOString(),
+        }
+      ],
+      users: DEFAULT_USERS,
+      secretarias: DEFAULT_SECRETARIAS,
+      doctors: DEFAULT_DOCTORS,
+    };
+    this.tenantCaches.set('studio_sandbox', sandboxSeed);
+    fs.writeFileSync(sandboxFile, JSON.stringify(sandboxSeed, null, 2), 'utf-8');
+  }
+
+  public withTenant<T>(tenantId: string, fn: () => T): T {
+    const prevTenant = this.activeTenantId;
+    try {
+      this.activeTenantId = this.resolveTenant(tenantId);
+      return fn();
+    } finally {
+      this.activeTenantId = prevTenant;
+    }
+  }
+
+  public forTenant(tenantId: string = 'ipme_eusebio'): TenantDatabaseScope {
+    return new TenantDatabaseScope(this, this.resolveTenant(tenantId));
+  }
+
+  private get data(): DatabaseSchema {
+    return this.getData(this.activeTenantId);
+  }
+
+  private getData(tenantId?: string): DatabaseSchema {
+    const tid = this.resolveTenant(tenantId || this.activeTenantId);
+    if (!this.tenantCaches.has(tid)) {
+      this.tenantCaches.set(tid, this.load(tid));
+    }
+    return this.tenantCaches.get(tid)!;
+  }
+
+  private load(tenantId: string = 'ipme_eusebio'): DatabaseSchema {
+    const tid = this.resolveTenant(tenantId);
+    const tenantFile = path.join(TENANTS_DIR, `${tid}.json`);
+
+    try {
+      if (!fs.existsSync(TENANTS_DIR)) {
+        fs.mkdirSync(TENANTS_DIR, { recursive: true });
+      }
+
+      let fileToRead = tenantFile;
+      if (!fs.existsSync(fileToRead) && tid === 'ipme_eusebio' && fs.existsSync(DB_FILE)) {
+        fileToRead = DB_FILE;
+      }
+
+      if (fs.existsSync(fileToRead)) {
+        const raw = fs.readFileSync(fileToRead, 'utf-8');
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.employees) && Array.isArray(parsed.occurrences)) {
           let needsSave = false;
@@ -631,17 +979,13 @@ class DatabaseManager {
 
           if (!parsed.secretarias || !Array.isArray(parsed.secretarias) || parsed.secretarias.length === 0) {
             parsed.secretarias = DEFAULT_SECRETARIAS;
-            this.saveToDisk(parsed);
+            needsSave = true;
           }
 
           if (!parsed.doctors || !Array.isArray(parsed.doctors) || parsed.doctors.length === 0) {
             parsed.doctors = DEFAULT_DOCTORS;
-            this.saveToDisk(parsed);
+            needsSave = true;
           }
-
-          // Normalize any legacy IDs with prefixes (e.g. LIC-2026-0001) to clean sequential numbers
-          let seqCounter = 1;
-          const idMap = new Map<string, string>();
 
           // Normalize doctor IDs to clean sequential numbers (1, 2, 3...)
           if (parsed.doctors && Array.isArray(parsed.doctors)) {
@@ -657,7 +1001,6 @@ class DatabaseManager {
               if (!isNaN(currentDocNum) && currentDocNum >= docSeq) {
                 docSeq = currentDocNum + 1;
               }
-              // Migrate vinculo if missing
               if (!doc.vinculo) {
                 if (doc.nome?.includes('Juliana')) {
                   doc.vinculo = 'Comissionado';
@@ -668,13 +1011,11 @@ class DatabaseManager {
                 }
                 needsSave = true;
               }
-              // Migrate is_diretor if missing
               if (doc.is_diretor === undefined) {
                 doc.is_diretor = false;
                 needsSave = true;
               }
             }
-            // Ensure at least one doctor is designated as director
             if (!hasDiretor && parsed.doctors.length > 0) {
               const marcelo = parsed.doctors.find((d: Doctor) => d.nome?.includes('Marcelo')) || parsed.doctors[0];
               marcelo.is_diretor = true;
@@ -715,14 +1056,13 @@ class DatabaseManager {
             }
           }
 
+          let seqCounter = 1;
           for (const occ of parsed.occurrences) {
             if (occ.id && (occ.id.includes('LIC-') || occ.id.includes('READ-') || isNaN(Number(occ.id)))) {
               const oldId = occ.id;
-              // Extract numeric portion if available, else sequential counter
               const match = oldId.match(/\d+$/);
               const newId = match ? String(parseInt(match[0], 10)) : String(seqCounter);
               occ.id = newId;
-              idMap.set(oldId, newId);
               needsSave = true;
             }
             const currentNum = parseInt(occ.id, 10);
@@ -730,7 +1070,6 @@ class DatabaseManager {
               seqCounter = currentNum + 1;
             }
 
-            // Ensure structured extension history fields exist
             if (!occ.prorrogacoes) {
               occ.prorrogacoes = [];
               needsSave = true;
@@ -739,58 +1078,56 @@ class DatabaseManager {
               occ.data_termino_inicial = occ.data_termino;
               needsSave = true;
             }
-            // Ensure data_concessao for Licença Definitiva is strictly after data_termino
-            if (occ.tipo === 'Licença Definitiva') {
-              if (!occ.data_concessao || (occ.data_termino && occ.data_concessao <= occ.data_termino)) {
-                const dt = new Date(occ.data_termino + 'T00:00:00');
-                dt.setDate(dt.getDate() + 1);
-                occ.data_concessao = dt.toISOString().split('T')[0];
-                needsSave = true;
-              }
-            }
           }
 
-          if (idMap.size > 0 && parsed.audit_logs) {
-            for (const log of parsed.audit_logs) {
-              if (log.entity_type === 'occurrence' && idMap.has(log.entity_id)) {
-                log.entity_id = idMap.get(log.entity_id)!;
-                needsSave = true;
-              }
-            }
-          }
-
-          if (needsSave) {
-            this.saveToDisk(parsed);
+          if (needsSave || !fs.existsSync(tenantFile)) {
+            this.saveTenantToDisk(tid, parsed);
           }
           return parsed;
         }
       }
     } catch (e) {
-      console.error('Error loading database, initializing fresh seed:', e);
+      console.error(`Error loading database for tenant ${tid}, initializing fresh seed:`, e);
     }
 
     const initial: DatabaseSchema = {
-      employees: DEFAULT_EMPLOYEES,
-      occurrences: DEFAULT_OCCURRENCES,
+      employees: tid === 'studio_sandbox' ? DEFAULT_EMPLOYEES : [],
+      occurrences: tid === 'studio_sandbox' ? DEFAULT_OCCURRENCES : [],
       audit_logs: DEFAULT_AUDIT_LOGS,
       users: DEFAULT_USERS,
       secretarias: DEFAULT_SECRETARIAS,
       doctors: DEFAULT_DOCTORS,
     };
-    this.saveToDisk(initial);
+    this.saveTenantToDisk(tid, initial);
     return initial;
   }
 
   private saveToDisk(dataToSave: DatabaseSchema) {
+    this.saveTenantToDisk(this.activeTenantId, dataToSave);
+  }
+
+  private saveTenantToDisk(tenantId: string, dataToSave: DatabaseSchema) {
+    const tid = this.resolveTenant(tenantId);
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      if (!fs.existsSync(TENANTS_DIR)) {
+        fs.mkdirSync(TENANTS_DIR, { recursive: true });
       }
-      const tmp = `${DB_FILE}.tmp`;
+      this.tenantCaches.set(tid, dataToSave);
+      const tenantFile = path.join(TENANTS_DIR, `${tid}.json`);
+      const tmp = `${tenantFile}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify(dataToSave, null, 2), 'utf-8');
-      fs.renameSync(tmp, DB_FILE);
+      fs.renameSync(tmp, tenantFile);
+
+      // Sincroniza DB_FILE se for a base de produção
+      if (tid === 'ipme_eusebio') {
+        try {
+          const dbTmp = `${DB_FILE}.tmp`;
+          fs.writeFileSync(dbTmp, JSON.stringify(dataToSave, null, 2), 'utf-8');
+          fs.renameSync(dbTmp, DB_FILE);
+        } catch {}
+      }
     } catch (e) {
-      console.error('Error writing database to disk:', e);
+      console.error(`Error writing database for tenant ${tid} to disk:`, e);
     }
   }
 

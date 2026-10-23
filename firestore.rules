@@ -23,27 +23,66 @@ service cloud.firestore {
       return isMasterAdmin() || getUserRole() == 'admin';
     }
 
-    // Servidores Municipais
+    // --- Multi-Tenant Partition Hierarchy ---
+    match /tenants/{tenantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Servidores por Tenant
+      match /employees/{matricula} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
+        allow delete: if isAdmin();
+      }
+
+      // Ocorrências / Licenças por Tenant
+      match /occurrences/{occurrenceId} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
+        allow delete: if isAdmin();
+      }
+
+      // Médicos por Tenant
+      match /doctors/{doctorId} {
+        allow read: if true;
+        allow create, update, delete: if isAdmin() || isAuthenticated();
+      }
+
+      // Secretarias por Tenant
+      match /secretarias/{secretariaId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+
+      // Trilha de Auditoria por Tenant (Imutável)
+      match /audit_logs/{logId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update, delete: if false;
+      }
+    }
+
+    // Servidores Municipais (Raiz legado)
     match /employees/{matricula} {
       allow read: if isAuthenticated() || true;
       allow create, update: if isAuthenticated();
       allow delete: if isAdmin();
     }
 
-    // Ocorrências / Laudos Periciais / Licenças
+    // Ocorrências / Laudos Periciais / Licenças (Raiz legado)
     match /occurrences/{occurrenceId} {
       allow read: if isAuthenticated() || true;
       allow create, update: if isAuthenticated();
       allow delete: if isAdmin();
     }
 
-    // Médicos Peritos
+    // Médicos Peritos (Raiz legado)
     match /doctors/{doctorId} {
       allow read: if isAuthenticated() || true;
       allow create, update, delete: if isAdmin() || isAuthenticated();
     }
 
-    // Secretarias
+    // Secretarias (Raiz legado)
     match /secretarias/{secretariaId} {
       allow read: if isAuthenticated() || true;
       allow write: if isAdmin();

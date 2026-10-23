@@ -114,16 +114,58 @@
         "created_at": { "type": "string", "description": "Timestamp ISO" }
       },
       "required": ["email", "name", "role", "auth_provider"]
+    },
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Cliente/Município com partição isolada de banco de dados e controle de ambiente.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador único do tenant (ex: ipme_eusebio, studio_sandbox)" },
+        "nome": { "type": "string", "description": "Nome oficial do órgão/cliente" },
+        "sigla": { "type": "string", "description": "Sigla oficial ou nome curto" },
+        "cnpj": { "type": "string", "description": "CNPJ do órgão" },
+        "cidade": { "type": "string", "description": "Município sede" },
+        "uf": { "type": "string", "description": "Unidade Federativa" },
+        "ambiente": { "type": "string", "enum": ["producao", "homologacao"], "description": "Ambiente operacional de dados" },
+        "ativo": { "type": "boolean", "description": "Status ativo" },
+        "created_at": { "type": "string", "description": "Timestamp ISO" },
+        "descricao": { "type": "string", "description": "Descrição da partição" }
+      },
+      "required": ["id", "nome", "sigla", "ambiente", "ativo"]
     }
   },
   "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": { "$ref": "#/entities/Tenant" },
+      "description": "Registro de clientes municipais e autarquias com isolamento estrito de dados."
+    },
+    "/tenants/{tenantId}/employees/{matricula}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Servidores públicos vinculados exclusivamente ao cliente correspondente."
+    },
+    "/tenants/{tenantId}/occurrences/{occurrenceId}": {
+      "schema": { "$ref": "#/entities/Occurrence" },
+      "description": "Laudos periciais e afastamentos médicos isolados por cliente."
+    },
+    "/tenants/{tenantId}/doctors/{doctorId}": {
+      "schema": { "$ref": "#/entities/Doctor" },
+      "description": "Médicos peritos credenciados junto ao órgão do cliente."
+    },
+    "/tenants/{tenantId}/secretarias/{secretariaId}": {
+      "schema": { "$ref": "#/entities/Secretaria" },
+      "description": "Secretarias e órgãos da administração do cliente."
+    },
+    "/tenants/{tenantId}/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Trilha de auditoria pericial isolada e imutável por cliente."
+    },
     "/employees/{matricula}": {
       "schema": { "$ref": "#/entities/Employee" },
-      "description": "Coleção com todos os servidores públicos municipais de Eusébio."
+      "description": "Coleção com todos os servidores públicos municipais de Eusébio (raiz legado)."
     },
     "/occurrences/{occurrenceId}": {
       "schema": { "$ref": "#/entities/Occurrence" },
-      "description": "Coleção de laudos periciais, licenças médicas e readaptações funcionais homologadas."
+      "description": "Coleção de laudos periciais, licenças médicas e readaptações funcionais homologadas (raiz legado)."
     },
     "/doctors/{doctorId}": {
       "schema": { "$ref": "#/entities/Doctor" },

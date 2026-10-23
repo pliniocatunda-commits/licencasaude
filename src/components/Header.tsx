@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppUser, UserRole } from '../types/index.ts';
 import { useAppTheme } from '../context/ThemeContext.tsx';
 import { ThemeSelectorModal } from './ThemeSelectorModal.tsx';
+import { TenantSelectorModal } from './TenantSelectorModal.tsx';
+import { api } from '../services/api.ts';
 import { 
   Building2, 
   Users, 
@@ -20,7 +22,8 @@ import {
   Layers,
   Upload,
   Palette,
-  KeyRound
+  KeyRound,
+  Database
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -35,6 +38,7 @@ interface HeaderProps {
   onOpenLoginModal?: () => void;
   onOpenChangePassword?: () => void;
   onLogout?: () => void;
+  onTenantChanged?: (tenantId: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -49,9 +53,12 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLoginModal,
   onOpenChangePassword,
   onLogout,
+  onTenantChanged,
 }) => {
   const { theme, themeConfig } = useAppTheme();
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [tenantModalOpen, setTenantModalOpen] = useState(false);
+  const [activeTenantId, setActiveTenantId] = useState<string>(() => api.getActiveTenantId());
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [cadastrosDropdownOpen, setCadastrosDropdownOpen] = useState(false);
   const [licencasDropdownOpen, setLicencasDropdownOpen] = useState(false);
@@ -59,6 +66,18 @@ export const Header: React.FC<HeaderProps> = ({
   const cadastrosRef = useRef<HTMLDivElement>(null);
   const licencasRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Sync active tenant from events
+  useEffect(() => {
+    const handleTenantChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tenantId: string }>;
+      if (customEvent.detail?.tenantId) {
+        setActiveTenantId(customEvent.detail.tenantId);
+      }
+    };
+    window.addEventListener('ipme_tenant_changed', handleTenantChange);
+    return () => window.removeEventListener('ipme_tenant_changed', handleTenantChange);
+  }, []);
 
   // Close dropdowns cleanly when clicking outside
   useEffect(() => {
@@ -146,8 +165,36 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* User Profile & Direct Logout (Alinhamento harmonioso no topo) */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* User Profile, Environment Badge & Direct Logout (Alinhamento harmonioso no topo) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Indicador & Seletor de Ambiente / Cliente Isolado */}
+          <button
+            type="button"
+            onClick={() => setTenantModalOpen(true)}
+            title="Clique para gerenciar a segregação de banco de dados (Produção vs Homologação Studio)"
+            className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+              activeTenantId === 'studio_sandbox'
+                ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 hover:bg-amber-500/30'
+                : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40 hover:bg-emerald-500/30'
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
+                activeTenantId === 'studio_sandbox' ? 'bg-amber-400' : 'bg-emerald-400'
+              }`} />
+              <Database className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline font-mono uppercase text-[10px] tracking-wider">
+                {activeTenantId === 'studio_sandbox' ? 'Homologação Studio' : 'Produção Oficial'}
+              </span>
+              <span className="md:hidden font-mono uppercase text-[10px]">
+                {activeTenantId === 'studio_sandbox' ? 'Testes' : 'Produção'}
+              </span>
+            </div>
+            <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded border border-white/20 font-sans font-semibold">
+              {activeTenantId === 'studio_sandbox' ? 'Sandbox' : 'Eusébio'}
+            </span>
+          </button>
+
           {/* User Account Dropdown */}
           <div ref={profileRef} className="relative z-50">
             <button
@@ -214,7 +261,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 {/* Theme Selector Option inside Profile */}
-                <div className="p-2 border-b border-white/10">
+                <div className="p-2 border-b border-white/10 space-y-1">
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
@@ -231,6 +278,27 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <span className="text-[10px] bg-white/20 text-white border border-white/30 px-1.5 py-0.5 rounded font-bold">
                       Trocar
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setTenantModalOpen(true);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-emerald-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Database className="w-4 h-4 text-emerald-300" />
+                      <div>
+                        <span className="font-semibold block text-white">Banco de Dados & Clientes</span>
+                        <span className="text-[10px] text-emerald-200/90">
+                          {activeTenantId === 'studio_sandbox' ? 'Sandbox Studio (Testes)' : 'IPME Eusébio (Produção Oficial)'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-1.5 py-0.5 rounded font-bold">
+                      Isolamento
                     </span>
                   </button>
                 </div>
@@ -690,6 +758,16 @@ export const Header: React.FC<HeaderProps> = ({
       <ThemeSelectorModal 
         isOpen={themeModalOpen} 
         onClose={() => setThemeModalOpen(false)} 
+      />
+
+      {/* Database Multi-Tenant / Environment Modal */}
+      <TenantSelectorModal
+        isOpen={tenantModalOpen}
+        onClose={() => setTenantModalOpen(false)}
+        onTenantChanged={(tenantId) => {
+          setActiveTenantId(tenantId);
+          onTenantChanged?.(tenantId);
+        }}
       />
     </header>
   );

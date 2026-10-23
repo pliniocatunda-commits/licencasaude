@@ -159,6 +159,20 @@ export default function App() {
     }
   }, [loadAllData]);
 
+  // Sincroniza reload quando o cliente/ambiente for alternado
+  useEffect(() => {
+    const handleTenantEvent = () => {
+      loadAllData();
+    };
+    window.addEventListener('ipme_tenant_changed', handleTenantEvent);
+    return () => window.removeEventListener('ipme_tenant_changed', handleTenantEvent);
+  }, [loadAllData]);
+
+  const handleTenantChanged = async (tenantId: string) => {
+    addToast('info', `Ambiente alterado para ${tenantId === 'studio_sandbox' ? 'Sandbox de Testes (Studio)' : 'IPME Eusébio (Produção Oficial)'}. Dados 100% isolados.`);
+    await loadAllData();
+  };
+
   // Auth & User switching
   const handleSwitchUser = (user: AppUser) => {
     api.setCurrentUser(user);
@@ -635,6 +649,7 @@ export default function App() {
         onOpenLoginModal={() => setLoginModalOpen(true)}
         onOpenChangePassword={() => setChangePasswordModalOpen(true)}
         onLogout={handleLogout}
+        onTenantChanged={handleTenantChanged}
       />
 
       {/* Main Viewport Content */}

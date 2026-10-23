@@ -15,7 +15,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Employee, Occurrence, Doctor, Secretaria, AppUser, AuditLog } from '../types/index.ts';
+import { Employee, Occurrence, Doctor, Secretaria, AppUser, AuditLog, TenantInfo } from '../types/index.ts';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -45,6 +45,7 @@ export async function validateFirestoreConnection(): Promise<boolean> {
 
 // Collections references
 export const COLLECTIONS = {
+  TENANTS: 'tenants',
   EMPLOYEES: 'employees',
   OCCURRENCES: 'occurrences',
   DOCTORS: 'doctors',
@@ -53,84 +54,119 @@ export const COLLECTIONS = {
   AUDIT_LOGS: 'audit_logs',
 } as const;
 
+export function getTenantCollectionPath(colName: string, tenantId?: string): string {
+  const tid = tenantId || (typeof window !== 'undefined' ? localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio' : 'ipme_eusebio');
+  const clean = tid.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'ipme_eusebio';
+  return `tenants/${clean}/${colName}`;
+}
+
 /**
- * Firestore Service for IPME
+ * Firestore Service for IPME with Strict Tenant Isolation
  */
 export const firestoreService = {
   // Test connection
   testConnection: validateFirestoreConnection,
 
-  // --- Employees ---
-  async getEmployees(): Promise<Employee[]> {
-    const snap = await getDocs(collection(firestoreDb, COLLECTIONS.EMPLOYEES));
+  getTenantId(tenantId?: string): string {
+    return tenantId || (typeof window !== 'undefined' ? localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio' : 'ipme_eusebio');
+  },
+
+  // --- Tenants Registry ---
+  async getTenants(): Promise<TenantInfo[]> {
+    const snap = await getDocs(collection(firestoreDb, COLLECTIONS.TENANTS));
+    return snap.docs.map(d => d.data() as TenantInfo);
+  },
+
+  async saveTenant(tenant: TenantInfo): Promise<void> {
+    await setDoc(doc(firestoreDb, COLLECTIONS.TENANTS, tenant.id), tenant, { merge: true });
+  },
+
+  // --- Employees (Tenant Isolated) ---
+  async getEmployees(tenantId?: string): Promise<Employee[]> {
+    const tid = this.getTenantId(tenantId);
+    const snap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid)));
     return snap.docs.map(d => d.data() as Employee);
   },
 
-  async saveEmployee(emp: Employee): Promise<void> {
-    await setDoc(doc(firestoreDb, COLLECTIONS.EMPLOYEES, emp.matricula), emp, { merge: true });
+  async saveEmployee(emp: Employee, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid), emp.matricula), emp, { merge: true });
   },
 
-  async deleteEmployee(matricula: string): Promise<void> {
-    await deleteDoc(doc(firestoreDb, COLLECTIONS.EMPLOYEES, matricula));
+  async deleteEmployee(matricula: string, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid), matricula));
   },
 
-  // --- Occurrences ---
-  async getOccurrences(matricula?: string): Promise<Occurrence[]> {
+  // --- Occurrences (Tenant Isolated) ---
+  async getOccurrences(matricula?: string, tenantId?: string): Promise<Occurrence[]> {
+    const tid = this.getTenantId(tenantId);
+    const colRef = collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid));
     let q;
     if (matricula) {
-      q = query(collection(firestoreDb, COLLECTIONS.OCCURRENCES), where('matricula', '==', matricula));
+      q = query(colRef, where('matricula', '==', matricula));
     } else {
-      q = query(collection(firestoreDb, COLLECTIONS.OCCURRENCES));
+      q = query(colRef);
     }
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as Occurrence);
   },
 
-  async saveOccurrence(occ: Occurrence): Promise<void> {
-    await setDoc(doc(firestoreDb, COLLECTIONS.OCCURRENCES, String(occ.id)), occ, { merge: true });
+  async saveOccurrence(occ: Occurrence, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid), String(occ.id)), occ, { merge: true });
   },
 
-  async deleteOccurrence(id: string): Promise<void> {
-    await deleteDoc(doc(firestoreDb, COLLECTIONS.OCCURRENCES, String(id)));
+  async deleteOccurrence(id: string, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid), String(id)));
   },
 
-  // --- Doctors ---
-  async getDoctors(): Promise<Doctor[]> {
-    const snap = await getDocs(collection(firestoreDb, COLLECTIONS.DOCTORS));
+  // --- Doctors (Tenant Isolated) ---
+  async getDoctors(tenantId?: string): Promise<Doctor[]> {
+    const tid = this.getTenantId(tenantId);
+    const snap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.DOCTORS, tid)));
     return snap.docs.map(d => d.data() as Doctor);
   },
 
-  async saveDoctor(docItem: Doctor): Promise<void> {
-    await setDoc(doc(firestoreDb, COLLECTIONS.DOCTORS, String(docItem.id)), docItem, { merge: true });
+  async saveDoctor(docItem: Doctor, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.DOCTORS, tid), String(docItem.id)), docItem, { merge: true });
   },
 
-  async deleteDoctor(id: string): Promise<void> {
-    await deleteDoc(doc(firestoreDb, COLLECTIONS.DOCTORS, String(id)));
+  async deleteDoctor(id: string, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.DOCTORS, tid), String(id)));
   },
 
-  // --- Secretarias ---
-  async getSecretarias(): Promise<Secretaria[]> {
-    const snap = await getDocs(collection(firestoreDb, COLLECTIONS.SECRETARIAS));
+  // --- Secretarias (Tenant Isolated) ---
+  async getSecretarias(tenantId?: string): Promise<Secretaria[]> {
+    const tid = this.getTenantId(tenantId);
+    const snap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.SECRETARIAS, tid)));
     return snap.docs.map(d => d.data() as Secretaria);
   },
 
-  async saveSecretaria(sec: Secretaria): Promise<void> {
-    await setDoc(doc(firestoreDb, COLLECTIONS.SECRETARIAS, sec.id), sec, { merge: true });
+  async saveSecretaria(sec: Secretaria, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.SECRETARIAS, tid), sec.id), sec, { merge: true });
   },
 
-  async deleteSecretaria(id: string): Promise<void> {
-    await deleteDoc(doc(firestoreDb, COLLECTIONS.SECRETARIAS, id));
+  async deleteSecretaria(id: string, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.SECRETARIAS, tid), id));
   },
 
-  // --- Audit Logs ---
-  async getAuditLogs(max = 100): Promise<AuditLog[]> {
-    const q = query(collection(firestoreDb, COLLECTIONS.AUDIT_LOGS), orderBy('timestamp', 'desc'), limit(max));
+  // --- Audit Logs (Tenant Isolated) ---
+  async getAuditLogs(max = 100, tenantId?: string): Promise<AuditLog[]> {
+    const tid = this.getTenantId(tenantId);
+    const q = query(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.AUDIT_LOGS, tid)), orderBy('timestamp', 'desc'), limit(max));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as AuditLog);
   },
 
-  async addAuditLog(log: AuditLog): Promise<void> {
-    await setDoc(doc(firestoreDb, COLLECTIONS.AUDIT_LOGS, log.id), log);
+  async addAuditLog(log: AuditLog, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.AUDIT_LOGS, tid), log.id), log);
   },
 
   // --- Users ---

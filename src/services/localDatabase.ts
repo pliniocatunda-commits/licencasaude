@@ -408,19 +408,37 @@ const INITIAL_DATA: DatabaseSchema = {
   ]
 };
 
-const STORAGE_KEY = 'ipme_browser_db_v2';
-
 export class ClientDatabase {
+  private activeTenantId: string = typeof window !== 'undefined'
+    ? (localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio')
+    : 'ipme_eusebio';
   private data: DatabaseSchema;
 
   constructor() {
     this.data = this.loadFromStorage();
   }
 
+  public setActiveTenant(tenantId: string) {
+    this.activeTenantId = tenantId || 'ipme_eusebio';
+    this.data = this.loadFromStorage();
+  }
+
+  public getActiveTenant(): string {
+    return this.activeTenantId;
+  }
+
+  private getStorageKey(): string {
+    return `ipme_browser_db_tenant_${this.activeTenantId}`;
+  }
+
   private loadFromStorage(): DatabaseSchema {
     if (typeof window === 'undefined') return INITIAL_DATA;
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      let stored = localStorage.getItem(this.getStorageKey());
+      // Migração de chave legada se for ipme_eusebio
+      if (!stored && this.activeTenantId === 'ipme_eusebio') {
+        stored = localStorage.getItem('ipme_browser_db_v2');
+      }
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.employees && parsed.occurrences) {
@@ -459,14 +477,15 @@ export class ClientDatabase {
     } catch (e) {
       console.warn('Erro ao ler localStorage IPME, usando dados iniciais:', e);
     }
-    this.saveToStorage(INITIAL_DATA);
-    return JSON.parse(JSON.stringify(INITIAL_DATA));
+    const seed = JSON.parse(JSON.stringify(INITIAL_DATA));
+    this.saveToStorage(seed);
+    return seed;
   }
 
   private saveToStorage(data: DatabaseSchema) {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(this.getStorageKey(), JSON.stringify(data));
     } catch (e) {
       console.error('Erro ao salvar no localStorage IPME:', e);
     }

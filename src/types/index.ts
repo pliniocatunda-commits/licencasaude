@@ -8,6 +8,21 @@ export type UserRole = 'admin' | 'operator';
 
 export type DoctorVinculo = 'Efetivo' | 'Comissionado' | 'Temporário';
 
+export type TenantEnvironment = 'producao' | 'homologacao';
+
+export interface TenantInfo {
+  id: string;
+  nome: string;
+  sigla: string;
+  cnpj: string;
+  cidade: string;
+  uf: string;
+  ambiente: TenantEnvironment;
+  ativo: boolean;
+  created_at: string;
+  descricao?: string;
+}
+
 export interface Doctor {
   id: string;
   nome: string;

@@ -1,10 +1,28 @@
-import { Employee, Occurrence, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor } from '../types/index.ts';
+import { Employee, Occurrence, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, TenantInfo } from '../types/index.ts';
 import { clientDb } from './localDatabase.ts';
 import { signOutGoogle } from './googleAuth.ts';
 import { firestoreService } from './firestore.ts';
 
 class ApiService {
   private currentUser: AppUser | null = null;
+  private activeTenantId: string = typeof window !== 'undefined' 
+    ? (localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio') 
+    : 'ipme_eusebio';
+
+  public getActiveTenantId(): string {
+    return this.activeTenantId || 'ipme_eusebio';
+  }
+
+  public setActiveTenantId(tenantId: string): void {
+    const clean = tenantId.trim().toLowerCase();
+    this.activeTenantId = clean || 'ipme_eusebio';
+    try {
+      localStorage.setItem('ipme_active_tenant_id', this.activeTenantId);
+      // Notifica componentes e sincroniza base local
+      clientDb.setActiveTenant(this.activeTenantId);
+      window.dispatchEvent(new CustomEvent('ipme_tenant_changed', { detail: { tenantId: this.activeTenantId } }));
+    } catch {}
+  }
 
   public getCurrentUser(): AppUser | null {
     return this.currentUser;
@@ -28,7 +46,7 @@ class ApiService {
       sessionStorage.removeItem('ipme_current_user');
     } catch {}
     try {
-      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+      fetch('/api/auth/logout', { method: 'POST', headers: this.getHeaders() }).catch(() => {});
     } catch {}
     try {
       signOutGoogle().catch(() => {});
@@ -64,6 +82,7 @@ class ApiService {
       'Content-Type': 'application/json',
       'x-user-email': this.currentUser?.email || '',
       'x-user-role': this.currentUser?.role || 'operator',
+      'x-tenant-id': this.getActiveTenantId(),
     };
   }
 
@@ -620,6 +639,83 @@ class ApiService {
         }),
       },
       () => clientDb.importCadastroCSV(csvText, substituirExistentes, this.actorEmail, this.actorRole)
+    );
+  }
+
+  // --- Tenants & Environment APIs ---
+  public async getTenants(): Promise<TenantInfo[]> {
+    return this.request(
+      '/api/tenants',
+      { method: 'GET' },
+      () => [
+        {
+          id: 'ipme_eusebio',
+          nome: 'IPME - Instituto de Previdência do Município de Eusébio',
+          sigla: 'IPME Eusébio',
+          cnpj: '05.123.456/0001-78',
+          cidade: 'Eusébio',
+          uf: 'CE',
+          ambiente: 'producao',
+          ativo: true,
+          created_at: '2026-01-01T08:00:00.000Z',
+          descricao: 'Base Oficial de Produção Previdenciária do Município de Eusébio - CE. Isolada e auditada.',
+        },
+        {
+          id: 'studio_sandbox',
+          nome: 'Ambiente de Testes & Homologação Studio',
+          sigla: 'Studio Sandbox',
+          cnpj: '00.000.000/0001-00',
+          cidade: 'Eusébio (Ambiente de Testes)',
+          uf: 'CE',
+          ambiente: 'homologacao',
+          ativo: true,
+          created_at: '2026-01-01T08:00:00.000Z',
+          descricao: 'Ambiente seguro para testes no Google AI Studio. Os testes aqui realizados NUNCA afetam a base oficial do cliente.',
+        },
+      ]
+    );
+  }
+
+  public async getCurrentTenant(): Promise<TenantInfo> {
+    return this.request(
+      '/api/tenants/current',
+      { method: 'GET' },
+      async () => {
+        const list = await this.getTenants();
+        return list.find(t => t.id === this.getActiveTenantId()) || list[0];
+      }
+    );
+  }
+
+  public async saveTenant(tenant: Partial<TenantInfo> & { nome: string; sigla: string }): Promise<TenantInfo> {
+    return this.request(
+      '/api/tenants',
+      {
+        method: 'POST',
+        body: JSON.stringify(tenant),
+      },
+      () => ({
+        id: tenant.id || tenant.sigla.toLowerCase(),
+        nome: tenant.nome,
+        sigla: tenant.sigla,
+        cnpj: tenant.cnpj || '00.000.000/0001-00',
+        cidade: tenant.cidade || 'Município',
+        uf: tenant.uf || 'CE',
+        ambiente: tenant.ambiente || 'producao',
+        ativo: tenant.ativo !== undefined ? tenant.ativo : true,
+        created_at: new Date().toISOString(),
+      })
+    );
+  }
+
+  public async resetSandbox(): Promise<boolean> {
+    return this.request(
+      '/api/tenants/reset-sandbox',
+      {
+        method: 'POST',
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
+      },
+      () => true
     );
   }
 }

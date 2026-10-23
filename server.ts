@@ -24,12 +24,78 @@ async function startServer() {
     return { actorEmail, actorRole };
   }
 
+  function getTenantId(req: Request): string {
+    const headerTenant = req.headers['x-tenant-id'] as string;
+    if (headerTenant && headerTenant.trim()) {
+      return headerTenant.trim();
+    }
+    const bodyTenant = req.body?.tenantId as string;
+    if (bodyTenant && bodyTenant.trim()) {
+      return bodyTenant.trim();
+    }
+    const queryTenant = req.query?.tenantId as string;
+    if (queryTenant && queryTenant.trim()) {
+      return queryTenant.trim();
+    }
+    return 'ipme_eusebio';
+  }
+
+  function getTenantDb(req: Request) {
+    return db.forTenant(getTenantId(req));
+  }
+
   // --- API Routes ---
 
-  // Dashboard Stats & Metrics
-  app.get('/api/stats', (_req: Request, res: Response) => {
+  // Tenants & Isolation Endpoints
+  app.get('/api/tenants', (_req: Request, res: Response) => {
     try {
-      const metrics = db.getMetrics();
+      const tenants = db.getTenants();
+      res.json({ success: true, data: tenants });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  app.get('/api/tenants/current', (req: Request, res: Response) => {
+    try {
+      const tid = getTenantId(req);
+      const tenant = db.getTenantById(tid) || db.getTenantById('ipme_eusebio');
+      res.json({ success: true, data: tenant });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/tenants', (req: Request, res: Response) => {
+    try {
+      const { actorRole } = getActor(req);
+      if (actorRole !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Apenas Administradores podem registrar novos clientes.' });
+      }
+      const saved = db.saveTenant(req.body);
+      res.status(201).json({ success: true, data: saved });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/tenants/reset-sandbox', (req: Request, res: Response) => {
+    try {
+      const { actorEmail, actorRole } = getActor(req);
+      if (actorRole !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Apenas Administradores podem reiniciar a base de testes.' });
+      }
+      db.resetSandbox(actorEmail);
+      res.json({ success: true, message: 'Ambiente de testes (Studio Sandbox) reinicializado com sucesso.' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+  // Dashboard Stats & Metrics
+  app.get('/api/stats', (req: Request, res: Response) => {
+    try {
+      const metrics = getTenantDb(req).getMetrics();
       res.json({ success: true, data: metrics });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -40,7 +106,7 @@ async function startServer() {
   app.get('/api/employees', (req: Request, res: Response) => {
     try {
       const { search, secretaria, status } = req.query as { search?: string; secretaria?: string; status?: string };
-      const employees = db.getEmployees(search, secretaria, status);
+      const employees = getTenantDb(req).getEmployees(search, secretaria, status);
       res.json({ success: true, data: employees, count: employees.length });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -49,11 +115,11 @@ async function startServer() {
 
   app.get('/api/employees/:matricula', (req: Request, res: Response) => {
     try {
-      const emp = db.getEmployeeByMatricula(req.params.matricula);
+      const emp = getTenantDb(req).getEmployeeByMatricula(req.params.matricula);
       if (!emp) {
         return res.status(404).json({ success: false, message: 'Servidor não encontrado.' });
       }
-      const history = db.getOccurrences(emp.matricula);
+      const history = getTenantDb(req).getOccurrences(emp.matricula);
       res.json({ success: true, data: { ...emp, history } });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -69,7 +135,7 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Matrícula, Nome e CPF são obrigatórios.' });
       }
 
-      const saved = db.saveEmployee(
+      const saved = getTenantDb(req).saveEmployee(
         { matricula, nome, cpf, telefone, secretaria, setor, cargo, status, data_admissao, email },
         actorEmail,
         actorRole
@@ -83,7 +149,7 @@ async function startServer() {
   app.put('/api/employees/:matricula', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const saved = db.saveEmployee(
+      const saved = getTenantDb(req).saveEmployee(
         { ...req.body, matricula: req.params.matricula },
         actorEmail,
         actorRole
@@ -100,7 +166,7 @@ async function startServer() {
       if (actorRole !== 'admin') {
         return res.status(403).json({ success: false, message: 'Apenas Administradores podem excluir servidores.' });
       }
-      const deleted = db.deleteEmployee(req.params.matricula, actorEmail, actorRole);
+      const deleted = getTenantDb(req).deleteEmployee(req.params.matricula, actorEmail, actorRole);
       if (!deleted) {
         return res.status(404).json({ success: false, message: 'Servidor não encontrado.' });
       }
@@ -116,7 +182,7 @@ async function startServer() {
       if (actorRole !== 'admin') {
         return res.status(403).json({ success: false, message: 'Apenas Administradores podem limpar o cadastro de servidores.' });
       }
-      const result = db.clearAllEmployees(actorEmail, actorRole);
+      const result = getTenantDb(req).clearAllEmployees(actorEmail, actorRole);
       res.json({ success: true, message: 'Cadastro de servidores apagado com sucesso.', data: result });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -133,7 +199,7 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Conteúdo CSV não fornecido.' });
       }
 
-      const result = db.importCadastroCSV(csvText, Boolean(substituirExistentes), actorEmail, actorRole);
+      const result = getTenantDb(req).importCadastroCSV(csvText, Boolean(substituirExistentes), actorEmail, actorRole);
       res.json({ success: true, data: result });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -150,7 +216,7 @@ async function startServer() {
         dataInicio?: string;
         dataTermino?: string;
       };
-      const list = db.getOccurrences(matricula, tipo, status, dataInicio, dataTermino);
+      const list = getTenantDb(req).getOccurrences(matricula, tipo, status, dataInicio, dataTermino);
       res.json({ success: true, data: list, count: list.length });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -159,7 +225,7 @@ async function startServer() {
 
   app.get('/api/occurrences/:id', (req: Request, res: Response) => {
     try {
-      const occ = db.getOccurrenceById(req.params.id);
+      const occ = getTenantDb(req).getOccurrenceById(req.params.id);
       if (!occ) {
         return res.status(404).json({ success: false, message: 'Ocorrência não encontrada.' });
       }
@@ -185,7 +251,7 @@ async function startServer() {
         });
       }
 
-      const saved = db.saveOccurrence(
+      const saved = getTenantDb(req).saveOccurrence(
         { matricula, tipo, data_inicio, data_termino, cid, medico_perito, crm, anexo_url, anexo_nome, observacoes, parecer_tecnico },
         actorEmail,
         actorRole
@@ -199,7 +265,7 @@ async function startServer() {
   app.put('/api/occurrences/:id', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const saved = db.saveOccurrence(
+      const saved = getTenantDb(req).saveOccurrence(
         { ...req.body, id: req.params.id },
         actorEmail,
         actorRole
@@ -217,7 +283,7 @@ async function startServer() {
       if (!novaDataTermino) {
         return res.status(400).json({ success: false, message: 'Nova data de término é obrigatória.' });
       }
-      const updated = db.prorrogarOccurrence(req.params.id, novaDataTermino, motivo || 'Prorrogação pericial deferida', medico, crm, actorEmail, actorRole);
+      const updated = getTenantDb(req).prorrogarOccurrence(req.params.id, novaDataTermino, motivo || 'Prorrogação pericial deferida', medico, crm, actorEmail, actorRole);
       res.json({ success: true, data: updated });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -228,7 +294,7 @@ async function startServer() {
     try {
       const { actorEmail, actorRole } = getActor(req);
       const { parecerFinal, dataConcessao, atoConcessao } = req.body;
-      const updated = db.concluirOccurrence(req.params.id, parecerFinal, actorEmail, actorRole, dataConcessao, atoConcessao);
+      const updated = getTenantDb(req).concluirOccurrence(req.params.id, parecerFinal, actorEmail, actorRole, dataConcessao, atoConcessao);
       res.json({ success: true, data: updated });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -242,7 +308,7 @@ async function startServer() {
       if (!dataRetorno) {
         return res.status(400).json({ success: false, message: 'Data do Retorno ao Trabalho é obrigatória.' });
       }
-      const updated = db.retornarTrabalhoOccurrence(
+      const updated = getTenantDb(req).retornarTrabalhoOccurrence(
         req.params.id,
         dataRetorno,
         motivoRetorno,
@@ -265,7 +331,7 @@ async function startServer() {
       if (!dataConcessao) {
         return res.status(400).json({ success: false, message: 'A Data da Concessão é obrigatória para tornar a licença definitiva.' });
       }
-      const occ = db.getOccurrenceById(req.params.id);
+      const occ = getTenantDb(req).getOccurrenceById(req.params.id);
       if (!occ) {
         return res.status(404).json({ success: false, message: 'Ocorrência não encontrada.' });
       }
@@ -275,7 +341,7 @@ async function startServer() {
           message: `A licença permanente não poderá ser concedida dentro do prazo vigente de licença (vigente até ${occ.data_termino}). A Data da Concessão deve ser posterior ao término da licença atual.` 
         });
       }
-      const updated = db.converterOccurrenceDefinitiva(
+      const updated = getTenantDb(req).converterOccurrenceDefinitiva(
         req.params.id,
         dataConcessao,
         atoConcessao,
@@ -296,7 +362,7 @@ async function startServer() {
     try {
       const { actorEmail, actorRole } = getActor(req);
       const { motivo } = req.body;
-      const updated = db.cancelarOccurrence(req.params.id, motivo || 'Cancelamento solicitado', actorEmail, actorRole);
+      const updated = getTenantDb(req).cancelarOccurrence(req.params.id, motivo || 'Cancelamento solicitado', actorEmail, actorRole);
       res.json({ success: true, data: updated });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -309,7 +375,7 @@ async function startServer() {
       if (actorRole !== 'admin') {
         return res.status(403).json({ success: false, message: 'Apenas Administradores podem excluir afastamentos definitivamente.' });
       }
-      const ok = db.deleteOccurrence(req.params.id, actorEmail, actorRole);
+      const ok = getTenantDb(req).deleteOccurrence(req.params.id, actorEmail, actorRole);
       if (!ok) return res.status(404).json({ success: false, message: 'Ocorrência não encontrada.' });
       res.json({ success: true, message: 'Registro excluído com sucesso.' });
     } catch (error) {
@@ -321,7 +387,7 @@ async function startServer() {
   app.post('/api/admin/clear-occurrences', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const count = db.clearOccurrences(actorEmail, actorRole);
+      const count = getTenantDb(req).clearOccurrences(actorEmail, actorRole);
       res.json({ success: true, message: `${count} ocorrências excluídas com sucesso. Todos os servidores mantidos e ativos.`, data: { deletedOccurrences: count } });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -332,7 +398,7 @@ async function startServer() {
   app.get('/api/audit-logs', (req: Request, res: Response) => {
     try {
       const { entityType, search } = req.query as { entityType?: string; search?: string };
-      const logs = db.getAuditLogs(entityType, search);
+      const logs = getTenantDb(req).getAuditLogs(entityType, search);
       res.json({ success: true, data: logs });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -340,9 +406,9 @@ async function startServer() {
   });
 
   // User Management
-  app.get('/api/users', (_req: Request, res: Response) => {
+  app.get('/api/users', (req: Request, res: Response) => {
     try {
-      const users = db.getUsers();
+      const users = getTenantDb(req).getUsers();
       res.json({ success: true, data: users });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -352,7 +418,7 @@ async function startServer() {
   app.post('/api/users', async (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const user = db.saveUser(req.body, actorEmail, actorRole);
+      const user = getTenantDb(req).saveUser(req.body, actorEmail, actorRole);
 
       let emailDispatch = null;
       if (user.confirmation_code && user.email_verified === false) {
@@ -373,7 +439,7 @@ async function startServer() {
   app.put('/api/users/:email', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const user = db.saveUser({ ...req.body, email: req.params.email }, actorEmail, actorRole);
+      const user = getTenantDb(req).saveUser({ ...req.body, email: req.params.email }, actorEmail, actorRole);
       res.json({ success: true, data: user });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -383,7 +449,7 @@ async function startServer() {
   app.delete('/api/users/:email', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      db.deleteUser(req.params.email, actorEmail, actorRole);
+      (getTenantDb(req) as any).deleteUser?.(req.params.email, actorEmail, actorRole);
       res.json({ success: true, message: 'Operador excluído com sucesso.' });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -394,7 +460,7 @@ async function startServer() {
   app.get('/api/secretarias', (req: Request, res: Response) => {
     try {
       const { search, apenasAtivas } = req.query as { search?: string; apenasAtivas?: string };
-      const secretarias = db.getSecretarias(search, apenasAtivas === 'true');
+      const secretarias = getTenantDb(req).getSecretarias(search, apenasAtivas === 'true');
       res.json({ success: true, data: secretarias, count: secretarias.length });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -403,7 +469,7 @@ async function startServer() {
 
   app.get('/api/secretarias/:id', (req: Request, res: Response) => {
     try {
-      const sec = db.getSecretariaById(req.params.id);
+      const sec = getTenantDb(req).getSecretariaById(req.params.id);
       if (!sec) {
         return res.status(404).json({ success: false, message: 'Secretaria não encontrada.' });
       }
@@ -422,7 +488,7 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Sigla e Nome da Secretaria são obrigatórios.' });
       }
 
-      const saved = db.saveSecretaria(
+      const saved = getTenantDb(req).saveSecretaria(
         { sigla, nome, secretario, email, telefone, endereco, ativa },
         actorEmail,
         actorRole
@@ -436,7 +502,7 @@ async function startServer() {
   app.put('/api/secretarias/:id', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);
-      const saved = db.saveSecretaria(
+      const saved = getTenantDb(req).saveSecretaria(
         { ...req.body, id: req.params.id },
         actorEmail,
         actorRole
@@ -453,7 +519,7 @@ async function startServer() {
       if (actorRole !== 'admin') {
         return res.status(403).json({ success: false, message: 'Apenas Administradores podem excluir secretarias.' });
       }
-      const ok = db.deleteSecretaria(req.params.id, actorEmail, actorRole);
+      const ok = getTenantDb(req).deleteSecretaria(req.params.id, actorEmail, actorRole);
       if (!ok) return res.status(404).json({ success: false, message: 'Secretaria não encontrada.' });
       res.json({ success: true, message: 'Secretaria excluída com sucesso.' });
     } catch (error) {
@@ -465,7 +531,7 @@ async function startServer() {
   app.get('/api/doctors', (req: Request, res: Response) => {
     try {
       const { search, apenasAtivos } = req.query as { search?: string; apenasAtivos?: string };
-      const doctors = db.getDoctors(search, apenasAtivos === 'true');
+      const doctors = getTenantDb(req).getDoctors(search, apenasAtivos === 'true');
       res.json({ success: true, data: doctors, count: doctors.length });
     } catch (error) {
       res.status(500).json({ success: false, message: (error as Error).message });
@@ -474,7 +540,7 @@ async function startServer() {
 
   app.get('/api/doctors/:id', (req: Request, res: Response) => {
     try {
-      const doc = db.getDoctorById(req.params.id);
+      const doc = getTenantDb(req).getDoctorById(req.params.id);
       if (!doc) {
         return res.status(404).json({ success: false, message: 'Médico não encontrado.' });
       }
@@ -493,7 +559,7 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'Nome e Número de CRM são obrigatórios.' });
       }
 
-      const saved = db.saveDoctor({ nome, crm, especialidade, ativo, vinculo, is_diretor }, actorEmail, actorRole);
+      const saved = getTenantDb(req).saveDoctor({ nome, crm, especialidade, ativo, vinculo, is_diretor }, actorEmail, actorRole);
       res.status(201).json({ success: true, data: saved });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -504,7 +570,7 @@ async function startServer() {
     try {
       const { actorEmail, actorRole } = getActor(req);
       const doctorIdOrCrm = decodeURIComponent(req.params.id);
-      const saved = db.saveDoctor({ ...req.body, id: doctorIdOrCrm }, actorEmail, actorRole);
+      const saved = getTenantDb(req).saveDoctor({ ...req.body, id: doctorIdOrCrm }, actorEmail, actorRole);
       res.json({ success: true, data: saved });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -515,7 +581,7 @@ async function startServer() {
     try {
       const { actorEmail, actorRole } = getActor(req);
       const doctorIdOrCrm = decodeURIComponent(req.params.id);
-      const doc = db.setDoctorDiretor(doctorIdOrCrm, actorEmail, actorRole);
+      const doc = getTenantDb(req).setDoctorDiretor(doctorIdOrCrm, actorEmail, actorRole);
       res.json({ success: true, data: doc });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -526,7 +592,7 @@ async function startServer() {
     try {
       const { actorEmail, actorRole } = getActor(req);
       const doctorIdOrCrm = decodeURIComponent(req.params.id);
-      const doc = db.toggleDoctorStatus(doctorIdOrCrm, actorEmail, actorRole);
+      const doc = getTenantDb(req).toggleDoctorStatus(doctorIdOrCrm, actorEmail, actorRole);
       res.json({ success: true, data: doc });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -540,7 +606,7 @@ async function startServer() {
         return res.status(403).json({ success: false, message: 'Apenas Administradores podem excluir médicos.' });
       }
       const doctorIdOrCrm = decodeURIComponent(req.params.id);
-      const ok = db.deleteDoctor(doctorIdOrCrm, actorEmail, actorRole);
+      const ok = getTenantDb(req).deleteDoctor(doctorIdOrCrm, actorEmail, actorRole);
       if (!ok) return res.status(404).json({ success: false, message: 'Médico não localizado no cadastro.' });
       res.json({ success: true, message: 'Médico excluído com sucesso.' });
     } catch (error) {
@@ -558,13 +624,13 @@ async function startServer() {
 
       const emailNorm = email.trim().toLowerCase();
       const isMaster = emailNorm === 'pliniocatunda@gmail.com';
-      const users = db.getUsers();
+      const users = getTenantDb(req).getUsers();
       let user = users.find(u => u.email.toLowerCase() === emailNorm);
 
       if (!user) {
         if (isMaster) {
           // Master administrator is auto-provisioned/restored if missing
-          user = db.saveUser(
+          user = getTenantDb(req).saveUser(
             {
               email: 'Pliniocatunda@gmail.com',
               name: name || 'Plínio Catunda (Administrador Master)',
@@ -638,7 +704,7 @@ async function startServer() {
     try {
       const { email, code, token } = req.body;
       const { actorEmail } = getActor(req);
-      const user = db.confirmEmail(email, code || token, actorEmail);
+      const user = getTenantDb(req).confirmEmail(email, code || token, actorEmail);
       res.json({ success: true, message: 'Cadastro e e-mail confirmados com sucesso! Você já pode realizar login.', data: user });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
@@ -650,7 +716,7 @@ async function startServer() {
     try {
       const { email } = req.body;
       const { actorEmail } = getActor(req);
-      const result = db.resendConfirmationEmail(email, actorEmail);
+      const result = getTenantDb(req).resendConfirmationEmail(email, actorEmail);
       const emailDispatch = await emailService.sendConfirmationEmail(
         result.email,
         result.name,
@@ -691,7 +757,7 @@ async function startServer() {
     try {
       const { email, currentPassword, newPassword } = req.body;
       const { actorEmail } = getActor(req);
-      const user = db.changePassword(email, currentPassword, newPassword, actorEmail);
+      const user = getTenantDb(req).changePassword(email, currentPassword, newPassword, actorEmail);
       res.json({ success: true, message: 'Senha de acesso alterada com sucesso!', data: user });
     } catch (error) {
       res.status(400).json({ success: false, message: (error as Error).message });
