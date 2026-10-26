@@ -721,6 +721,21 @@ class ApiService {
       }
     );
   }
+
+  public async resetEusebioOfficial(): Promise<boolean> {
+    return this.request(
+      '/api/tenants/reset-eusebio',
+      {
+        method: 'POST',
+        body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
+      },
+      () => {
+        clientDb.resetEusebioOfficial();
+        return true;
+      }
+    );
+  }
 }
 
 export const api = new ApiService();
+

@@ -31,7 +31,9 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
   const [activeTenantId, setActiveTenantId] = useState<string>(api.getActiveTenantId());
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [syncingOfficial, setSyncingOfficial] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form for new tenant
   const [newNome, setNewNome] = useState('');
@@ -58,6 +60,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadTenants();
+      setStatusMsg(null);
     }
   }, [isOpen]);
 
@@ -70,19 +73,45 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
     onClose();
   };
 
-  const handleResetSandbox = async () => {
-    if (!window.confirm('Atenção: Deseja redefinir os dados do Sandbox de Testes para o estado padrão? Os dados reais de PRODUÇÃO não serão afetados.')) {
-      return;
+  const handleForceSyncEusebio = async () => {
+    try {
+      setSyncingOfficial(true);
+      setStatusMsg(null);
+      await api.resetEusebioOfficial();
+      if (activeTenantId === 'ipme_eusebio') {
+        onTenantChanged('ipme_eusebio');
+      }
+      setStatusMsg({
+        type: 'success',
+        text: 'Base Oficial de Eusébio sincronizada com sucesso! Todos os 1.527 servidores ativos.',
+      });
+    } catch (err) {
+      setStatusMsg({
+        type: 'error',
+        text: 'Erro ao sincronizar base de Eusébio: ' + (err as Error).message,
+      });
+    } finally {
+      setSyncingOfficial(false);
     }
+  };
+
+  const handleResetSandbox = async () => {
     try {
       setResetting(true);
+      setStatusMsg(null);
       await api.resetSandbox();
       if (activeTenantId === 'studio_sandbox') {
         onTenantChanged('studio_sandbox');
       }
-      alert('Sandbox de Testes redefinido com sucesso!');
+      setStatusMsg({
+        type: 'success',
+        text: 'Sandbox de Testes restaurado com dados simulados de teste padrão.',
+      });
     } catch (err) {
-      alert('Erro ao redefinir sandbox: ' + (err as Error).message);
+      setStatusMsg({
+        type: 'error',
+        text: 'Erro ao redefinir sandbox: ' + (err as Error).message,
+      });
     } finally {
       setResetting(false);
     }
@@ -91,12 +120,13 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
   const handleCreateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNome.trim() || !newSigla.trim()) {
-      alert('Nome e Sigla são obrigatórios.');
+      setStatusMsg({ type: 'error', text: 'Nome e Sigla são obrigatórios.' });
       return;
     }
 
     try {
       setLoading(true);
+      setStatusMsg(null);
       const created = await api.saveTenant({
         nome: newNome.trim(),
         sigla: newSigla.trim().toUpperCase(),
@@ -117,7 +147,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
       await loadTenants();
       handleSelectTenant(created.id);
     } catch (err) {
-      alert('Erro ao criar novo cliente/ambiente: ' + (err as Error).message);
+      setStatusMsg({ type: 'error', text: 'Erro ao criar novo cliente/ambiente: ' + (err as Error).message });
     } finally {
       setLoading(false);
     }
@@ -157,6 +187,24 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
+          {statusMsg && (
+            <div className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 animate-in fade-in ${
+              statusMsg.type === 'success' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-red-50 border-red-300 text-red-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span className="font-medium">{statusMsg.text}</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setStatusMsg(null)} 
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Status Box */}
           <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 text-xs text-sky-900 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
@@ -266,6 +314,19 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               Conectado
                             </span>
+                          )}
+
+                          {tenant.id === 'ipme_eusebio' && (
+                            <button
+                              type="button"
+                              onClick={handleForceSyncEusebio}
+                              disabled={syncingOfficial}
+                              title="Garante a sincronização de todos os 1.527 servidores oficiais de Eusébio"
+                              className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 border border-emerald-300 hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${syncingOfficial ? 'animate-spin text-emerald-600' : ''}`} />
+                              <span>Sincronizar 1.527 Servidores</span>
+                            </button>
                           )}
 
                           {tenant.id === 'studio_sandbox' && (

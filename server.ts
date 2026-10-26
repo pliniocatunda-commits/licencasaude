@@ -92,6 +92,17 @@ async function startServer() {
     }
   });
 
+  app.post('/api/tenants/reset-eusebio', (req: Request, res: Response) => {
+    try {
+      const { actorEmail } = getActor(req);
+      db.resetEusebioOfficial(actorEmail);
+      res.json({ success: true, message: 'Base oficial de Eusébio sincronizada com sucesso.' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  });
+
+
   // Dashboard Stats & Metrics
   app.get('/api/stats', (req: Request, res: Response) => {
     try {

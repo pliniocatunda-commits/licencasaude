@@ -1,6 +1,8 @@
 import { Employee, Occurrence, Secretaria, Doctor, AuditLog, AppUser, DashboardMetrics } from '../types/index.ts';
 import { calcularDiasPagos } from '../utils/validation.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
+import eusebioOfficialData from '../../data/tenants/ipme_eusebio.json';
+import sandboxOfficialData from '../../data/tenants/studio_sandbox.json';
 
 export interface DatabaseSchema {
   employees: Employee[];
@@ -11,577 +13,8 @@ export interface DatabaseSchema {
   audit_logs: AuditLog[];
 }
 
-const INITIAL_DATA: DatabaseSchema = {
-  employees: [
-    {
-      matricula: "10",
-      nome: "CELSA BEZERRA FERREIRA",
-      cpf: "384.921.053-44",
-      telefone: "(85) 98822-1010",
-      secretaria: "SME - Secretaria Municipal de Educação",
-      setor: "Escola Municipal Neusa de Freitas Sá",
-      cargo: "PROFESSORA",
-      status: "Aposentado",
-      data_admissao: "2016-02-15",
-      email: "celsa.ferreira@eusebio.ce.gov.br",
-      created_at: "2026-09-28T17:36:03.595Z",
-      updated_at: "2026-09-28T17:36:03.595Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      matricula: "11",
-      nome: "JARIANA BRITO DE ALMEIDA",
-      cpf: "592.140.783-12",
-      telefone: "(85) 99133-2020",
-      secretaria: "SME - Secretaria Municipal de Educação",
-      setor: "CEI Maria Tavares de Miranda",
-      cargo: "PROFESSORA",
-      status: "Licenciado",
-      data_admissao: "2018-03-01",
-      email: "jariana.almeida@eusebio.ce.gov.br",
-      created_at: "2026-09-28T17:37:00.818Z",
-      updated_at: "2026-09-28T17:37:00.818Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      matricula: "15",
-      nome: "MARIA VALDENIA DA SILVA",
-      cpf: "713.849.203-91",
-      telefone: "(85) 98744-3030",
-      secretaria: "SMS - Secretaria Municipal de Saúde",
-      setor: "UBS Novo Portugal",
-      cargo: "AGENTE COMUNITARIA",
-      status: "Readaptado",
-      data_admissao: "2015-08-10",
-      email: "valdenia.silva@eusebio.ce.gov.br",
-      created_at: "2026-09-28T17:39:25.601Z",
-      updated_at: "2026-09-28T17:39:25.601Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      matricula: "20",
-      nome: "FRANCISCO CESAR ROSENO DE SOUSA",
-      cpf: "628.304.913-80",
-      telefone: "(85) 99655-4040",
-      secretaria: "SMSPC - Secretaria de Segurança Pública e Cidadania",
-      setor: "Guarda Municipal / Operações",
-      cargo: "GUARDA MUNICIPAL",
-      status: "Licenciado",
-      data_admissao: "2013-05-20",
-      email: "cesar.sousa@eusebio.ce.gov.br",
-      created_at: "2026-09-28T17:40:21.237Z",
-      updated_at: "2026-09-29T16:53:17.002Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      matricula: "30",
-      nome: "ANTONIO ROBERTO CAVALCANTE",
-      cpf: "418.592.033-67",
-      telefone: "(85) 99711-5050",
-      secretaria: "SEFIN - Secretaria Municipal de Finanças",
-      setor: "Coordenação de Arrecadação",
-      cargo: "FISCAL DE TRIBUTOS",
-      status: "Ativo",
-      data_admissao: "2011-04-10",
-      email: "roberto.cavalcante@eusebio.ce.gov.br",
-      created_at: "2026-09-28T18:00:00.000Z",
-      updated_at: "2026-09-28T18:22:39.487Z",
-      created_by: "Pliniocatunda@gmail.com"
-    }
-  ],
-  occurrences: [
-    {
-      id: "1",
-      matricula: "10",
-      employee_nome: "CELSA BEZERRA FERREIRA",
-      employee_cargo: "PROFESSORA",
-      employee_secretaria: "SME - Secretaria Municipal de Educação",
-      tipo: "Licença Definitiva",
-      data_inicio: "2026-08-15",
-      data_termino: "2026-10-13",
-      data_termino_inicial: "2026-10-13",
-      quantidade_dias: 60,
-      cid: "F32.1 - Episódio depressivo moderado",
-      medico_perito: "Dr. Marcelo Cavalcante Holanda",
-      crm: "CRM/CE 14.892",
-      status: "Arquivado",
-      anexo_url: "",
-      anexo_nome: "Laudo_Pericial_SME_10.pdf",
-      observacoes: "Servidora com sintomas de exaustão e depressão moderada em acompanhamento terapêutico.",
-      parecer_tecnico: "Junta Médica Oficial do IPME homologou 60 dias de afastamento integral para acompanhamento psicoterapêutico e farmacológico. Retorno previsto com reavaliação pericial.\n[Conversão em Licença Definitiva em 30/09/2026 por Pliniocatunda@gmail.com]: Licença transformada de \"Licença Saúde\" para \"Licença Definitiva\". Data da Concessão: 2026-10-16 | Ato Concessório: Portaria IPME nº 092/2026. Médico Responsável: Dr. Marcelo Cavalcante Holanda (CRM/CE 14.892). Justificativa: Incapacidade definitiva homologada\n[Conclusão / Arquivamento em 02/10/2026 por Pliniocatunda@gmail.com]: Homologada a aposentadoria definitiva do servidor. Data de Concessão: 2026-10-16. Ato: Portaria IPME nº 092/2026.",
-      prorrogacoes: [],
-      created_at: "2026-08-15T14:20:00.000Z",
-      updated_at: "2026-10-02T13:49:21.775Z",
-      created_by: "Pliniocatunda@gmail.com",
-      data_concessao: "2026-10-16",
-      ato_concessao: "Portaria IPME nº 092/2026",
-      motivo_definitiva: "Incapacidade definitiva homologada",
-      data_conversao: "2026-09-30T18:18:47.663Z"
-    },
-    {
-      id: "2",
-      matricula: "11",
-      employee_nome: "JARIANA BRITO DE ALMEIDA",
-      employee_cargo: "PROFESSORA",
-      employee_secretaria: "SME - Secretaria Municipal de Educação",
-      tipo: "Licença Maternidade",
-      data_inicio: "2026-08-01",
-      data_termino: "2027-01-27",
-      data_termino_inicial: "2027-01-27",
-      quantidade_dias: 180,
-      cid: "O80 - Parto único espontâneo (Licença Maternidade)",
-      medico_perito: "Dra. Juliana Vasconcelos Pontes",
-      crm: "CRM/CE 18.234",
-      status: "Ativa",
-      anexo_url: "",
-      anexo_nome: "Certidao_Nascimento_Amadeu_Sa_11.pdf",
-      observacoes: "Parto realizado no Hospital Maternidade Amadeu Sá em Eusébio - CE.",
-      parecer_tecnico: "Homologação de Licença Maternidade pelo período integral de 180 (cento e oitenta) dias à servidora municipal, nos termos da legislação municipal e do Programa Servidora Cidadã.",
-      prorrogacoes: [],
-      created_at: "2026-08-01T10:00:00.000Z",
-      updated_at: "2026-08-01T10:00:00.000Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      id: "3",
-      matricula: "15",
-      employee_nome: "MARIA VALDENIA DA SILVA",
-      employee_cargo: "AGENTE COMUNITARIA",
-      employee_secretaria: "SMS - Secretaria Municipal de Saúde",
-      tipo: "Readaptação",
-      data_inicio: "2026-06-01",
-      data_termino: "2026-11-27",
-      data_termino_inicial: "2026-11-27",
-      quantidade_dias: 180,
-      cid: "M65.8 - Outras sinovites e tenossinovites (LER/DORT)",
-      medico_perito: "Dra. Camila Nogueira Dantas",
-      crm: "CRM/CE 21.089",
-      status: "Ativa",
-      anexo_url: "",
-      anexo_nome: "Laudo_Readaptacao_SMS_15.pdf",
-      observacoes: "Impossibilitada de longas caminhadas sob calor e esforço biomecânico repetitivo.",
-      parecer_tecnico: "Parecer pericial favorável à readaptação funcional temporária por 180 dias na recepção e arquivamento eletrônico da UBS Novo Portugal, sem esforço de membros superiores com peso acima de 2kg.",
-      prorrogacoes: [],
-      created_at: "2026-06-01T09:30:00.000Z",
-      updated_at: "2026-06-01T09:30:00.000Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      id: "4",
-      matricula: "20",
-      employee_nome: "FRANCISCO CESAR ROSENO DE SOUSA",
-      employee_cargo: "GUARDA MUNICIPAL",
-      employee_secretaria: "SMSPC - Secretaria de Segurança Pública e Cidadania",
-      tipo: "Licença Definitiva",
-      data_inicio: "2026-07-01",
-      data_termino: "2026-10-29",
-      data_termino_inicial: "2026-09-29",
-      quantidade_dias: 121,
-      cid: "",
-      medico_perito: "Dr. Marcelo Cavalcante Holanda",
-      crm: "CRM/CE 14.892",
-      status: "Ativa",
-      anexo_url: "",
-      anexo_nome: "",
-      observacoes: "",
-      parecer_tecnico: "\n[1ª Prorrogação em 29/09/2026 por Pliniocatunda@gmail.com]: Data de término estendida de 2026-09-29 para 2026-10-29 (+30 dias, total 121d). Perito: Dra. Juliana Vasconcelos Pontes (CRM/CE 18.234). Motivo: Necessidade de continuidade do tratamento médico prescrito com reavaliação clínica.\n[Conversão em Licença Definitiva em 30/09/2026 por Pliniocatunda@gmail.com]: Licença transformada de \"Licença Saúde\" para \"Licença Definitiva\". Data da Concessão: 2026-10-30 | Ato Concessório: Portaria IPME nº 088/2026. Médico Responsável: Dr. Marcelo Cavalcante Holanda (CRM/CE 14.892). Justificativa: Incapacidade laborativa definitiva e permanente homologada por Junta Médica Oficial | Parecer Conclusivo: Atestamos que o servidor apresenta incapacidade definitiva e irreversível.",
-      prorrogacoes: [
-        {
-          id: "PRORR-4-1",
-          sequencial: 1,
-          data_anterior_termino: "2026-09-29",
-          nova_data_termino: "2026-10-29",
-          dias_adicionados: 30,
-          dias_totais_acumulados: 121,
-          dias_pagos_acumulados: 106,
-          motivo: "Necessidade de continuidade do tratamento médico prescrito com reavaliação clínica.",
-          medico_perito: "Dra. Juliana Vasconcelos Pontes",
-          crm: "CRM/CE 18.234",
-          created_at: "2026-09-29T16:55:55.971Z",
-          created_by: "Pliniocatunda@gmail.com"
-        }
-      ],
-      created_at: "2026-09-29T16:53:17.002Z",
-      updated_at: "2026-09-30T18:02:52.970Z",
-      created_by: "Pliniocatunda@gmail.com",
-      data_concessao: "2026-10-30",
-      ato_concessao: "Portaria IPME nº 088/2026",
-      motivo_definitiva: "Incapacidade laborativa definitiva e permanente homologada por Junta Médica Oficial",
-      data_conversao: "2026-09-30T18:02:52.970Z"
-    }
-  ],
-  audit_logs: [
-    {
-      id: "audit_1790792327671_13nx",
-      timestamp: "2026-09-30T18:18:47.671Z",
-      entity_type: "occurrence",
-      entity_id: "1",
-      action: "CONVERTER_DEFINITIVA",
-      details: "Ocorrência Nº 1 do servidor CELSA BEZERRA FERREIRA convertida em Licença Definitiva. Data de Concessão: 2026-10-14. Ato: Portaria IPME nº 092/2026.",
-      changed_by: "Pliniocatunda@gmail.com",
-      user_role: "admin",
-      diff: {
-        before: { tipo: "Licença Saúde" },
-        after: { tipo: "Licença Definitiva", data_concessao: "2026-10-14", ato_concessao: "Portaria IPME nº 092/2026" }
-      }
-    },
-    {
-      id: "audit_1790791373041_n7xq",
-      timestamp: "2026-09-30T18:02:53.041Z",
-      entity_type: "occurrence",
-      entity_id: "4",
-      action: "CONVERTER_DEFINITIVA",
-      details: "Ocorrência Nº 4 do servidor FRANCISCO CESAR ROSENO DE SOUSA convertida em Licença Definitiva. Data de Concessão: 2026-10-30. Ato: Portaria IPME nº 088/2026.",
-      changed_by: "Pliniocatunda@gmail.com",
-      user_role: "admin",
-      diff: {
-        before: { tipo: "Licença Saúde" },
-        after: { tipo: "Licença Definitiva", data_concessao: "2026-10-30", ato_concessao: "Portaria IPME nº 088/2026" }
-      }
-    }
-  ],
-  users: [
-    {
-      id: "user_master_admin",
-      email: "Pliniocatunda@gmail.com",
-      name: "Plínio Catunda",
-      role: "admin",
-      auth_provider: "google",
-      department: "IPME - Presidência & Governança",
-      cargo: "Diretor-Presidente do IPME",
-      funcao_pericial: "Diretor-Presidente do Instituto",
-      is_presidente: true,
-      avatar_url: "/logo-ipme.png",
-      created_at: "2026-01-01T08:00:00.000Z",
-      password: "IpmeMaster@2026",
-      email_verified: true,
-      must_change_password: false
-    },
-    {
-      id: "user_perito_medico",
-      email: "medico.perito@eusebio.ce.gov.br",
-      name: "Dr. Marcelo Cavalcante Holanda",
-      role: "operator",
-      auth_provider: "corporate",
-      department: "IPME - Junta Médica Pericial",
-      cargo: "Médico Perito Oficial",
-      funcao_pericial: "Coordenador da Junta Médica Pericial Oficial",
-      is_presidente: false,
-      avatar_url: "/src/assets/images/avatar_perito_1790337176942.jpg",
-      created_at: "2026-01-15T09:30:00.000Z",
-      password: "Perito@2026",
-      email_verified: true,
-      must_change_password: false
-    },
-    {
-      id: "user_rh_operador",
-      email: "rh.operador@eusebio.ce.gov.br",
-      name: "Mariana Vasconcelos de Albuquerque",
-      role: "operator",
-      auth_provider: "corporate",
-      department: "SME / IPME - Recursos Humanos & Benefícios",
-      cargo: "Analista de Recursos Humanos",
-      funcao_pericial: "Coordenação de Gestão de Pessoas & DHO",
-      is_presidente: false,
-      created_at: "2026-02-01T10:00:00.000Z",
-      password: "RhOperador@2026",
-      email_verified: true,
-      must_change_password: false
-    }
-  ],
-  secretarias: [
-    {
-      id: "SEC-SME",
-      sigla: "SME",
-      nome: "Secretaria Municipal de Educação",
-      secretario: "Profa. Josete Maria de Holanda",
-      email: "educacao@eusebio.ce.gov.br",
-      telefone: "(85) 3260-1510",
-      endereco: "Rua Irmã Ambrosina, 260 - Centro, Eusébio - CE",
-      ativa: true,
-      created_at: "2026-01-01T08:00:00.000Z",
-      updated_at: "2026-01-01T08:00:00.000Z",
-      created_by: "Sistema IPME"
-    },
-    {
-      id: "SEC-SMS",
-      sigla: "SMS",
-      nome: "Secretaria Municipal de Saúde",
-      secretario: "Dr. Josué de Castro",
-      email: "saude@eusebio.ce.gov.br",
-      telefone: "(85) 3260-1920",
-      endereco: "Av. Eduardo Sá, 150 - Urucunema, Eusébio - CE",
-      ativa: true,
-      created_at: "2026-01-01T08:00:00.000Z",
-      updated_at: "2026-01-01T08:00:00.000Z",
-      created_by: "Sistema IPME"
-    },
-    {
-      id: "SEC-SEFIN",
-      sigla: "SEFIN",
-      nome: "Secretaria Municipal de Finanças",
-      secretario: "Alexandre Cordeiro Maia",
-      email: "financas@eusebio.ce.gov.br",
-      telefone: "(85) 3260-2200",
-      endereco: "Rua Prefeito Almir de Freitas, 10 - Centro, Eusébio - CE",
-      ativa: true,
-      created_at: "2026-01-01T08:00:00.000Z",
-      updated_at: "2026-01-01T08:00:00.000Z",
-      created_by: "Sistema IPME"
-    },
-    {
-      id: "SEC-SMSPC",
-      sigla: "SMSPC",
-      nome: "Secretaria de Segurança Pública e Cidadania",
-      secretario: "Cel. Lauro Prado",
-      email: "seguranca@eusebio.ce.gov.br",
-      telefone: "(85) 3260-6600",
-      endereco: "Av. Eusébio de Queiroz, 2400 - Tamatanduba, Eusébio - CE",
-      ativa: true,
-      created_at: "2026-01-01T08:00:00.000Z",
-      updated_at: "2026-01-01T08:00:00.000Z",
-      created_by: "Sistema IPME"
-    },
-    {
-      id: "SEC-IPME",
-      sigla: "IPME",
-      nome: "Instituto de Previdência do Município de Eusébio",
-      secretario: "Diretoria Executiva Previdenciária",
-      email: "atendimento@ipme.ce.gov.br",
-      telefone: "(85) 3260-9900",
-      endereco: "Rua Irmã Ambrosina, 85 - Centro, Eusébio - CE",
-      ativa: true,
-      created_at: "2026-01-01T08:00:00.000Z",
-      updated_at: "2026-01-01T08:00:00.000Z",
-      created_by: "Sistema IPME"
-    }
-  ],
-  doctors: [
-    {
-      id: "1",
-      nome: "Dr. Marcelo Cavalcante Holanda",
-      crm: "CRM/CE 14.892",
-      especialidade: "Medicina do Trabalho / Perícia Médica Oficial",
-      ativo: true,
-      created_at: "2026-01-01T08:00:00.000Z",
-      updated_at: "2026-09-29T17:49:23.288Z",
-      created_by: "Pliniocatunda@gmail.com",
-      vinculo: "Efetivo",
-      is_diretor: true
-    },
-    {
-      id: "2",
-      nome: "Dra. Juliana Vasconcelos Pontes",
-      crm: "CRM/CE 18.234",
-      especialidade: "Clínica Médica / Perícia Previdenciária",
-      ativo: true,
-      created_at: "2026-01-05T09:00:00.000Z",
-      updated_at: "2026-09-29T17:49:16.988Z",
-      created_by: "Pliniocatunda@gmail.com",
-      vinculo: "Comissionado",
-      is_diretor: false
-    },
-    {
-      id: "3",
-      nome: "Dr. Roberto Mendes Sampaio",
-      crm: "CRM/CE 12.450",
-      especialidade: "Ortopedia e Traumatologia",
-      ativo: true,
-      created_at: "2026-01-10T10:00:00.000Z",
-      updated_at: "2026-01-10T10:00:00.000Z",
-      created_by: "Pliniocatunda@gmail.com",
-      vinculo: "Efetivo",
-      is_diretor: false
-    },
-    {
-      id: "4",
-      nome: "Dra. Camila Nogueira Dantas",
-      crm: "CRM/CE 21.089",
-      especialidade: "Psiquiatria Ocupacional",
-      ativo: true,
-      created_at: "2026-01-15T14:30:00.000Z",
-      updated_at: "2026-01-15T14:30:00.000Z",
-      created_by: "Pliniocatunda@gmail.com",
-      vinculo: "Temporário",
-      is_diretor: false
-    }
-  ]
-};
-
-const SANDBOX_INITIAL_DATA: DatabaseSchema = {
-  employees: [
-    {
-      matricula: "EUS-01042",
-      nome: "Maria das Graças Alencar [Ambiente de Homologação]",
-      cpf: "452.891.033-72",
-      telefone: "(85) 98842-1109",
-      secretaria: "SME - Secretaria Municipal de Educação",
-      setor: "Escola Municipal Neusa de Freitas Sá",
-      cargo: "Professor de Educação Básica II",
-      status: "Licenciado",
-      data_admissao: "2014-03-10",
-      email: "maria.alencar@eusebio.ce.gov.br",
-      created_at: "2026-01-10T10:00:00.000Z",
-      updated_at: "2026-08-15T14:20:00.000Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      matricula: "EUS-02115",
-      nome: "Francisco Antunes de Oliveira [Ambiente de Homologação]",
-      cpf: "619.340.283-91",
-      telefone: "(85) 99123-4567",
-      secretaria: "SMS - Secretaria Municipal de Saúde",
-      setor: "Hospital Municipal Amadeu Sá",
-      cargo: "Enfermeiro Plantonista",
-      status: "Licenciado",
-      data_admissao: "2016-07-01",
-      email: "francisco.oliveira@eusebio.ce.gov.br",
-      created_at: "2026-02-12T09:00:00.000Z",
-      updated_at: "2026-09-01T11:15:00.000Z",
-      created_by: "medico.perito@eusebio.ce.gov.br"
-    },
-    {
-      matricula: "EUS-03089",
-      nome: "Ana Patrícia Gomes da Silva [Ambiente de Homologação]",
-      cpf: "832.190.473-50",
-      telefone: "(85) 98765-4321",
-      secretaria: "SEFIN - Secretaria Municipal de Finanças",
-      setor: "Coordenação de Arrecadação e IPTU",
-      cargo: "Assistente Administrativo",
-      status: "Readaptado",
-      data_admissao: "2018-02-15",
-      email: "ana.silva@eusebio.ce.gov.br",
-      created_at: "2026-01-20T11:30:00.000Z",
-      updated_at: "2026-07-10T16:45:00.000Z",
-      created_by: "rh.operador@eusebio.ce.gov.br"
-    },
-    {
-      matricula: "EUS-04192",
-      nome: "José Roberto Cavalcante [Ambiente de Homologação]",
-      cpf: "304.782.913-68",
-      telefone: "(85) 99654-7890",
-      secretaria: "SMSPC - Secretaria de Segurança Pública e Cidadania",
-      setor: "Guarda Municipal / Ronda Ostensiva Escolar",
-      cargo: "Guarda Municipal 1ª Classe",
-      status: "Readaptado",
-      data_admissao: "2012-05-20",
-      email: "roberto.cavalcante@eusebio.ce.gov.br",
-      created_at: "2026-01-18T14:10:00.000Z",
-      updated_at: "2026-06-05T09:30:00.000Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      matricula: "EUS-05230",
-      nome: "Raimunda Nonata Bezerra [Ambiente de Homologação]",
-      cpf: "571.209.833-44",
-      telefone: "(85) 98456-1234",
-      secretaria: "SMS - Secretaria Municipal de Saúde",
-      setor: "UBS Novo Portugal",
-      cargo: "Agente Comunitário de Saúde",
-      status: "Ativo",
-      data_admissao: "2015-11-03",
-      email: "nonata.bezerra@eusebio.ce.gov.br",
-      created_at: "2026-02-05T08:45:00.000Z",
-      updated_at: "2026-02-05T08:45:00.000Z",
-      created_by: "rh.operador@eusebio.ce.gov.br"
-    },
-    {
-      matricula: "EUS-06114",
-      nome: "Carlos Eduardo de Sousa [Ambiente de Homologação]",
-      cpf: "728.940.163-15",
-      telefone: "(85) 99789-3210",
-      secretaria: "SMS - Secretaria Municipal de Saúde",
-      setor: "SAMU / Frota Hospitalar",
-      cargo: "Motorista de Ambulância",
-      status: "Ativo",
-      data_admissao: "2019-04-12",
-      email: "carlos.sousa@eusebio.ce.gov.br",
-      created_at: "2026-03-01T08:00:00.000Z",
-      updated_at: "2026-08-30T10:15:00.000Z",
-      created_by: "rh.operador@eusebio.ce.gov.br"
-    }
-  ],
-  occurrences: [
-    {
-      id: "1",
-      matricula: "EUS-01042",
-      employee_nome: "Maria das Graças Alencar [Ambiente de Homologação]",
-      employee_cargo: "Professor de Educação Básica II",
-      employee_secretaria: "SME - Secretaria Municipal de Educação",
-      tipo: "Licença Saúde",
-      data_inicio: "2026-08-15",
-      data_termino: "2026-10-13",
-      data_termino_inicial: "2026-10-13",
-      quantidade_dias: 60,
-      cid: "F32.1 - Episódio depressivo moderado",
-      medico_perito: "Dr. Marcelo Cavalcante Holanda",
-      crm: "CRM/CE 14.892",
-      status: "Ativa",
-      anexo_url: "",
-      anexo_nome: "Laudo_Pericial_SME_10.pdf",
-      observacoes: "Ocorrência simulada em sandbox de homologação.",
-      parecer_tecnico: "Junta Médica Oficial deferiu 60 dias para testes periciais no Studio.",
-      prorrogacoes: [],
-      created_at: "2026-08-15T14:20:00.000Z",
-      updated_at: "2026-08-15T14:20:00.000Z",
-      created_by: "Pliniocatunda@gmail.com"
-    },
-    {
-      id: "2",
-      matricula: "EUS-02115",
-      employee_nome: "Francisco Antunes de Oliveira [Ambiente de Homologação]",
-      employee_cargo: "Enfermeiro Plantonista",
-      employee_secretaria: "SMS - Secretaria Municipal de Saúde",
-      tipo: "Licença Saúde",
-      data_inicio: "2026-07-20",
-      data_termino: "2026-10-05",
-      data_termino_inicial: "2026-09-02",
-      quantidade_dias: 78,
-      cid: "M54.5 - Dor lombar baixa (Lombociatalgia aguda)",
-      medico_perito: "Dra. Camila Nogueira Dantas",
-      crm: "CRM/CE 21.089",
-      status: "Prorrogada",
-      anexo_url: "",
-      anexo_nome: "Ressonancia_Lombar_02115.pdf",
-      observacoes: "Simulação de prorrogação de licença médica.",
-      parecer_tecnico: "Prorrogação de 33 dias homologada em ambiente de teste.",
-      prorrogacoes: [
-        {
-          id: "prorr_001",
-          sequencial: 1,
-          data_anterior_termino: "2026-09-02",
-          nova_data_termino: "2026-10-05",
-          dias_adicionados: 33,
-          dias_totais_acumulados: 78,
-          dias_pagos_acumulados: 78,
-          motivo: "Persistência do quadro álgico com limitação funcional.",
-          medico_perito: "Dra. Camila Nogueira Dantas",
-          crm: "CRM/CE 21.089",
-          created_at: "2026-09-01T11:15:00.000Z",
-          created_by: "medico.perito@eusebio.ce.gov.br"
-        }
-      ],
-      created_at: "2026-07-20T10:00:00.000Z",
-      updated_at: "2026-09-01T11:15:00.000Z",
-      created_by: "medico.perito@eusebio.ce.gov.br"
-    }
-  ],
-  secretarias: INITIAL_DATA.secretarias,
-  doctors: INITIAL_DATA.doctors,
-  users: INITIAL_DATA.users,
-  audit_logs: [
-    {
-      id: "audit_sandbox_001",
-      entity_type: "user",
-      entity_id: "studio_sandbox",
-      action: "CREATE",
-      details: "Ambiente de Testes / Sandbox inicializado isoladamente do banco de produção.",
-      changed_by: "Sistema IPME",
-      user_role: "admin",
-      timestamp: "2026-01-01T08:00:00.000Z"
-    }
-  ]
-};
+const INITIAL_DATA: DatabaseSchema = eusebioOfficialData as unknown as DatabaseSchema;
+const SANDBOX_INITIAL_DATA: DatabaseSchema = sandboxOfficialData as unknown as DatabaseSchema;
 
 export class ClientDatabase {
   private activeTenantId: string = typeof window !== 'undefined'
@@ -603,7 +36,7 @@ export class ClientDatabase {
   }
 
   public resetSandbox(): void {
-    const seed = JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA));
+    const seed = JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA)) as DatabaseSchema;
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('ipme_browser_db_tenant_studio_sandbox', JSON.stringify(seed));
@@ -614,12 +47,28 @@ export class ClientDatabase {
     }
   }
 
+  public resetEusebioOfficial(): void {
+    const seed = JSON.parse(JSON.stringify(INITIAL_DATA)) as DatabaseSchema;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('ipme_browser_db_tenant_ipme_eusebio', JSON.stringify(seed));
+      } catch {}
+    }
+    if (this.activeTenantId === 'ipme_eusebio') {
+      this.data = seed;
+    }
+  }
+
   private getStorageKey(): string {
     return `ipme_browser_db_tenant_${this.activeTenantId}`;
   }
 
   private loadFromStorage(): DatabaseSchema {
-    if (typeof window === 'undefined') return INITIAL_DATA;
+    if (typeof window === 'undefined') {
+      return this.activeTenantId === 'studio_sandbox'
+        ? (JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA)) as DatabaseSchema)
+        : (JSON.parse(JSON.stringify(INITIAL_DATA)) as DatabaseSchema);
+    }
     try {
       let stored = localStorage.getItem(this.getStorageKey());
       // Migração de chave legada se for ipme_eusebio
@@ -629,6 +78,18 @@ export class ClientDatabase {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.employees && parsed.occurrences) {
+          // SE estiver em Produção Oficial (ipme_eusebio) e o cache contiver menos de 100 servidores (cache com os 5 servidores mock antigos),
+          // atualiza de imediato para a base oficial completa de 1.527 servidores de Eusébio!
+          if (this.activeTenantId === 'ipme_eusebio' && parsed.employees.length < 100) {
+            console.info(`[IPME] Detectado cache com apenas ${parsed.employees.length} servidores. Atualizando para os ${INITIAL_DATA.employees.length} servidores oficiais.`);
+            const full = JSON.parse(JSON.stringify(INITIAL_DATA)) as DatabaseSchema;
+            if (parsed.occurrences && parsed.occurrences.length > full.occurrences.length) {
+              full.occurrences = parsed.occurrences;
+            }
+            this.saveToStorage(full);
+            return full;
+          }
+
           // Sanitização de secretarias corrompidas com CPF
           if (parsed.secretarias && Array.isArray(parsed.secretarias)) {
             parsed.secretarias = parsed.secretarias.filter((s: Secretaria) => 
@@ -665,8 +126,8 @@ export class ClientDatabase {
       console.warn('Erro ao ler localStorage IPME, usando dados iniciais:', e);
     }
     const seed = this.activeTenantId === 'studio_sandbox'
-      ? JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA))
-      : JSON.parse(JSON.stringify(INITIAL_DATA));
+      ? (JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA)) as DatabaseSchema)
+      : (JSON.parse(JSON.stringify(INITIAL_DATA)) as DatabaseSchema);
     this.saveToStorage(seed);
     return seed;
   }

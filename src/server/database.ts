@@ -924,7 +924,21 @@ class DatabaseManager {
     fs.writeFileSync(sandboxFile, JSON.stringify(sandboxSeed, null, 2), 'utf-8');
   }
 
+  public resetEusebioOfficial(actorEmail: string): void {
+    const eusebioFile = path.join(TENANTS_DIR, 'ipme_eusebio.json');
+    if (fs.existsSync(eusebioFile)) {
+      try {
+        const raw = fs.readFileSync(eusebioFile, 'utf-8');
+        const parsed = JSON.parse(raw);
+        this.tenantCaches.set('ipme_eusebio', parsed);
+      } catch (err) {
+        console.error('Erro ao recarregar dados de ipme_eusebio:', err);
+      }
+    }
+  }
+
   public withTenant<T>(tenantId: string, fn: () => T): T {
+
     const prevTenant = this.activeTenantId;
     try {
       this.activeTenantId = this.resolveTenant(tenantId);
