@@ -1,8 +1,9 @@
 import { Employee, Occurrence, Secretaria, Doctor, AuditLog, AppUser, DashboardMetrics } from '../types/index.ts';
 import { calcularDiasPagos } from '../utils/validation.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
-import eusebioOfficialData from '../../data/tenants/ipme_eusebio.json';
-import sandboxOfficialData from '../../data/tenants/studio_sandbox.json';
+import eusebioOfficialData from '../data/tenants/ipme_eusebio.json';
+import sandboxOfficialData from '../data/tenants/studio_sandbox.json';
+
 
 export interface DatabaseSchema {
   employees: Employee[];

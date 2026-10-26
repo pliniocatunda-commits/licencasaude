@@ -974,8 +974,13 @@ class DatabaseManager {
       }
 
       let fileToRead = tenantFile;
-      if (!fs.existsSync(fileToRead) && tid === 'ipme_eusebio' && fs.existsSync(DB_FILE)) {
-        fileToRead = DB_FILE;
+      if (!fs.existsSync(fileToRead)) {
+        const altSrcPath = path.resolve(__dirname, `../data/tenants/${tid}.json`);
+        if (fs.existsSync(altSrcPath)) {
+          fileToRead = altSrcPath;
+        } else if (tid === 'ipme_eusebio' && fs.existsSync(DB_FILE)) {
+          fileToRead = DB_FILE;
+        }
       }
 
       if (fs.existsSync(fileToRead)) {
