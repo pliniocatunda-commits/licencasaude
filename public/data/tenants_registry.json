@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ipme_eusebio",
+    "nome": "IPME - Instituto de Previdência do Município de Eusébio",
+    "sigla": "IPME Eusébio",
+    "cnpj": "05.123.456/0001-78",
+    "cidade": "Eusébio",
+    "uf": "CE",
+    "ambiente": "producao",
+    "ativo": true,
+    "created_at": "2026-01-01T08:00:00.000Z",
+    "descricao": "Base Oficial de Produção Previdenciária do Município de Eusébio - CE. Isolada e auditada."
+  },
+  {
+    "id": "studio_sandbox",
+    "nome": "Ambiente de Testes & Homologação Studio",
+    "sigla": "Studio Sandbox",
+    "cnpj": "00.000.000/0001-00",
+    "cidade": "Eusébio (Ambiente de Testes)",
+    "uf": "CE",
+    "ambiente": "homologacao",
+    "ativo": true,
+    "created_at": "2026-01-01T08:00:00.000Z",
+    "descricao": "Ambiente seguro para testes no Google AI Studio. Os testes aqui realizados NUNCA afetam a base oficial do cliente."
+  }
+]
