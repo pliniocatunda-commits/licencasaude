@@ -408,6 +408,181 @@ const INITIAL_DATA: DatabaseSchema = {
   ]
 };
 
+const SANDBOX_INITIAL_DATA: DatabaseSchema = {
+  employees: [
+    {
+      matricula: "EUS-01042",
+      nome: "Maria das Graças Alencar [Ambiente de Homologação]",
+      cpf: "452.891.033-72",
+      telefone: "(85) 98842-1109",
+      secretaria: "SME - Secretaria Municipal de Educação",
+      setor: "Escola Municipal Neusa de Freitas Sá",
+      cargo: "Professor de Educação Básica II",
+      status: "Licenciado",
+      data_admissao: "2014-03-10",
+      email: "maria.alencar@eusebio.ce.gov.br",
+      created_at: "2026-01-10T10:00:00.000Z",
+      updated_at: "2026-08-15T14:20:00.000Z",
+      created_by: "Pliniocatunda@gmail.com"
+    },
+    {
+      matricula: "EUS-02115",
+      nome: "Francisco Antunes de Oliveira [Ambiente de Homologação]",
+      cpf: "619.340.283-91",
+      telefone: "(85) 99123-4567",
+      secretaria: "SMS - Secretaria Municipal de Saúde",
+      setor: "Hospital Municipal Amadeu Sá",
+      cargo: "Enfermeiro Plantonista",
+      status: "Licenciado",
+      data_admissao: "2016-07-01",
+      email: "francisco.oliveira@eusebio.ce.gov.br",
+      created_at: "2026-02-12T09:00:00.000Z",
+      updated_at: "2026-09-01T11:15:00.000Z",
+      created_by: "medico.perito@eusebio.ce.gov.br"
+    },
+    {
+      matricula: "EUS-03089",
+      nome: "Ana Patrícia Gomes da Silva [Ambiente de Homologação]",
+      cpf: "832.190.473-50",
+      telefone: "(85) 98765-4321",
+      secretaria: "SEFIN - Secretaria Municipal de Finanças",
+      setor: "Coordenação de Arrecadação e IPTU",
+      cargo: "Assistente Administrativo",
+      status: "Readaptado",
+      data_admissao: "2018-02-15",
+      email: "ana.silva@eusebio.ce.gov.br",
+      created_at: "2026-01-20T11:30:00.000Z",
+      updated_at: "2026-07-10T16:45:00.000Z",
+      created_by: "rh.operador@eusebio.ce.gov.br"
+    },
+    {
+      matricula: "EUS-04192",
+      nome: "José Roberto Cavalcante [Ambiente de Homologação]",
+      cpf: "304.782.913-68",
+      telefone: "(85) 99654-7890",
+      secretaria: "SMSPC - Secretaria de Segurança Pública e Cidadania",
+      setor: "Guarda Municipal / Ronda Ostensiva Escolar",
+      cargo: "Guarda Municipal 1ª Classe",
+      status: "Readaptado",
+      data_admissao: "2012-05-20",
+      email: "roberto.cavalcante@eusebio.ce.gov.br",
+      created_at: "2026-01-18T14:10:00.000Z",
+      updated_at: "2026-06-05T09:30:00.000Z",
+      created_by: "Pliniocatunda@gmail.com"
+    },
+    {
+      matricula: "EUS-05230",
+      nome: "Raimunda Nonata Bezerra [Ambiente de Homologação]",
+      cpf: "571.209.833-44",
+      telefone: "(85) 98456-1234",
+      secretaria: "SMS - Secretaria Municipal de Saúde",
+      setor: "UBS Novo Portugal",
+      cargo: "Agente Comunitário de Saúde",
+      status: "Ativo",
+      data_admissao: "2015-11-03",
+      email: "nonata.bezerra@eusebio.ce.gov.br",
+      created_at: "2026-02-05T08:45:00.000Z",
+      updated_at: "2026-02-05T08:45:00.000Z",
+      created_by: "rh.operador@eusebio.ce.gov.br"
+    },
+    {
+      matricula: "EUS-06114",
+      nome: "Carlos Eduardo de Sousa [Ambiente de Homologação]",
+      cpf: "728.940.163-15",
+      telefone: "(85) 99789-3210",
+      secretaria: "SMS - Secretaria Municipal de Saúde",
+      setor: "SAMU / Frota Hospitalar",
+      cargo: "Motorista de Ambulância",
+      status: "Ativo",
+      data_admissao: "2019-04-12",
+      email: "carlos.sousa@eusebio.ce.gov.br",
+      created_at: "2026-03-01T08:00:00.000Z",
+      updated_at: "2026-08-30T10:15:00.000Z",
+      created_by: "rh.operador@eusebio.ce.gov.br"
+    }
+  ],
+  occurrences: [
+    {
+      id: "1",
+      matricula: "EUS-01042",
+      employee_nome: "Maria das Graças Alencar [Ambiente de Homologação]",
+      employee_cargo: "Professor de Educação Básica II",
+      employee_secretaria: "SME - Secretaria Municipal de Educação",
+      tipo: "Licença Saúde",
+      data_inicio: "2026-08-15",
+      data_termino: "2026-10-13",
+      data_termino_inicial: "2026-10-13",
+      quantidade_dias: 60,
+      cid: "F32.1 - Episódio depressivo moderado",
+      medico_perito: "Dr. Marcelo Cavalcante Holanda",
+      crm: "CRM/CE 14.892",
+      status: "Ativa",
+      anexo_url: "",
+      anexo_nome: "Laudo_Pericial_SME_10.pdf",
+      observacoes: "Ocorrência simulada em sandbox de homologação.",
+      parecer_tecnico: "Junta Médica Oficial deferiu 60 dias para testes periciais no Studio.",
+      prorrogacoes: [],
+      created_at: "2026-08-15T14:20:00.000Z",
+      updated_at: "2026-08-15T14:20:00.000Z",
+      created_by: "Pliniocatunda@gmail.com"
+    },
+    {
+      id: "2",
+      matricula: "EUS-02115",
+      employee_nome: "Francisco Antunes de Oliveira [Ambiente de Homologação]",
+      employee_cargo: "Enfermeiro Plantonista",
+      employee_secretaria: "SMS - Secretaria Municipal de Saúde",
+      tipo: "Licença Saúde",
+      data_inicio: "2026-07-20",
+      data_termino: "2026-10-05",
+      data_termino_inicial: "2026-09-02",
+      quantidade_dias: 78,
+      cid: "M54.5 - Dor lombar baixa (Lombociatalgia aguda)",
+      medico_perito: "Dra. Camila Nogueira Dantas",
+      crm: "CRM/CE 21.089",
+      status: "Prorrogada",
+      anexo_url: "",
+      anexo_nome: "Ressonancia_Lombar_02115.pdf",
+      observacoes: "Simulação de prorrogação de licença médica.",
+      parecer_tecnico: "Prorrogação de 33 dias homologada em ambiente de teste.",
+      prorrogacoes: [
+        {
+          id: "prorr_001",
+          sequencial: 1,
+          data_anterior_termino: "2026-09-02",
+          nova_data_termino: "2026-10-05",
+          dias_adicionados: 33,
+          dias_totais_acumulados: 78,
+          dias_pagos_acumulados: 78,
+          motivo: "Persistência do quadro álgico com limitação funcional.",
+          medico_perito: "Dra. Camila Nogueira Dantas",
+          crm: "CRM/CE 21.089",
+          created_at: "2026-09-01T11:15:00.000Z",
+          created_by: "medico.perito@eusebio.ce.gov.br"
+        }
+      ],
+      created_at: "2026-07-20T10:00:00.000Z",
+      updated_at: "2026-09-01T11:15:00.000Z",
+      created_by: "medico.perito@eusebio.ce.gov.br"
+    }
+  ],
+  secretarias: INITIAL_DATA.secretarias,
+  doctors: INITIAL_DATA.doctors,
+  users: INITIAL_DATA.users,
+  audit_logs: [
+    {
+      id: "audit_sandbox_001",
+      entity_type: "user",
+      entity_id: "studio_sandbox",
+      action: "CREATE",
+      details: "Ambiente de Testes / Sandbox inicializado isoladamente do banco de produção.",
+      changed_by: "Sistema IPME",
+      user_role: "admin",
+      timestamp: "2026-01-01T08:00:00.000Z"
+    }
+  ]
+};
+
 export class ClientDatabase {
   private activeTenantId: string = typeof window !== 'undefined'
     ? (localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio')
@@ -425,6 +600,18 @@ export class ClientDatabase {
 
   public getActiveTenant(): string {
     return this.activeTenantId;
+  }
+
+  public resetSandbox(): void {
+    const seed = JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA));
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('ipme_browser_db_tenant_studio_sandbox', JSON.stringify(seed));
+      } catch {}
+    }
+    if (this.activeTenantId === 'studio_sandbox') {
+      this.data = seed;
+    }
   }
 
   private getStorageKey(): string {
@@ -477,7 +664,9 @@ export class ClientDatabase {
     } catch (e) {
       console.warn('Erro ao ler localStorage IPME, usando dados iniciais:', e);
     }
-    const seed = JSON.parse(JSON.stringify(INITIAL_DATA));
+    const seed = this.activeTenantId === 'studio_sandbox'
+      ? JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA))
+      : JSON.parse(JSON.stringify(INITIAL_DATA));
     this.saveToStorage(seed);
     return seed;
   }

@@ -170,7 +170,6 @@ export default function App() {
 
   const handleTenantChanged = async (tenantId: string) => {
     addToast('info', `Ambiente alterado para ${tenantId === 'studio_sandbox' ? 'Sandbox de Testes (Studio)' : 'IPME Eusébio (Produção Oficial)'}. Dados 100% isolados.`);
-    await loadAllData();
   };
 
   // Auth & User switching

@@ -715,7 +715,10 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => true
+      () => {
+        clientDb.resetSandbox();
+        return true;
+      }
     );
   }
 }
