@@ -552,16 +552,25 @@ class ApiService {
     );
   }
 
-  public async login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string): Promise<AppUser> {
+  public async login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string, tenantId?: string): Promise<AppUser> {
+    if (tenantId && email.toLowerCase() !== 'pliniocatunda@gmail.com') {
+      this.setActiveTenantId(tenantId);
+    }
     const user = await this.request(
       '/api/auth/login',
       {
         method: 'POST',
-        body: JSON.stringify({ email, name, provider, password }),
+        body: JSON.stringify({ email, name, provider, password, tenantId }),
       },
-      () => clientDb.login(email, name, provider, password)
+      () => clientDb.login(email, name, provider, password, tenantId)
     );
     if (user) {
+      if (user.email.toLowerCase() === 'pliniocatunda@gmail.com') {
+        user.is_master_admin = true;
+      }
+      if (!user.is_master_admin && user.tenant_id) {
+        this.setActiveTenantId(user.tenant_id);
+      }
       clientDb.upsertUser(user);
     }
     this.setCurrentUser(user);

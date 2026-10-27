@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppTheme } from '../context/ThemeContext.tsx';
 import { signInWithGoogle } from '../services/googleAuth.ts';
+import { TenantInfo } from '../types/index.ts';
+import { api } from '../services/api.ts';
 import { 
   ShieldCheck, 
   Lock, 
@@ -16,11 +18,13 @@ import {
   AlertTriangle,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  Building2,
+  Landmark
 } from 'lucide-react';
 
 interface LoginScreenProps {
-  onLogin: (email: string, name?: string, provider?: 'google' | 'corporate', password?: string) => Promise<void>;
+  onLogin: (email: string, name?: string, provider?: 'google' | 'corporate', password?: string, tenantId?: string) => Promise<void>;
   loading?: boolean;
 }
 
@@ -32,6 +36,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Mode selection: 'corporate' (for operators) or 'master' (for Plínio Catunda / Admin Master via Google)
   const [loginMode, setLoginMode] = useState<'corporate' | 'master'>('corporate');
+
+  // Tenants list for multi-tenant routing
+  const [tenantsList, setTenantsList] = useState<TenantInfo[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(() => api.getActiveTenantId());
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getTenants().then(list => {
+      if (isMounted && list && list.length > 0) {
+        setTenantsList(list);
+        if (!list.some(t => t.id === selectedTenantId)) {
+          setSelectedTenantId(list[0].id);
+        }
+      }
+    }).catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Corporate credentials state
   const [corporateEmail, setCorporateEmail] = useState('');
@@ -62,7 +85,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const isLoading = externalLoading || localLoading;
 
-  // 1. Corporate Operator Login (Institutional email + password)
+  // 1. Corporate Operator Login (Institutional email + password + assigned tenant)
   const handleCorporateLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -73,7 +96,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       setError('Por favor, informe seu e-mail corporativo.');
       return;
     }
-
     if (!corporatePassword || !corporatePassword.trim()) {
       setError('Por favor, informe sua senha cadastrada.');
       return;
@@ -81,7 +103,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     setLocalLoading(true);
     try {
-      await onLogin(emailTrim, undefined, 'corporate', corporatePassword.trim());
+      await onLogin(emailTrim, undefined, 'corporate', corporatePassword.trim(), selectedTenantId);
       setSuccessMsg(`Autenticado com sucesso como ${emailTrim}! Entrando no sistema...`);
     } catch (err: any) {
       setError(err.message || 'Senha incorreta ou e-mail corporativo não cadastrado. Verifique os dados e tente novamente.');
@@ -229,32 +251,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   return (
     <div className={`min-h-screen ${themeConfig.pageBgClass} flex flex-col justify-between font-sans transition-colors duration-200 selection:bg-[#3868A0] selection:text-white`}>
-      {/* Top Banner / Brasão obedecendo as cores configuradas */}
+      {/* Top Banner / Brasão Neutro Multi-Institucional */}
       <header className={`${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} px-4 sm:px-8 py-3.5 shadow-xs transition-colors`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-white border border-white/30 p-1 flex items-center justify-center shadow-xs overflow-hidden shrink-0">
-              <img 
-                src="/logo-ipme.png" 
-                alt="Logomarca Oficial IPME" 
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.src !== '/logo-ipme.png') {
-                    target.src = '/logo-ipme.png';
-                  }
-                }}
-              />
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center shadow-xs overflow-hidden shrink-0 text-white">
+              <Landmark className="w-5 h-5 text-sky-200" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className={`font-extrabold tracking-tight text-sm sm:text-base ${theme === 'azul_ipme_light' ? 'text-[#2B5485]' : 'text-white'}`}>
-                  IPME
+                  PrevSaúde
                 </span>
-                <span className="opacity-40">·</span>
+                <span className="opacity-40 text-white/50">·</span>
                 <span className={`text-xs sm:text-sm font-semibold ${theme === 'azul_ipme_light' ? 'text-slate-700' : 'text-blue-100'}`}>
-                  Instituto de Previdência do Município de Eusébio
+                  Sistema Integrado de Perícia Médica & Gestão Previdenciária
                 </span>
               </div>
             </div>
@@ -276,34 +287,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* THE SINGLE UNIFIED LOGIN CARD */}
           <div className={`bg-white rounded-2xl border-2 ${getThemeCardBorder()} p-6 sm:p-8 shadow-xl relative overflow-hidden transition-all duration-200`}>
             
-            {/* Top decorative badge */}
+            {/* Top decorative badge - Neutro Multi-Cliente com Brasão Previdenciário */}
             <div className="text-center space-y-3 mb-6">
-              <div className={`w-28 h-28 mx-auto rounded-2xl bg-white border-2 ${getThemeCardBorder()} p-2 shadow-sm flex items-center justify-center overflow-hidden`}>
-                <img 
-                  src="/logo-ipme.png" 
-                  alt="Logomarca Oficial IPME Eusébio" 
-                  className="w-full h-full object-contain"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    if (target.src !== '/logo-ipme.png') {
-                      target.src = '/logo-ipme.png';
-                    }
-                  }}
-                />
+              <div className="relative w-24 h-24 mx-auto">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#16325B] via-[#204977] to-[#2B5485] border-2 border-blue-200/50 p-2.5 shadow-lg flex flex-col items-center justify-center text-white">
+                  <Landmark className="w-10 h-10 text-sky-200" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 mt-0.5 font-sans">
+                    PrevSaúde
+                  </span>
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-emerald-600 rounded-full p-1 border-2 border-white shadow-xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                </div>
               </div>
 
               <div>
                 <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                  Acesso ao Sistema IPME
+                  Portal de Acesso Previdenciário
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Junta Médica & Gestão de Licenças Periciais
+                  Junta Médica & Gestão Integrada de Licenças e Readaptações
                 </p>
                 <div className="mt-2">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${themeConfig.accentBadgeClass}`}>
                     <ShieldCheck className="w-3 h-3 text-[#3868A0]" />
-                    <span>Portal Oficial Autenticado</span>
+                    <span>Acesso Corporativo Seguro</span>
                   </span>
                 </div>
               </div>
@@ -325,7 +333,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 }`}
               >
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>Operador Corporativo</span>
+                <span>Operador do Cliente</span>
               </button>
 
               <button
@@ -342,7 +350,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 }`}
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>Admin Master (Google)</span>
+                <span>Admin Master (Universal)</span>
               </button>
             </div>
 
@@ -361,7 +369,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 1: CORPORATE OPERATOR LOGIN (Institutional email + password) - PRINCIPAL */}
+            {/* TAB 1: CORPORATE OPERATOR LOGIN (Institutional email + password + tenant) - PRINCIPAL */}
             {loginMode === 'corporate' && (
               <div className="space-y-4 animate-in fade-in duration-150">
                 <p className="text-[11px] text-slate-500 leading-relaxed text-center">
@@ -369,6 +377,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 </p>
 
                 <form onSubmit={handleCorporateLogin} className="space-y-3.5">
+                  {/* Seletor do Município / Autarquia Cliente */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Autarquia / Cliente Municipal *</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Base isolada</span>
+                    </label>
+                    <div className="relative">
+                      <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <select
+                        value={selectedTenantId}
+                        onChange={e => setSelectedTenantId(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#3868A0] focus:border-transparent transition-all cursor-pointer font-medium"
+                      >
+                        {tenantsList.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.sigla} - {t.nome} ({t.cidade}/{t.uf})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       E-mail Corporativo *
@@ -688,7 +718,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             {/* Card footer indicator */}
             <div className="mt-5 pt-3 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between font-mono">
-              <span>IPME · Eusébio - CE</span>
+              <span>Plataforma Previdenciária Multi-Tenant</span>
               <span className="text-emerald-700 flex items-center gap-1 font-sans font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 Sessão Segura & Auditada
@@ -703,7 +733,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       {/* Institutional Bottom Banner styled with active theme */}
       <footer className={`${themeConfig.footerClass} border-t ${themeConfig.footerBorderClass} ${themeConfig.footerTextClass} px-4 py-3 text-center text-[11px] transition-colors`}>
         <p className="max-w-2xl mx-auto">
-          Prefeitura Municipal de Eusébio · Instituto de Previdência do Município de Eusébio (IPME) · Gestão Oficial de Juntas Médicas e Licenças
+          Sistema Integrado de Perícia Médica & Gestão Previdenciária · Acesso Seguro, Segregado & Auditado
         </p>
       </footer>
     </div>

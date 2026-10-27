@@ -21,7 +21,9 @@ export interface TenantInfo {
   ativo: boolean;
   created_at: string;
   descricao?: string;
+  logo_url?: string;
 }
+
 
 export interface Doctor {
   id: string;
@@ -150,7 +152,10 @@ export interface AppUser {
   confirmation_token?: string;
   confirmation_sent_at?: string;
   must_change_password?: boolean;
+  tenant_id?: string;
+  is_master_admin?: boolean;
 }
+
 
 export interface DashboardMetrics {
   totalEmployees: number;

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AppUser, UserRole } from '../types/index.ts';
+import { AppUser, UserRole, TenantInfo } from '../types/index.ts';
 import { useAppTheme } from '../context/ThemeContext.tsx';
 import { ThemeSelectorModal } from './ThemeSelectorModal.tsx';
 import { TenantSelectorModal } from './TenantSelectorModal.tsx';
@@ -23,7 +23,9 @@ import {
   Upload,
   Palette,
   KeyRound,
-  Database
+  Database,
+  FlaskConical,
+  ShieldAlert
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -59,24 +61,38 @@ export const Header: React.FC<HeaderProps> = ({
   const [themeModalOpen, setThemeModalOpen] = useState(false);
   const [tenantModalOpen, setTenantModalOpen] = useState(false);
   const [activeTenantId, setActiveTenantId] = useState<string>(() => api.getActiveTenantId());
+  const [currentTenant, setCurrentTenant] = useState<TenantInfo | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [cadastrosDropdownOpen, setCadastrosDropdownOpen] = useState(false);
   const [licencasDropdownOpen, setLicencasDropdownOpen] = useState(false);
+
+  const isMasterAdmin = currentUser.email.toLowerCase() === 'pliniocatunda@gmail.com' || Boolean(currentUser.is_master_admin);
 
   const cadastrosRef = useRef<HTMLDivElement>(null);
   const licencasRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Sync active tenant from events
+  // Sync active tenant and tenant details
   useEffect(() => {
+    let isMounted = true;
+    api.getCurrentTenant().then(t => {
+      if (isMounted && t) setCurrentTenant(t);
+    }).catch(() => {});
+
     const handleTenantChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ tenantId: string }>;
       if (customEvent.detail?.tenantId) {
         setActiveTenantId(customEvent.detail.tenantId);
+        api.getCurrentTenant().then(t => {
+          if (isMounted && t) setCurrentTenant(t);
+        }).catch(() => {});
       }
     };
     window.addEventListener('ipme_tenant_changed', handleTenantChange);
-    return () => window.removeEventListener('ipme_tenant_changed', handleTenantChange);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('ipme_tenant_changed', handleTenantChange);
+    };
   }, []);
 
   // Close dropdowns cleanly when clicking outside
@@ -93,7 +109,6 @@ export const Header: React.FC<HeaderProps> = ({
         setProfileDropdownOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -116,84 +131,163 @@ export const Header: React.FC<HeaderProps> = ({
     return null;
   };
 
+  // Helper dynamic branding data
+  const tenantSigla = currentTenant?.sigla || (activeTenantId === 'studio_sandbox' ? 'STUDIO SANDBOX' : activeTenantId === 'ipme_eusebio' ? 'IPME' : 'CLIENTE');
+  const tenantNome = currentTenant?.nome || (activeTenantId === 'studio_sandbox' ? 'AMBIENTE DE HOMOLOGAÇÃO & TESTES STUDIO' : 'INSTITUTO DE PREVIDÊNCIA DOS SERVIDORES PÚBLICOS MUNICIPAIS DE EUSÉBIO');
+  const tenantCidadeUf = currentTenant ? `${currentTenant.cidade} / ${currentTenant.uf}` : 'Eusébio / CE';
+  const isHomologacao = currentTenant?.ambiente === 'homologacao' || activeTenantId === 'studio_sandbox';
+
+  const renderTenantLogo = () => {
+    if (currentTenant?.logo_url) {
+      return (
+        <img
+          src={currentTenant.logo_url}
+          alt={`Logomarca Oficial ${tenantNome}`}
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            (e.target as HTMLElement).style.display = 'none';
+          }}
+        />
+      );
+    }
+
+    if (!currentTenant || currentTenant.id === 'ipme_eusebio') {
+      return (
+        <img 
+          src="/logo-ipme.png" 
+          alt="Logomarca Oficial IPME - Instituto de Previdência dos Servidores Públicos Municipais de Eusébio" 
+          className="w-full h-full object-contain"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            if (target.src !== '/logo-ipme.png') {
+              target.src = '/logo-ipme.png';
+            }
+          }}
+        />
+      );
+    }
+
+    if (currentTenant.id === 'studio_sandbox') {
+      return (
+        <div className="w-full h-full rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex flex-col items-center justify-center text-white shadow-inner p-1">
+          <FlaskConical className="w-7 h-7 text-amber-100" />
+          <span className="text-[9px] font-black tracking-wider uppercase text-amber-200 font-mono mt-0.5">SANDBOX</span>
+        </div>
+      );
+    }
+
+    // Custom Tenant (ex: INSTITUTO FUTURO TESTES / IFT)
+    const initials = (currentTenant.sigla || currentTenant.nome || 'INST')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .slice(0, 4)
+      .toUpperCase();
+
+    return (
+      <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#16325B] via-[#1E426D] to-[#2B5485] border border-blue-300/40 flex flex-col items-center justify-center text-white shadow-inner p-1">
+        <Building2 className="w-7 h-7 text-sky-200" />
+        <span className="text-[10px] font-black tracking-wider uppercase text-amber-300 font-sans mt-0.5">
+          {initials}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <header className={`sticky top-0 z-40 ${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} transition-colors duration-200`}>
-      {/* Tier 1: Main Brand & User Profile Row (Logomarca em dobro e Nome Institucional Completo) */}
+      {/* Tier 1: Main Brand & User Profile Row (Logomarca e Nome Institucional Dinâmicos conforme Cliente Ativo) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex items-center justify-between gap-4">
         
-        {/* Brand Block com Logomarca Ampliada ao Dobro e Título Oficial Completo */}
+        {/* Brand Block com Logomarca e Título Dinâmicos */}
         <div className="flex items-center gap-3.5 sm:gap-5 min-w-0">
-          {/* Logomarca Oficial do IPME - Tamanho aumentado ao dobro para máximo destaque */}
+          {/* Logomarca Dinâmica do Cliente / Autarquia */}
           <div className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-white/35 bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 transition-transform hover:scale-[1.02]">
-            <img 
-              src="/logo-ipme.png" 
-              alt="Logomarca Oficial IPME - Instituto de Previdência dos Servidores Públicos Municipais de Eusébio" 
-              className="w-full h-full object-contain"
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                if (target.src !== '/logo-ipme.png') {
-                  target.src = '/logo-ipme.png';
-                }
-              }}
-            />
+            {renderTenantLogo()}
           </div>
 
-          {/* Textos de Identidade Visual e Nome Institucional Completo */}
+          {/* Textos de Identidade Visual e Nome Institucional Dinâmicos */}
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className={`text-xl sm:text-2xl md:text-3xl font-black tracking-tight font-sans ${themeConfig.brandTextClass}`}>
-                IPME
+                {tenantSigla}
               </span>
-              <span className="text-[10px] sm:text-xs uppercase font-extrabold px-2 py-0.5 rounded-md bg-emerald-900/90 text-emerald-300 border border-emerald-600/60 tracking-wider shadow-2xs">
-                Previdência Oficial
+              <span className={`text-[10px] sm:text-xs uppercase font-extrabold px-2 py-0.5 rounded-md border tracking-wider shadow-2xs ${
+                isHomologacao
+                  ? 'bg-amber-900/90 text-amber-300 border-amber-600/60'
+                  : 'bg-emerald-900/90 text-emerald-300 border-emerald-600/60'
+              }`}>
+                {isHomologacao ? 'Homologação / Testes' : 'Previdência Oficial'}
               </span>
             </div>
 
-            {/* Informação Completa Solicitada Oficialmente pelo IPME */}
+            {/* Nome Institucional Completo do Cliente / Autarquia Ativa */}
             <h1 className={`text-xs sm:text-sm md:text-[15px] font-bold uppercase tracking-wide mt-1 leading-snug line-clamp-2 sm:line-clamp-none ${
               theme === 'azul_ipme_light' ? 'text-[#1E426D]' : 'text-white/95'
             }`}>
-              INSTITUTO DE PREVIDÊNCIA DOS SERVIDORES PÚBLICOS MUNICIPAIS DE EUSÉBIO
+              {tenantNome}
             </h1>
-
             <p className={`text-[11px] sm:text-xs font-medium mt-0.5 flex items-center gap-2 flex-wrap ${themeConfig.brandSubtextClass}`}>
               <span>Sistema Integrado de Perícia Médica & Gestão Previdenciária</span>
               <span className="opacity-40 hidden md:inline">·</span>
-              <span className="hidden md:inline">Licenças Médicas & Readaptação Funcional</span>
+              <span className="hidden md:inline">{tenantCidadeUf}</span>
             </p>
           </div>
         </div>
 
-        {/* User Profile, Environment Badge & Direct Logout (Alinhamento harmonioso no topo) */}
+        {/* User Profile, Environment Badge & Direct Logout */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Indicador & Seletor de Ambiente / Cliente Isolado */}
-          <button
-            type="button"
-            onClick={() => setTenantModalOpen(true)}
-            title="Clique para gerenciar a segregação de banco de dados (Produção vs Homologação Studio)"
-            className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
-              activeTenantId === 'studio_sandbox'
-                ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 hover:bg-amber-500/30'
-                : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40 hover:bg-emerald-500/30'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
-                activeTenantId === 'studio_sandbox' ? 'bg-amber-400' : 'bg-emerald-400'
-              }`} />
-              <Database className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline font-mono uppercase text-[10px] tracking-wider">
-                {activeTenantId === 'studio_sandbox' ? 'Homologação Studio' : 'Produção Oficial'}
+          {isMasterAdmin ? (
+            <button
+              type="button"
+              onClick={() => setTenantModalOpen(true)}
+              title="Acesso Master: Clique para gerenciar ou alternar entre bases e clientes"
+              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                isHomologacao
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 hover:bg-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40 hover:bg-emerald-500/30'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
+                  isHomologacao ? 'bg-amber-400' : 'bg-emerald-400'
+                }`} />
+                <Database className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden md:inline font-mono uppercase text-[10px] tracking-wider">
+                  {isHomologacao ? 'Homologação' : 'Produção Oficial'}
+                </span>
+                <span className="md:hidden font-mono uppercase text-[10px]">
+                  {isHomologacao ? 'Testes' : 'Produção'}
+                </span>
+              </div>
+              <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded border border-white/20 font-sans font-semibold">
+                {tenantSigla}
               </span>
-              <span className="md:hidden font-mono uppercase text-[10px]">
-                {activeTenantId === 'studio_sandbox' ? 'Testes' : 'Produção'}
+            </button>
+          ) : (
+            <div
+              title={`Base vinculada ao seu usuário: ${tenantNome}`}
+              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold shadow-xs select-none ${
+                isHomologacao
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/40'
+                  : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  isHomologacao ? 'bg-amber-400' : 'bg-emerald-400'
+                }`} />
+                <Database className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden md:inline font-mono uppercase text-[10px] tracking-wider">
+                  {isHomologacao ? 'Homologação' : 'Produção'}
+                </span>
+              </div>
+              <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded border border-white/20 font-sans font-semibold flex items-center gap-1">
+                <Lock className="w-2.5 h-2.5 opacity-70" />
+                <span>{tenantSigla}</span>
               </span>
             </div>
-            <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded border border-white/20 font-sans font-semibold">
-              {activeTenantId === 'studio_sandbox' ? 'Sandbox' : 'Eusébio'}
-            </span>
-          </button>
+          )}
 
           {/* User Account Dropdown */}
           <div ref={profileRef} className="relative z-50">
@@ -281,26 +375,41 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      setTenantModalOpen(true);
-                    }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-emerald-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Database className="w-4 h-4 text-emerald-300" />
-                      <div>
-                        <span className="font-semibold block text-white">Banco de Dados & Clientes</span>
-                        <span className="text-[10px] text-emerald-200/90">
-                          {activeTenantId === 'studio_sandbox' ? 'Sandbox Studio (Testes)' : 'IPME Eusébio (Produção Oficial)'}
-                        </span>
+                  {isMasterAdmin ? (
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        setTenantModalOpen(true);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-emerald-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4 text-emerald-300" />
+                        <div>
+                          <span className="font-semibold block text-white">Banco de Dados & Clientes</span>
+                          <span className="text-[10px] text-emerald-200/90">
+                            {tenantNome}
+                          </span>
+                        </div>
                       </div>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-1.5 py-0.5 rounded font-bold">
+                        Acesso Master
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="w-full px-2.5 py-1.5 rounded-lg text-xs text-slate-300 bg-white/5 border border-white/10 flex items-center justify-between select-none">
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <span className="font-semibold block text-white">Base Vinculada</span>
+                          <span className="text-[10px] text-slate-300">
+                            {tenantNome}
+                          </span>
+                        </div>
+                      </div>
+                      <Lock className="w-3 h-3 text-slate-400" />
                     </div>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-1.5 py-0.5 rounded font-bold">
-                      Isolamento
-                    </span>
-                  </button>
+                  )}
                 </div>
 
                 <div className="border-t border-white/10 mt-2 pt-2 px-2 space-y-1">

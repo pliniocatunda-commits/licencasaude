@@ -1270,7 +1270,7 @@ export class ClientDatabase {
     return true;
   }
 
-  public login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string): AppUser {
+  public login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string, tenantId?: string): AppUser {
     const emailNorm = email.trim().toLowerCase();
     const isMaster = emailNorm === 'pliniocatunda@gmail.com';
     let user = this.data.users.find(u => u.email.toLowerCase() === emailNorm);
@@ -1323,6 +1323,16 @@ export class ClientDatabase {
 
     user.email_verified = true;
     user.last_login = new Date().toISOString();
+    if (isMaster) {
+      user.is_master_admin = true;
+    } else {
+      if (tenantId) {
+        user.tenant_id = user.tenant_id || tenantId;
+        this.setActiveTenant(user.tenant_id);
+      } else if (user.tenant_id) {
+        this.setActiveTenant(user.tenant_id);
+      }
+    }
     this.saveToStorage(this.data);
     return user;
   }

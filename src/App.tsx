@@ -187,10 +187,19 @@ export default function App() {
     loadAllData();
   };
 
-  const handleLogin = async (email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string) => {
+  const handleLogin = async (email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string, tenantId?: string) => {
     try {
       setAuthLoading(true);
-      const user = await api.login(email, name, provider, password);
+      const user = await api.login(email, name, provider, password, tenantId);
+      const isMaster = user.email.toLowerCase() === 'pliniocatunda@gmail.com' || Boolean(user.is_master_admin);
+      let targetTenant = tenantId || api.getActiveTenantId();
+      if (!isMaster && user.tenant_id) {
+        targetTenant = user.tenant_id;
+      }
+      if (targetTenant) {
+        api.setActiveTenantId(targetTenant);
+        setCurrentTenantId(targetTenant);
+      }
       setCurrentUser(user);
       addToast('success', `Bem-vindo(a), ${user.name}!`);
       await loadAllData();
