@@ -19,8 +19,9 @@ const SANDBOX_INITIAL_DATA: DatabaseSchema = sandboxOfficialData as unknown as D
 
 export class ClientDatabase {
   private activeTenantId: string = typeof window !== 'undefined'
-    ? (localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio')
+    ? (localStorage.getItem('ipme_active_tenant_id') || (window.location.hostname.includes('ais-dev') ? 'studio_sandbox' : 'ipme_eusebio'))
     : 'ipme_eusebio';
+
   private data: DatabaseSchema;
 
   constructor() {

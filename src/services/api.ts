@@ -6,8 +6,9 @@ import { firestoreService } from './firestore.ts';
 class ApiService {
   private currentUser: AppUser | null = null;
   private activeTenantId: string = typeof window !== 'undefined' 
-    ? (localStorage.getItem('ipme_active_tenant_id') || 'ipme_eusebio') 
+    ? (localStorage.getItem('ipme_active_tenant_id') || (window.location.hostname.includes('ais-dev') ? 'studio_sandbox' : 'ipme_eusebio')) 
     : 'ipme_eusebio';
+
 
   public getActiveTenantId(): string {
     return this.activeTenantId || 'ipme_eusebio';
@@ -647,32 +648,63 @@ class ApiService {
     return this.request(
       '/api/tenants',
       { method: 'GET' },
-      () => [
-        {
-          id: 'ipme_eusebio',
-          nome: 'IPME - Instituto de Previdência do Município de Eusébio',
-          sigla: 'IPME Eusébio',
-          cnpj: '05.123.456/0001-78',
-          cidade: 'Eusébio',
-          uf: 'CE',
-          ambiente: 'producao',
-          ativo: true,
-          created_at: '2026-01-01T08:00:00.000Z',
-          descricao: 'Base Oficial de Produção Previdenciária do Município de Eusébio - CE. Isolada e auditada.',
-        },
-        {
-          id: 'studio_sandbox',
-          nome: 'Ambiente de Testes & Homologação Studio',
-          sigla: 'Studio Sandbox',
-          cnpj: '00.000.000/0001-00',
-          cidade: 'Eusébio (Ambiente de Testes)',
-          uf: 'CE',
-          ambiente: 'homologacao',
-          ativo: true,
-          created_at: '2026-01-01T08:00:00.000Z',
-          descricao: 'Ambiente seguro para testes no Google AI Studio. Os testes aqui realizados NUNCA afetam a base oficial do cliente.',
-        },
-      ]
+      async () => {
+        const defaultTenants: TenantInfo[] = [
+          {
+            id: 'ipme_eusebio',
+            nome: 'IPME - Instituto de Previdência do Município de Eusébio',
+            sigla: 'IPME Eusébio',
+            cnpj: '05.123.456/0001-78',
+            cidade: 'Eusébio',
+            uf: 'CE',
+            ambiente: 'producao',
+            ativo: true,
+            created_at: '2026-01-01T08:00:00.000Z',
+            descricao: 'Base Oficial de Produção Previdenciária do Município de Eusébio - CE. Isolada e auditada.',
+          },
+          {
+            id: 'studio_sandbox',
+            nome: 'Ambiente de Testes & Homologação Studio',
+            sigla: 'Studio Sandbox',
+            cnpj: '00.000.000/0001-00',
+            cidade: 'Eusébio (Ambiente de Testes)',
+            uf: 'CE',
+            ambiente: 'homologacao',
+            ativo: true,
+            created_at: '2026-01-01T08:00:00.000Z',
+            descricao: 'Ambiente seguro para testes no Google AI Studio. Os testes aqui realizados NUNCA afetam a base oficial do cliente.',
+          },
+        ];
+
+        let customTenants: TenantInfo[] = [];
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('ipme_custom_tenants');
+            if (raw) {
+              customTenants = JSON.parse(raw);
+            }
+          } catch {}
+        }
+
+        try {
+          const remoteTenants = await firestoreService.getTenants();
+          if (remoteTenants && remoteTenants.length > 0) {
+            for (const rt of remoteTenants) {
+              if (!customTenants.some(ct => ct.id === rt.id) && rt.id !== 'ipme_eusebio' && rt.id !== 'studio_sandbox') {
+                customTenants.push(rt);
+              }
+            }
+          }
+        } catch {}
+
+        const all = [...defaultTenants];
+        for (const ct of customTenants) {
+          if (!all.some(t => t.id === ct.id)) {
+            all.push(ct);
+          }
+        }
+        return all;
+      }
     );
   }
 
@@ -688,23 +720,89 @@ class ApiService {
   }
 
   public async saveTenant(tenant: Partial<TenantInfo> & { nome: string; sigla: string }): Promise<TenantInfo> {
+    const rawId = tenant.id || tenant.sigla.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const id = rawId.startsWith('tenant_') ? rawId : `tenant_${rawId}`;
+
     return this.request(
       '/api/tenants',
       {
         method: 'POST',
         body: JSON.stringify(tenant),
       },
-      () => ({
-        id: tenant.id || tenant.sigla.toLowerCase(),
-        nome: tenant.nome,
-        sigla: tenant.sigla,
-        cnpj: tenant.cnpj || '00.000.000/0001-00',
-        cidade: tenant.cidade || 'Município',
-        uf: tenant.uf || 'CE',
-        ambiente: tenant.ambiente || 'producao',
-        ativo: tenant.ativo !== undefined ? tenant.ativo : true,
-        created_at: new Date().toISOString(),
-      })
+      async () => {
+        const created: TenantInfo = {
+          id: id,
+          nome: tenant.nome.trim(),
+          sigla: tenant.sigla.trim().toUpperCase(),
+          cnpj: tenant.cnpj?.trim() || '00.000.000/0001-00',
+          cidade: tenant.cidade?.trim() || 'Município',
+          uf: tenant.uf?.trim().toUpperCase() || 'CE',
+          ambiente: tenant.ambiente || 'producao',
+          ativo: tenant.ativo !== undefined ? tenant.ativo : true,
+          created_at: new Date().toISOString(),
+          descricao: tenant.descricao?.trim() || `Instância de banco de dados isolada para ${tenant.nome}.`,
+        };
+
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('ipme_custom_tenants');
+            const list: TenantInfo[] = raw ? JSON.parse(raw) : [];
+            const idx = list.findIndex(t => t.id === created.id);
+            if (idx >= 0) {
+              list[idx] = created;
+            } else {
+              list.push(created);
+            }
+            localStorage.setItem('ipme_custom_tenants', JSON.stringify(list));
+
+            // Inicializa seed limpo para a nova partição se não existir
+            const storageKey = `ipme_browser_db_tenant_${created.id}`;
+            if (!localStorage.getItem(storageKey)) {
+              const freshSeed = {
+                employees: [],
+                occurrences: [],
+                secretarias: [],
+                doctors: [],
+                users: [
+                  {
+                    id: 'admin_tenant',
+                    email: this.actorEmail || 'admin@instituto.gov.br',
+                    name: 'Administrador Local',
+                    role: 'admin',
+                    ativo: true,
+                    is_presidente: true,
+                    is_medico_perito: false,
+                    cargo: 'Gestor Previdenciário',
+                    departamento: created.nome,
+                    created_at: new Date().toISOString(),
+                  }
+                ],
+                audit_logs: [
+                  {
+                    id: `audit_init_${Date.now()}`,
+                    entity_type: 'user',
+                    entity_id: created.id,
+                    action: 'CREATE',
+                    details: `Partição de banco de dados para ${created.nome} criada com isolamento total.`,
+                    changed_by: this.actorEmail || 'Sistema',
+                    user_role: 'admin',
+                    timestamp: new Date().toISOString(),
+                  }
+                ],
+              };
+              localStorage.setItem(storageKey, JSON.stringify(freshSeed));
+            }
+          } catch (e) {
+            console.error('Erro ao salvar tenant localmente:', e);
+          }
+        }
+
+        try {
+          await firestoreService.saveTenant(created);
+        } catch {}
+
+        return created;
+      }
     );
   }
 

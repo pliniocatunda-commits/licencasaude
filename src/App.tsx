@@ -49,9 +49,11 @@ interface ToastNotification {
 export default function App() {
   const { themeConfig } = useAppTheme();
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => api.initUser());
+  const [currentTenantId, setCurrentTenantId] = useState<string>(() => api.getActiveTenantId());
   const [authLoading, setAuthLoading] = useState(false);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users'>('dashboard');
+
 
   // Core Data States
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -161,7 +163,9 @@ export default function App() {
 
   // Sincroniza reload quando o cliente/ambiente for alternado
   useEffect(() => {
-    const handleTenantEvent = () => {
+    const handleTenantEvent = (e: any) => {
+      const tid = e?.detail?.tenantId || api.getActiveTenantId();
+      setCurrentTenantId(tid);
       loadAllData();
     };
     window.addEventListener('ipme_tenant_changed', handleTenantEvent);
@@ -169,8 +173,11 @@ export default function App() {
   }, [loadAllData]);
 
   const handleTenantChanged = async (tenantId: string) => {
-    addToast('info', `Ambiente alterado para ${tenantId === 'studio_sandbox' ? 'Sandbox de Testes (Studio)' : 'IPME Eusébio (Produção Oficial)'}. Dados 100% isolados.`);
+    api.setActiveTenantId(tenantId);
+    setCurrentTenantId(tenantId);
+    addToast('info', `Ambiente alterado para ${tenantId === 'studio_sandbox' ? 'Sandbox de Testes (Studio)' : tenantId === 'ipme_eusebio' ? 'IPME Eusébio (Produção Oficial)' : tenantId}. Dados 100% isolados.`);
   };
+
 
   // Auth & User switching
   const handleSwitchUser = (user: AppUser) => {
@@ -651,7 +658,30 @@ export default function App() {
         onTenantChanged={handleTenantChanged}
       />
 
+      {/* Indicador & Alerta de Proteção de Produção Oficial */}
+      {currentTenantId !== 'ipme_eusebio' && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-950 backdrop-blur-xs">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span className="font-bold text-amber-950">🛡️ Proteção de Produção Ativa:</span>
+              <span className="text-amber-900">
+                Você está no <strong>{currentTenantId === 'studio_sandbox' ? 'Ambiente de Testes / Sandbox' : currentTenantId}</strong>. Todas as ações aqui são 100% isoladas e <strong>NUNCA afetam o banco oficial do IPME Eusébio</strong>.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTenantChanged('ipme_eusebio')}
+              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition-colors cursor-pointer shrink-0 shadow-2xs"
+            >
+              Ir para Produção Oficial
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Viewport Content */}
+
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && (
           <DashboardView
