@@ -387,7 +387,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                     placeholder="Ex: IPM Aquiraz - Instituto de Previdência..."
                     value={newNome}
                     onChange={e => setNewNome(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1E426D]"
+                    className="w-full px-3 py-2 text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all"
                   />
                 </div>
 
@@ -401,7 +401,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                     placeholder="Ex: IPM_AQUIRAZ"
                     value={newSigla}
                     onChange={e => setNewSigla(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1E426D]"
+                    className="w-full px-3 py-2 text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all uppercase"
                   />
                 </div>
 
@@ -414,7 +414,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                     placeholder="00.000.000/0001-00"
                     value={newCnpj}
                     onChange={e => setNewCnpj(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1E426D]"
+                    className="w-full px-3 py-2 text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all"
                   />
                 </div>
 
@@ -428,7 +428,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                       placeholder="Município"
                       value={newCidade}
                       onChange={e => setNewCidade(e.target.value)}
-                      className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1E426D]"
+                      className="flex-1 px-3 py-2 text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all"
                     />
                     <input
                       type="text"
@@ -436,7 +436,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                       placeholder="UF"
                       value={newUf}
                       onChange={e => setNewUf(e.target.value.toUpperCase())}
-                      className="w-14 px-2 py-1.5 text-xs border border-slate-300 rounded-lg text-center uppercase font-bold focus:ring-2 focus:ring-[#1E426D]"
+                      className="w-14 px-2 py-2 text-xs bg-white text-slate-900 border border-slate-300 rounded-lg text-center uppercase font-bold focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all"
                     />
                   </div>
                 </div>
@@ -448,7 +448,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                   <select
                     value={newAmbiente}
                     onChange={e => setNewAmbiente(e.target.value as 'producao' | 'homologacao')}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1E426D] bg-white"
+                    className="w-full px-3 py-2 text-xs bg-white text-slate-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all font-medium"
                   >
                     <option value="producao">🟢 Produção Oficial</option>
                     <option value="homologacao">🟡 Testes / Homologação</option>
@@ -464,7 +464,7 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                     placeholder="Ex: Base definitiva oficial de perícias..."
                     value={newDescricao}
                     onChange={e => setNewDescricao(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1E426D]"
+                    className="w-full px-3 py-2 text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E426D] focus:border-[#1E426D] shadow-2xs transition-all"
                   />
                 </div>
               </div>
