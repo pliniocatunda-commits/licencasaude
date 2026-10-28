@@ -780,7 +780,21 @@ export class ClientDatabase {
 
   // --- Secretarias ---
   public getSecretarias(): Secretaria[] {
-    return [...this.data.secretarias];
+    return this.data.secretarias.map(s => {
+      const siglaNorm = (s.sigla || "").toLowerCase().trim();
+      const nomeNorm = (s.nome || "").toLowerCase().trim();
+      const servidoresCount = (this.data.employees || []).filter(e => {
+        const sec = (e.secretaria || "").toLowerCase().trim();
+        return sec === siglaNorm ||
+               sec.startsWith(siglaNorm + " -") ||
+               sec.endsWith("- " + siglaNorm) ||
+               (nomeNorm && sec.includes(nomeNorm));
+      }).length;
+      return {
+        ...s,
+        servidores_count: servidoresCount,
+      };
+    });
   }
 
   public saveSecretaria(secData: Partial<Secretaria>, actorEmail: string, actorRole: 'admin' | 'operator'): Secretaria {

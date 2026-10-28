@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Secretaria, AppUser } from '../types/index.ts';
+import { Secretaria, AppUser, Employee } from '../types/index.ts';
 import { 
   Building2, 
   Plus, 
@@ -19,6 +19,7 @@ import {
 
 interface SecretariasViewProps {
   secretarias: Secretaria[];
+  employees?: Employee[];
   currentUser: AppUser;
   onOpenNewSecretaria: () => void;
   onEditSecretaria: (sec: Secretaria) => void;
@@ -29,6 +30,7 @@ interface SecretariasViewProps {
 
 export const SecretariasView: React.FC<SecretariasViewProps> = ({
   secretarias,
+  employees = [],
   currentUser,
   onOpenNewSecretaria,
   onEditSecretaria,
@@ -41,9 +43,31 @@ export const SecretariasView: React.FC<SecretariasViewProps> = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Dynamic calculation of civil servants lotados per secretaria
+  const computedSecretarias = useMemo(() => {
+    return secretarias.map(s => {
+      if (employees && employees.length > 0) {
+        const siglaNorm = (s.sigla || '').toLowerCase().trim();
+        const nomeNorm = (s.nome || '').toLowerCase().trim();
+        const count = employees.filter(e => {
+          const sec = (e.secretaria || '').toLowerCase().trim();
+          return sec === siglaNorm ||
+                 sec.startsWith(siglaNorm + ' -') ||
+                 sec.endsWith('- ' + siglaNorm) ||
+                 (nomeNorm && sec.includes(nomeNorm));
+        }).length;
+        return {
+          ...s,
+          servidores_count: count,
+        };
+      }
+      return s;
+    });
+  }, [secretarias, employees]);
+
   // Filtered Secretarias
   const filteredSecretarias = useMemo(() => {
-    return secretarias.filter(s => {
+    return computedSecretarias.filter(s => {
       const matchesSearch = 
         s.sigla.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,10 +84,10 @@ export const SecretariasView: React.FC<SecretariasViewProps> = ({
   }, [secretarias, searchTerm, statusFilter]);
 
   // Summary Metrics
-  const totalSecretarias = secretarias.length;
-  const ativasCount = secretarias.filter(s => s.ativa).length;
+  const totalSecretarias = computedSecretarias.length;
+  const ativasCount = computedSecretarias.filter(s => s.ativa).length;
   const inativasCount = totalSecretarias - ativasCount;
-  const totalServidoresLotados = secretarias.reduce((acc, curr) => acc + (curr.servidores_count || 0), 0);
+  const totalServidoresLotados = computedSecretarias.reduce((acc, curr) => acc + (curr.servidores_count || 0), 0);
 
   // Export CSV
   const handleExportCSV = () => {

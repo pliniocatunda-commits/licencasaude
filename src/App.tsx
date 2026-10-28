@@ -725,6 +725,7 @@ export default function App() {
         {activeTab === 'secretarias' && (
           <SecretariasView
             secretarias={secretarias}
+            employees={employees}
             currentUser={currentUser}
             onOpenNewSecretaria={handleOpenNewSecretaria}
             onEditSecretaria={handleEditSecretaria}

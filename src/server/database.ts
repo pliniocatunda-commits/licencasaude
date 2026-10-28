@@ -2066,11 +2066,15 @@ class DatabaseManager {
 
     // Attach count of servidores lotados
     return list.map(s => {
-      const servidoresCount = this.data.employees.filter(
-        e =>
-          e.secretaria.toLowerCase().includes(s.sigla.toLowerCase()) ||
-          e.secretaria.toLowerCase().includes(s.nome.toLowerCase())
-      ).length;
+      const siglaNorm = (s.sigla || "").toLowerCase().trim();
+      const nomeNorm = (s.nome || "").toLowerCase().trim();
+      const servidoresCount = (this.data.employees || []).filter(e => {
+        const sec = (e.secretaria || "").toLowerCase().trim();
+        return sec === siglaNorm ||
+               sec.startsWith(siglaNorm + " -") ||
+               sec.endsWith("- " + siglaNorm) ||
+               (nomeNorm && sec.includes(nomeNorm));
+      }).length;
       return {
         ...s,
         servidores_count: servidoresCount,
