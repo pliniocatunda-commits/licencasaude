@@ -35,7 +35,10 @@ import {
   FileBadge,
   Undo2,
   Archive,
-  Pin
+  Pin,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 
 interface OccurrencesViewProps {
@@ -84,6 +87,19 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   const [historyModalOccurrence, setHistoryModalOccurrence] = useState<Occurrence | null>(null);
   const [occurrenceToDelete, setOccurrenceToDelete] = useState<Occurrence | null>(null);
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
+  const [sortField, setSortField] = useState<'id' | 'employee_nome' | 'tipo' | 'employee_secretaria' | 'data_inicio' | 'data_termino'>('id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleToggleSort = (field: 'id' | 'employee_nome' | 'tipo' | 'employee_secretaria' | 'data_inicio' | 'data_termino') => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+    setCurrentPage(1);
+  };
+
   const [freezeColumns, setFreezeColumns] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('ipme_freeze_occurrences_columns');
@@ -99,19 +115,22 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
     return occurrences.filter(occ => isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo)).length;
   }, [occurrences]);
 
-  // Filter occurrences
+  // Filter and sort occurrences - Ordenação Automática Interativa com Padrão Código ID crescente
   const filteredOccurrences = useMemo(() => {
-    return occurrences.filter(occ => {
+    const list = occurrences.filter(occ => {
       // Tipo
       if (selectedTipo !== 'ALL' && occ.tipo !== selectedTipo) return false;
+
       // Status
       if (selectedStatus === 'EM_ATRASO') {
         if (!isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo)) return false;
       } else if (selectedStatus !== 'ALL' && occ.status !== selectedStatus) {
         return false;
       }
+
       // Date start
       if (dataInicioFilter && occ.data_inicio < dataInicioFilter) return false;
+
       // Date end
       if (dataTerminoFilter && occ.data_termino > dataTerminoFilter) return false;
 
@@ -125,11 +144,47 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
         const matchSecretaria = (occ.employee_secretaria || '').toLowerCase().includes(q);
         const matchCid = (occ.cid || '').toLowerCase().includes(q);
         const matchPerito = (occ.medico_perito || '').toLowerCase().includes(q);
+
         return matchId || matchMatricula || matchNome || matchCargo || matchSecretaria || matchCid || matchPerito;
       }
+
       return true;
     });
-  }, [occurrences, searchTerm, selectedTipo, selectedStatus, dataInicioFilter, dataTerminoFilter]);
+
+    return [...list].sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'id') {
+        const numA = parseInt(a.id.replace(/\D/g, ''), 10);
+        const numB = parseInt(b.id.replace(/\D/g, ''), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          comparison = numA - numB;
+        } else {
+          comparison = a.id.localeCompare(b.id, 'pt-BR', { numeric: true });
+        }
+      } else if (sortField === 'employee_nome') {
+        const nameA = a.employee_nome || '';
+        const nameB = b.employee_nome || '';
+        comparison = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+      } else if (sortField === 'tipo') {
+        const tipoA = a.tipo || '';
+        const tipoB = b.tipo || '';
+        comparison = tipoA.localeCompare(tipoB, 'pt-BR');
+      } else if (sortField === 'employee_secretaria') {
+        const secA = a.employee_secretaria || '';
+        const secB = b.employee_secretaria || '';
+        comparison = secA.localeCompare(secB, 'pt-BR', { sensitivity: 'base' });
+      } else if (sortField === 'data_inicio') {
+        const dA = a.data_inicio || '';
+        const dB = b.data_inicio || '';
+        comparison = dA.localeCompare(dB);
+      } else if (sortField === 'data_termino') {
+        const dA = a.data_termino || '';
+        const dB = b.data_termino || '';
+        comparison = dA.localeCompare(dB);
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [occurrences, searchTerm, selectedTipo, selectedStatus, dataInicioFilter, dataTerminoFilter, sortField, sortOrder]);
 
   // Pagination
   const totalPages = Math.ceil(filteredOccurrences.length / pageSize) || 1;
@@ -412,42 +467,81 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
           <table className="w-full text-left border-collapse min-w-[1220px]">
             <thead>
               <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                {/* 1. Código ID (Fixado) */}
-                <th className={`py-3 px-3.5 whitespace-nowrap transition-colors ${
-                  freezeColumns ? 'sticky left-0 z-20 bg-slate-50 min-w-[85px] w-[85px] max-w-[85px]' : 'min-w-[85px]'
-                }`}>
-                  <div className="flex items-center gap-1">
-                    <span>Código ID</span>
+                {/* 1. Código ID (Fixado com Ordenação Crescente por Padrão) */}
+                <th 
+                  onClick={() => handleToggleSort('id')}
+                  title="Clique para alternar ordenação por Código ID (Crescente / Decrescente)"
+                  className={`py-3 px-3.5 whitespace-nowrap transition-colors cursor-pointer select-none hover:bg-slate-100/90 ${
+                    freezeColumns ? 'sticky left-0 z-20 bg-slate-50 min-w-[95px] w-[95px] max-w-[95px]' : 'min-w-[95px]'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortField === 'id' ? 'text-sky-950 font-bold' : ''}>Código ID</span>
+                    {sortField === 'id' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0 opacity-60" />
+                    )}
                     {freezeColumns && (
-                      <span title="Coluna fixada na rolagem">
+                      <span title="Coluna fixada na rolagem" className="ml-auto">
                         <Pin className="w-2.5 h-2.5 text-blue-600 fill-blue-600 rotate-45 shrink-0" />
                       </span>
                     )}
                   </div>
                 </th>
 
-                {/* 2. Servidor (Fixado) */}
-                <th className={`py-3 px-4 whitespace-nowrap transition-colors ${
-                  freezeColumns ? 'sticky left-[85px] z-20 bg-slate-50 min-w-[240px] w-[240px] max-w-[240px]' : 'min-w-[220px]'
-                }`}>
+                {/* 2. Servidor (Fixado com Ordenação por Nome) */}
+                <th 
+                  onClick={() => handleToggleSort('employee_nome')}
+                  title="Clique para ordenar por Nome do Servidor"
+                  className={`py-3 px-4 whitespace-nowrap transition-colors cursor-pointer select-none hover:bg-slate-100/90 ${
+                    freezeColumns ? 'sticky left-[85px] z-20 bg-slate-50 min-w-[240px] w-[240px] max-w-[240px]' : 'min-w-[220px]'
+                  }`}
+                >
                   <div className="flex items-center gap-1.5">
-                    <span>Servidor</span>
+                    <span className={sortField === 'employee_nome' ? 'text-sky-950 font-bold' : ''}>Servidor (Nome)</span>
+                    {sortField === 'employee_nome' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0 opacity-60" />
+                    )}
                     {freezeColumns && (
-                      <span title="Nome e Matrícula fixados durante a navegação">
+                      <span title="Nome e Matrícula fixados durante a navegação" className="ml-auto">
                         <Pin className="w-2.5 h-2.5 text-blue-600 fill-blue-600 rotate-45 shrink-0" />
                       </span>
                     )}
                   </div>
                 </th>
 
-                {/* 3. Tipo (Fixado logo ao lado do Servidor com divisor de sombra) */}
-                <th className={`py-3 px-4 whitespace-nowrap transition-colors ${
-                  freezeColumns ? 'sticky left-[325px] z-20 bg-slate-50 min-w-[155px] w-[155px] max-w-[155px] border-r-2 border-slate-300 shadow-[4px_0_12px_-3px_rgba(0,0,0,0.08)]' : 'min-w-[140px]'
-                }`}>
+                {/* 3. Tipo (Fixado com Ordenação) */}
+                <th 
+                  onClick={() => handleToggleSort('tipo')}
+                  title="Clique para ordenar por Tipo de Afastamento"
+                  className={`py-3 px-4 whitespace-nowrap transition-colors cursor-pointer select-none hover:bg-slate-100/90 ${
+                    freezeColumns ? 'sticky left-[325px] z-20 bg-slate-50 min-w-[155px] w-[155px] max-w-[155px] border-r-2 border-slate-300 shadow-[4px_0_12px_-3px_rgba(0,0,0,0.08)]' : 'min-w-[140px]'
+                  }`}
+                >
                   <div className="flex items-center gap-1.5">
-                    <span>Tipo</span>
+                    <span className={sortField === 'tipo' ? 'text-sky-950 font-bold' : ''}>Tipo</span>
+                    {sortField === 'tipo' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0 opacity-60" />
+                    )}
                     {freezeColumns && (
-                      <span title="Tipo de afastamento fixado durante a navegação">
+                      <span title="Tipo de afastamento fixado durante a navegação" className="ml-auto">
                         <Pin className="w-2.5 h-2.5 text-blue-600 fill-blue-600 rotate-45 shrink-0" />
                       </span>
                     )}
@@ -457,16 +551,63 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                 {/* 4. Cargo / Função */}
                 <th className="py-3 px-4 whitespace-nowrap">Cargo / Função</th>
 
-                {/* 5. Secretaria */}
-                <th className="py-3 px-4 whitespace-nowrap">Secretaria</th>
-
-                {/* 6. Data Afastamento */}
-                <th className="py-3 px-4 whitespace-nowrap">Data Afastamento</th>
-
-                {/* 7. Previsão de Retorno */}
-                <th className="py-3 px-4 whitespace-nowrap">
+                {/* 5. Secretaria (Ordenação) */}
+                <th 
+                  onClick={() => handleToggleSort('employee_secretaria')}
+                  title="Clique para ordenar por Secretaria"
+                  className="py-3 px-4 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100/90 transition-colors"
+                >
                   <div className="flex items-center gap-1.5">
-                    <span>Prev. Retorno</span>
+                    <span className={sortField === 'employee_secretaria' ? 'text-sky-950 font-bold' : ''}>Secretaria</span>
+                    {sortField === 'employee_secretaria' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0 opacity-60" />
+                    )}
+                  </div>
+                </th>
+
+                {/* 6. Data Afastamento (Ordenação) */}
+                <th 
+                  onClick={() => handleToggleSort('data_inicio')}
+                  title="Clique para ordenar por Data de Afastamento"
+                  className="py-3 px-4 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100/90 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortField === 'data_inicio' ? 'text-sky-950 font-bold' : ''}>Data Afastamento</span>
+                    {sortField === 'data_inicio' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0 opacity-60" />
+                    )}
+                  </div>
+                </th>
+
+                {/* 7. Previsão de Retorno (Ordenação) */}
+                <th 
+                  onClick={() => handleToggleSort('data_termino')}
+                  title="Clique para ordenar por Previsão de Retorno"
+                  className="py-3 px-4 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100/90 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortField === 'data_termino' ? 'text-sky-950 font-bold' : ''}>Prev. Retorno</span>
+                    {sortField === 'data_termino' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0 opacity-60" />
+                    )}
                     {totalEmAtraso > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                         {totalEmAtraso} em atraso

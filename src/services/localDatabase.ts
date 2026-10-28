@@ -383,7 +383,14 @@ export class ClientDatabase {
     if (dataInicio) result = result.filter(o => o.data_inicio >= dataInicio);
     if (dataTermino) result = result.filter(o => o.data_termino <= dataTermino);
 
-    return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result.sort((a, b) => {
+      const numA = parseInt(a.id.replace(/\D/g, ""), 10);
+      const numB = parseInt(b.id.replace(/\D/g, ""), 10);
+      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+        return numA - numB;
+      }
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
   }
 
   public getOccurrenceById(id: string): Occurrence | undefined {

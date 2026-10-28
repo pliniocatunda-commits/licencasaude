@@ -1319,7 +1319,14 @@ class DatabaseManager {
           employee_secretaria: emp ? emp.secretaria : o.employee_secretaria,
         };
       })
-      .sort((a, b) => b.data_inicio.localeCompare(a.data_inicio));
+      .sort((a, b) => {
+        const numA = parseInt(a.id.replace(/\D/g, ""), 10);
+        const numB = parseInt(b.id.replace(/\D/g, ""), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+        return a.id.localeCompare(b.id, undefined, { numeric: true });
+      });
   }
 
   public getOccurrenceById(id: string): Occurrence | undefined {
