@@ -5,7 +5,8 @@ import {
   validarCPF, 
   formatarTelefone, 
   SECRETARIAS_MUNICIPAIS, 
-  limparCaracteres 
+  limparCaracteres,
+  normalizeSecretaria
 } from '../utils/validation.ts';
 import { X, CheckCircle2, AlertCircle, Save, User, ShieldCheck, Plus, Building2 } from 'lucide-react';
 
@@ -69,7 +70,8 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setNome(initialEmployee.nome);
       setCpf(formatarCPF(initialEmployee.cpf));
       setTelefone(formatarTelefone(initialEmployee.telefone || ''));
-      setSecretaria(initialEmployee.secretaria);
+      const norm = normalizeSecretaria(initialEmployee.secretaria, secretariasList);
+      setSecretaria(norm.canonicalKey);
       setCargo(initialEmployee.cargo);
       setStatus(initialEmployee.status);
       setDataAdmissao(initialEmployee.data_admissao || '');
@@ -82,7 +84,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setNome('');
       setCpf('');
       setTelefone('');
-      setSecretaria(availableSecretarias[0]?.nome || SECRETARIAS_MUNICIPAIS[0]);
+      setSecretaria(availableSecretarias[0]?.display || SECRETARIAS_MUNICIPAIS[0]);
       setCargo('');
       setStatus('Ativo');
       setDataAdmissao(new Date().toISOString().split('T')[0]);
@@ -90,7 +92,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setCpfError('');
     }
     setFormError('');
-  }, [initialEmployee, isOpen, availableSecretarias]);
+  }, [initialEmployee, isOpen, availableSecretarias, secretariasList]);
 
   if (!isOpen) return null;
 
@@ -132,6 +134,8 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       return;
     }
 
+    const normSec = normalizeSecretaria(secretaria, secretariasList);
+
     setLoading(true);
     try {
       await onSave({
@@ -139,7 +143,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         nome: nome.trim(),
         cpf: formatarCPF(cpf),
         telefone: telefone.trim(),
-        secretaria: secretaria.trim(),
+        secretaria: normSec.canonicalKey,
         setor: initialEmployee?.setor || '',
         cargo: cargo.trim() || 'Servidor Municipal',
         status,
@@ -310,13 +314,13 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
               >
                 {/* Ensure current value exists even if inactive or legacy */}
-                {secretaria && !availableSecretarias.some(s => s.nome === secretaria) && (
+                {secretaria && !availableSecretarias.some(s => s.display === secretaria || s.nome === secretaria) && (
                   <option value={secretaria}>
-                    {secretaria} (Lotação atual)
+                    {secretaria}
                   </option>
                 )}
                 {availableSecretarias.map(s => (
-                  <option key={s.id} value={s.nome}>
+                  <option key={s.id} value={s.display}>
                     {s.display}
                   </option>
                 ))}

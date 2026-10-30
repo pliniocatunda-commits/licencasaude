@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo, TenantInfo, TenantEnvironment } from '../types/index.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
+import { normalizeSecretaria } from '../utils/validation.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1103,6 +1104,30 @@ class DatabaseManager {
               occ.data_termino_inicial = occ.data_termino;
               needsSave = true;
             }
+
+            const emp = parsed.employees?.find((e: Employee) => e.matricula === occ.matricula);
+            const rawSec = occ.employee_secretaria || emp?.secretaria;
+            if (rawSec) {
+              const norm = normalizeSecretaria(rawSec, parsed.secretarias || []);
+              if (occ.employee_secretaria !== norm.canonicalKey) {
+                occ.employee_secretaria = norm.canonicalKey;
+                needsSave = true;
+              }
+            }
+          }
+
+          // Normaliza secretarias de servidores existentes
+          if (parsed.employees && Array.isArray(parsed.employees)) {
+            const secCatalog = parsed.secretarias || [];
+            for (const emp of parsed.employees) {
+              if (emp.secretaria) {
+                const norm = normalizeSecretaria(emp.secretaria, secCatalog);
+                if (emp.secretaria !== norm.canonicalKey) {
+                  emp.secretaria = norm.canonicalKey;
+                  needsSave = true;
+                }
+              }
+            }
           }
 
           if (needsSave || !fs.existsSync(tenantFile)) {
@@ -1185,16 +1210,27 @@ class DatabaseManager {
   public saveEmployee(employee: Partial<Employee> & { matricula: string; nome: string; cpf: string }, actorEmail: string, actorRole: 'admin' | 'operator'): Employee {
     const existingIndex = this.data.employees.findIndex(e => e.matricula.toUpperCase() === employee.matricula.toUpperCase());
     const now = new Date().toISOString();
+    const normalizedSec = employee.secretaria
+      ? normalizeSecretaria(employee.secretaria, this.data.secretarias).canonicalKey
+      : 'SME - SECRETARIA DE EDUCACAO';
 
     if (existingIndex >= 0) {
       const existing = this.data.employees[existingIndex];
       const updated: Employee = {
         ...existing,
         ...employee,
+        secretaria: normalizedSec,
         matricula: existing.matricula, // immutable PK
         updated_at: now,
       };
       this.data.employees[existingIndex] = updated;
+
+      // Sincroniza também ocorrências do servidor
+      for (const occ of this.data.occurrences) {
+        if (occ.matricula.toUpperCase() === updated.matricula.toUpperCase()) {
+          occ.employee_secretaria = normalizedSec;
+        }
+      }
 
       this.addAuditLog({
         entity_type: 'employee',
@@ -1213,7 +1249,7 @@ class DatabaseManager {
         nome: employee.nome.trim(),
         cpf: employee.cpf.trim(),
         telefone: employee.telefone || '',
-        secretaria: employee.secretaria || 'SME - Secretaria Municipal de Educação',
+        secretaria: normalizedSec,
         setor: employee.setor || 'Geral',
         cargo: employee.cargo || 'Servidor Municipal',
         status: employee.status || 'Ativo',
@@ -1316,7 +1352,7 @@ class DatabaseManager {
           ...o,
           employee_nome: emp ? emp.nome : o.employee_nome,
           employee_cargo: emp ? emp.cargo : o.employee_cargo,
-          employee_secretaria: emp ? emp.secretaria : o.employee_secretaria,
+          employee_secretaria: normalizeSecretaria(emp ? emp.secretaria : o.employee_secretaria, this.data.secretarias).canonicalKey,
         };
       })
       .sort((a, b) => {
@@ -1420,7 +1456,7 @@ class DatabaseManager {
         matricula: employee.matricula,
         employee_nome: employee.nome,
         employee_cargo: employee.cargo,
-        employee_secretaria: employee.secretaria,
+        employee_secretaria: normalizeSecretaria(employee.secretaria, this.data.secretarias).canonicalKey,
         tipo: occurrenceData.tipo,
         data_inicio: occurrenceData.data_inicio,
         data_termino: occurrenceData.data_termino,

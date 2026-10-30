@@ -6,7 +6,8 @@ import {
   formatarTelefone, 
   SECRETARIAS_MUNICIPAIS, 
   exportarCSV,
-  formatarDataBR
+  formatarDataBR,
+  normalizeSecretaria
 } from '../utils/validation.ts';
 import { 
   Search, 
@@ -74,7 +75,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   // Compute available secretarias names
   const secretariaOptions = useMemo(() => {
     if (secretariasList && secretariasList.length > 0) {
-      return secretariasList.map(s => s.nome);
+      return secretariasList.map(s => s.sigla ? `${s.sigla} - ${s.nome}` : s.nome);
     }
     return SECRETARIAS_MUNICIPAIS;
   }, [secretariasList]);
@@ -83,8 +84,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
       // Secretaria filter
-      if (selectedSecretaria !== 'ALL' && !emp.secretaria.toLowerCase().includes(selectedSecretaria.toLowerCase())) {
-        return false;
+      if (selectedSecretaria !== 'ALL') {
+        const normEmp = normalizeSecretaria(emp.secretaria, secretariasList);
+        const normSelected = normalizeSecretaria(selectedSecretaria, secretariasList);
+        const match =
+          normEmp.sigla.toUpperCase() === normSelected.sigla.toUpperCase() ||
+          normEmp.canonicalKey.toUpperCase() === normSelected.canonicalKey.toUpperCase() ||
+          emp.secretaria.toLowerCase().includes(selectedSecretaria.toLowerCase());
+        if (!match) return false;
       }
       // Status filter
       if (selectedStatus !== 'ALL' && emp.status !== selectedStatus) {

@@ -1,5 +1,5 @@
 import { Employee, Occurrence, Secretaria, Doctor, AuditLog, AppUser, DashboardMetrics } from '../types/index.ts';
-import { calcularDiasPagos } from '../utils/validation.ts';
+import { calcularDiasPagos, normalizeSecretaria } from '../utils/validation.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
 import eusebioOfficialData from '../data/tenants/ipme_eusebio.json';
 import sandboxOfficialData from '../data/tenants/studio_sandbox.json';
@@ -121,6 +121,38 @@ export class ClientDatabase {
               parsed.users[0].is_presidente = true;
             }
           }
+
+          // Normalização e consolidação automática de secretarias em servidores e ocorrências
+          if (parsed.employees && Array.isArray(parsed.employees)) {
+            let dataRepaired = false;
+            const secCatalog = parsed.secretarias || INITIAL_DATA.secretarias;
+            for (const emp of parsed.employees) {
+              if (emp.secretaria) {
+                const norm = normalizeSecretaria(emp.secretaria, secCatalog);
+                if (emp.secretaria !== norm.canonicalKey) {
+                  emp.secretaria = norm.canonicalKey;
+                  dataRepaired = true;
+                }
+              }
+            }
+            if (parsed.occurrences && Array.isArray(parsed.occurrences)) {
+              for (const occ of parsed.occurrences) {
+                const emp = parsed.employees.find((e: Employee) => e.matricula === occ.matricula);
+                const rawSec = occ.employee_secretaria || emp?.secretaria;
+                if (rawSec) {
+                  const norm = normalizeSecretaria(rawSec, secCatalog);
+                  if (occ.employee_secretaria !== norm.canonicalKey) {
+                    occ.employee_secretaria = norm.canonicalKey;
+                    dataRepaired = true;
+                  }
+                }
+              }
+            }
+            if (dataRepaired) {
+              this.saveToStorage(parsed);
+            }
+          }
+
           return parsed;
         }
       }
@@ -302,15 +334,27 @@ export class ClientDatabase {
   public saveEmployee(empData: Partial<Employee>, actorEmail: string, actorRole: 'admin' | 'operator'): Employee {
     const existingIndex = this.data.employees.findIndex(e => e.matricula === empData.matricula);
     const now = new Date().toISOString();
+    const normalizedSec = empData.secretaria
+      ? normalizeSecretaria(empData.secretaria, this.data.secretarias).canonicalKey
+      : 'SME - SECRETARIA DE EDUCACAO';
 
     if (existingIndex >= 0) {
       const old = this.data.employees[existingIndex];
       const updated: Employee = {
         ...old,
         ...empData,
+        secretaria: normalizedSec,
         updated_at: now,
       } as Employee;
       this.data.employees[existingIndex] = updated;
+
+      // Sincroniza também as ocorrências do servidor com a secretaria canônica
+      for (const occ of this.data.occurrences) {
+        if (occ.matricula === updated.matricula) {
+          occ.employee_secretaria = normalizedSec;
+        }
+      }
+
       this.addAudit({
         entity_type: 'employee',
         entity_id: updated.matricula,
@@ -327,7 +371,7 @@ export class ClientDatabase {
         nome: empData.nome || '',
         cpf: empData.cpf || '',
         telefone: empData.telefone || '',
-        secretaria: empData.secretaria || 'SME - Secretaria Municipal de Educação',
+        secretaria: normalizedSec,
         setor: empData.setor || '',
         cargo: empData.cargo || 'Servidor Municipal',
         status: (empData.status as any) || 'Ativo',
@@ -383,14 +427,26 @@ export class ClientDatabase {
     if (dataInicio) result = result.filter(o => o.data_inicio >= dataInicio);
     if (dataTermino) result = result.filter(o => o.data_termino <= dataTermino);
 
-    return result.sort((a, b) => {
-      const numA = parseInt(a.id.replace(/\D/g, ""), 10);
-      const numB = parseInt(b.id.replace(/\D/g, ""), 10);
-      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-        return numA - numB;
-      }
-      return a.id.localeCompare(b.id, undefined, { numeric: true });
-    });
+    return result
+      .map(o => {
+        const emp = this.getEmployeeByMatricula(o.matricula);
+        const rawSec = (emp ? emp.secretaria : o.employee_secretaria) || '';
+        const normSec = normalizeSecretaria(rawSec, this.data.secretarias);
+        return {
+          ...o,
+          employee_nome: emp ? emp.nome : o.employee_nome,
+          employee_cargo: emp ? emp.cargo : o.employee_cargo,
+          employee_secretaria: normSec.canonicalKey,
+        };
+      })
+      .sort((a, b) => {
+        const numA = parseInt(a.id.replace(/\D/g, ""), 10);
+        const numB = parseInt(b.id.replace(/\D/g, ""), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+        return a.id.localeCompare(b.id, undefined, { numeric: true });
+      });
   }
 
   public getOccurrenceById(id: string): Occurrence | undefined {
@@ -467,7 +523,7 @@ export class ClientDatabase {
         matricula: emp.matricula,
         employee_nome: emp.nome,
         employee_cargo: emp.cargo,
-        employee_secretaria: emp.secretaria,
+        employee_secretaria: normalizeSecretaria(emp.secretaria, this.data.secretarias).canonicalKey,
         tipo: occurrenceData.tipo || 'Licença Saúde',
         data_inicio: occurrenceData.data_inicio || now.split('T')[0],
         data_termino: occurrenceData.data_termino || now.split('T')[0],

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Secretaria, AppUser, Employee } from '../types/index.ts';
+import { normalizeSecretaria } from '../utils/validation.ts';
 import { 
   Building2, 
   Plus, 
@@ -47,14 +48,12 @@ export const SecretariasView: React.FC<SecretariasViewProps> = ({
   const computedSecretarias = useMemo(() => {
     return secretarias.map(s => {
       if (employees && employees.length > 0) {
-        const siglaNorm = (s.sigla || '').toLowerCase().trim();
-        const nomeNorm = (s.nome || '').toLowerCase().trim();
+        const targetCanonical = `${s.sigla} - ${s.nome}`.toUpperCase();
+        const sSiglaUpper = (s.sigla || '').toUpperCase().trim();
         const count = employees.filter(e => {
-          const sec = (e.secretaria || '').toLowerCase().trim();
-          return sec === siglaNorm ||
-                 sec.startsWith(siglaNorm + ' -') ||
-                 sec.endsWith('- ' + siglaNorm) ||
-                 (nomeNorm && sec.includes(nomeNorm));
+          const norm = normalizeSecretaria(e.secretaria, secretarias);
+          return norm.sigla.toUpperCase() === sSiglaUpper ||
+                 norm.canonicalKey.toUpperCase() === targetCanonical;
         }).length;
         return {
           ...s,

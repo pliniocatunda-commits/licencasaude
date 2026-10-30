@@ -195,3 +195,159 @@ export function calcularDiasAtraso(dataTermino?: string): number {
   if (diffMs <= 0) return 0;
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
+
+export interface NormalizedSecretaria {
+  canonicalKey: string; // Ex: "SME - SECRETARIA DE EDUCACAO"
+  sigla: string;        // Ex: "SME"
+  nome: string;         // Ex: "SECRETARIA DE EDUCACAO"
+  display: string;      // Ex: "SME - SECRETARIA DE EDUCACAO"
+}
+
+// Catálogo oficial canônico de Secretarias do Município de Eusébio
+const DEFAULT_CANONICAL_SECRETARIAS: Array<{ sigla: string; nome: string }> = [
+  { sigla: 'SME', nome: 'SECRETARIA DE EDUCACAO' },
+  { sigla: 'SMS', nome: 'SECRETARIA MUNICIPAL DA SAUDE' },
+  { sigla: 'SEFIN', nome: 'SECRETARIA DE FINANCAS E PLANEJAMENTO' },
+  { sigla: 'SEINFRA', nome: 'SEC MUN INFRAESTRUTURA E SERVICOS PUBL' },
+  { sigla: 'SMSPC', nome: 'SECRETARIA MUNICIPAL SEGURANCA PUBLICA' },
+  { sigla: 'SECULT', nome: 'SECRETARIA DE CULTURA E TURISMO' },
+  { sigla: 'SEMA', nome: 'SECRETARIA DE MEIO AMBIENTE E URBANISMO' },
+  { sigla: 'SDS', nome: 'SECRETARIA DE DESENVOLVIMENTO SOCIAL' },
+  { sigla: 'SMDS', nome: 'SECRETARIA MUN DESENVOLVIMENTO SOCIAL' },
+  { sigla: 'SEAD', nome: 'SECRETARIA DE ADMINISTRACAO E PLANEJAMENTO' },
+  { sigla: 'GAPRE', nome: 'GABINETE DO PREFEITO' },
+  { sigla: 'GAB', nome: 'GABINETE DO PREFEITO' },
+  { sigla: 'SEGOV', nome: 'SEC GOV E DESENVOLVIMENTO GESTAO' },
+  { sigla: 'AMT', nome: 'AUTARQUIA MUNICIPAL DE TRANSITO' },
+  { sigla: 'SMEJ', nome: 'SECRETARIA MUN ESPORTE E JUVENTUDE' },
+  { sigla: 'AMMA', nome: 'AUTARQUIA MUNICIPAL DO MEIO AMBIENTE' },
+  { sigla: 'CGM', nome: 'CONTROLADORIA E OUVIDORIA GERAL DO MUN' },
+  { sigla: 'PGM', nome: 'PROCURADORIA GERAL DO MUNICIPIO' },
+  { sigla: 'IPME', nome: 'INSTITUTO DE PREVIDENCIA DO MUNICIPIO DE EUSEBIO' },
+];
+
+/**
+ * Normaliza qualquer formato de secretaria (com ou sem sigla, abreviado ou por extenso)
+ * para uma representação canônica padronizada `${sigla} - ${nome}`.
+ * Garante que servidores importados e cadastrados manualmente na mesma secretaria
+ * fiquem rigorosamente unificados no mesmo bloco do relatório executivo e filtros.
+ */
+export function normalizeSecretaria(
+  rawSec: string | undefined | null,
+  secretariasList?: Array<{ sigla?: string; nome?: string }>
+): NormalizedSecretaria {
+  const raw = (rawSec || '').trim();
+  if (!raw) {
+    return {
+      canonicalKey: 'OUTROS - Outros Órgãos / Geral',
+      sigla: 'OUTROS',
+      nome: 'Outros Órgãos / Geral',
+      display: 'OUTROS - Outros Órgãos / Geral',
+    };
+  }
+
+  // Prepara lista combinada
+  const pool: Array<{ sigla: string; nome: string }> = [];
+  if (secretariasList && Array.isArray(secretariasList)) {
+    for (const s of secretariasList) {
+      if (s && s.sigla && s.nome) {
+        pool.push({ sigla: s.sigla.trim(), nome: s.nome.trim() });
+      }
+    }
+  }
+  for (const def of DEFAULT_CANONICAL_SECRETARIAS) {
+    if (!pool.some(p => p.sigla.toUpperCase() === def.sigla.toUpperCase())) {
+      pool.push(def);
+    }
+  }
+
+  const stripAccents = (str: string) =>
+    str.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  const cleanRaw = stripAccents(raw);
+
+  // 1. Verificação se já está no formato exato "SIGLA - NOME"
+  for (const s of pool) {
+    const sSigla = s.sigla.toUpperCase();
+    const sNome = stripAccents(s.nome);
+    const expectedCanonical = `${sSigla} - ${s.nome}`;
+
+    if (cleanRaw === `${sSigla} - ${sNome}`) {
+      return {
+        canonicalKey: expectedCanonical,
+        sigla: s.sigla,
+        nome: s.nome,
+        display: expectedCanonical,
+      };
+    }
+  }
+
+  // 2. Verificação se bate pela sigla isolada ou por prefixo "SIGLA -"
+  for (const s of pool) {
+    const sSigla = s.sigla.toUpperCase();
+    const expectedCanonical = `${s.sigla} - ${s.nome}`;
+
+    if (cleanRaw === sSigla) {
+      return {
+        canonicalKey: expectedCanonical,
+        sigla: s.sigla,
+        nome: s.nome,
+        display: expectedCanonical,
+      };
+    }
+
+    if (cleanRaw.startsWith(`${sSigla} -`) || cleanRaw.startsWith(`${sSigla}-`)) {
+      return {
+        canonicalKey: expectedCanonical,
+        sigla: s.sigla,
+        nome: s.nome,
+        display: expectedCanonical,
+      };
+    }
+  }
+
+  // 3. Verificação por igualdade ou inclusão do nome da secretaria
+  for (const s of pool) {
+    const sNome = stripAccents(s.nome);
+    const expectedCanonical = `${s.sigla} - ${s.nome}`;
+
+    if (cleanRaw === sNome) {
+      return {
+        canonicalKey: expectedCanonical,
+        sigla: s.sigla,
+        nome: s.nome,
+        display: expectedCanonical,
+      };
+    }
+
+    // Se o nome contiver palavras-chave essenciais (ex: "EDUCACAO", "SAUDE", "FINANCAS", "SEGURANCA")
+    if (sNome.length > 5 && (cleanRaw.includes(sNome) || sNome.includes(cleanRaw))) {
+      return {
+        canonicalKey: expectedCanonical,
+        sigla: s.sigla,
+        nome: s.nome,
+        display: expectedCanonical,
+      };
+    }
+  }
+
+  // 4. Se tiver o formato "PARTE1 - PARTE2"
+  if (raw.includes(' - ')) {
+    const [partSigla, ...rest] = raw.split(' - ');
+    const partNome = rest.join(' - ').trim();
+    return {
+      canonicalKey: raw,
+      sigla: partSigla.trim().toUpperCase(),
+      nome: partNome,
+      display: raw,
+    };
+  }
+
+  // 5. Fallback genérico
+  return {
+    canonicalKey: raw,
+    sigla: raw.slice(0, 8).toUpperCase(),
+    nome: raw,
+    display: raw,
+  };
+}

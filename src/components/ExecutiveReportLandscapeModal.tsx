@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Occurrence, Employee, Secretaria, DashboardMetrics, OccurrenceType, Doctor, AppUser } from '../types/index.ts';
-import { formatarDataBR, calcularDiasPagos, formatarCPF, isPrevisaoRetornoEmAtraso, calcularDiasAtraso } from '../utils/validation.ts';
+import { formatarDataBR, calcularDiasPagos, formatarCPF, isPrevisaoRetornoEmAtraso, calcularDiasAtraso, normalizeSecretaria } from '../utils/validation.ts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 import { 
@@ -333,8 +333,17 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
       // 3. Filtro Secretaria de Lotação
       if (secretariaFiltro !== 'all') {
         const emp = employees.find(e => e.matricula === occ.matricula);
-        const sec = occ.employee_secretaria || emp?.secretaria;
-        if (sec !== secretariaFiltro && !sec?.startsWith(secretariaFiltro)) return false;
+        const occSecRaw = occ.employee_secretaria || emp?.secretaria || '';
+        const occNorm = normalizeSecretaria(occSecRaw, secretarias);
+        const filterNorm = normalizeSecretaria(secretariaFiltro, secretarias);
+
+        const matches =
+          occNorm.sigla.toUpperCase() === filterNorm.sigla.toUpperCase() ||
+          occNorm.canonicalKey.toUpperCase() === filterNorm.canonicalKey.toUpperCase() ||
+          occSecRaw.toUpperCase().includes(secretariaFiltro.toUpperCase()) ||
+          occSecRaw.toUpperCase().startsWith(secretariaFiltro.toUpperCase());
+
+        if (!matches) return false;
       }
 
       return true;
@@ -424,17 +433,31 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
     }
   }, [filtroArquivadas]);
 
-  // Agrupamento estruturado de Afastamentos Temporários por Secretaria Municipal
+  // Agrupamento estruturado de Afastamentos Temporários por Secretaria Municipal Unificada
   const groupedBySecretaria = useMemo(() => {
-    const groupsMap = new Map<string, Occurrence[]>();
+    const groupsMap = new Map<string, {
+      canonicalKey: string;
+      sigla: string;
+      nome: string;
+      display: string;
+      occurrences: Occurrence[];
+    }>();
 
     for (const occ of afastamentosTemporarios) {
       const emp = employees.find(e => e.matricula === occ.matricula);
-      const secName = (occ.employee_secretaria || emp?.secretaria || 'Outros Órgãos / Geral').trim();
-      if (!groupsMap.has(secName)) {
-        groupsMap.set(secName, []);
+      const rawSec = (occ.employee_secretaria || emp?.secretaria || 'Outros Órgãos / Geral').trim();
+      const norm = normalizeSecretaria(rawSec, secretarias);
+
+      if (!groupsMap.has(norm.canonicalKey)) {
+        groupsMap.set(norm.canonicalKey, {
+          canonicalKey: norm.canonicalKey,
+          sigla: norm.sigla,
+          nome: norm.nome,
+          display: norm.display,
+          occurrences: [],
+        });
       }
-      groupsMap.get(secName)!.push(occ);
+      groupsMap.get(norm.canonicalKey)!.occurrences.push(occ);
     }
 
     const groups: {
@@ -455,7 +478,8 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
     const sortedKeys = Array.from(groupsMap.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     for (const key of sortedKeys) {
-      const occList = groupsMap.get(key) || [];
+      const groupInfo = groupsMap.get(key)!;
+      const occList = groupInfo.occurrences;
       const subtotalAtos = occList.length;
       const subtotalDiasCorridos = occList.reduce((acc, o) => acc + (o.quantidade_dias || 0), 0);
       const subtotalDiasIPME = occList.reduce((acc, o) => acc + calcularDiasPagos(o.quantidade_dias || 0), 0);
@@ -465,17 +489,9 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
       const subtotalDefinitiva = occList.filter(o => o.tipo === 'Licença Definitiva').length;
       const subtotalMaternidade = occList.filter(o => o.tipo === 'Licença Maternidade').length;
 
-      // Localizar sigla oficial
-      const matchedSec = secretarias.find(
-        s => s.nome.toLowerCase() === key.toLowerCase() ||
-             s.sigla.toLowerCase() === key.toLowerCase() ||
-             key.toUpperCase().startsWith(s.sigla.toUpperCase())
-      );
-      const sigla = matchedSec?.sigla || (key.includes(' - ') ? key.split(' - ')[0] : key.slice(0, 10));
-
       groups.push({
-        secretariaNome: key,
-        secretariaSigla: sigla,
+        secretariaNome: groupInfo.canonicalKey,
+        secretariaSigla: groupInfo.sigla,
         occurrences: occList,
         subtotalAtos,
         subtotalDiasCorridos,
@@ -489,7 +505,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
     }
 
     return groups;
-  }, [filteredOccurrences, employees, secretarias]);
+  }, [afastamentosTemporarios, employees, secretarias]);
 
   if (!isOpen) return null;
 
