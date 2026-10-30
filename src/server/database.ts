@@ -2507,11 +2507,18 @@ class DatabaseManager {
       { name: 'Concluídas / Históricas', value: this.data.occurrences.filter(o => o.status === 'Concluída').length },
     ];
 
+    const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
+    const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
+    const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
+
     return {
       totalEmployees,
       totalAtivos,
       totalLicencaSaude,
       totalReadaptados,
+      totalLicencaMaternidade,
+      totalLicencaDefinitiva,
+      totalAposentados,
       recentOccurrences,
       expiringSoon,
       secretariaBreakdown,

@@ -695,6 +695,7 @@ export default function App() {
         {activeTab === 'dashboard' && (
           <DashboardView
             metrics={metrics}
+            occurrences={occurrences}
             loading={loading}
             onNavigateTab={setActiveTab}
             onOpenNewOccurrence={handleOpenNewOccurrence}

@@ -297,11 +297,18 @@ export class ClientDatabase {
 
     const leaveTypeBreakdown = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
+    const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
+    const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
+    const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
+
     return {
       totalEmployees: totalServidores,
       totalAtivos: servidoresAtivos,
       totalLicencaSaude: servidoresLicenciados,
       totalReadaptados: servidoresReadaptados,
+      totalLicencaMaternidade,
+      totalLicencaDefinitiva,
+      totalAposentados,
       secretariaBreakdown,
       leaveTypeBreakdown,
       recentOccurrences,

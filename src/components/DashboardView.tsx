@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DashboardMetrics, Occurrence } from '../types/index.ts';
 import { formatarDataBR, calcularDiasPagos, isPrevisaoRetornoEmAtraso, calcularDiasAtraso } from '../utils/validation.ts';
 import { useAppTheme } from '../context/ThemeContext.tsx';
@@ -15,11 +15,14 @@ import {
   FileText,
   UserPlus,
   PlusCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Baby,
+  Award
 } from 'lucide-react';
 
 interface DashboardViewProps {
   metrics: DashboardMetrics | null;
+  occurrences?: Occurrence[];
   loading: boolean;
   onNavigateTab: (tab: 'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users') => void;
   onOpenNewOccurrence: (preselectedMatricula?: string) => void;
@@ -32,6 +35,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   metrics,
+  occurrences = [],
   loading,
   onNavigateTab,
   onOpenNewOccurrence,
@@ -43,12 +47,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const { themeConfig } = useAppTheme();
 
+  // Estatísticas dinâmicas de Licença Maternidade e Licença Definitiva
+  const statsMaternidade = useMemo(() => {
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => o.tipo === 'Licença Maternidade');
+      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
+      return { total: all.length, ativas };
+    }
+    const total = metrics?.totalLicencaMaternidade ?? 0;
+    return { total, ativas: total };
+  }, [occurrences, metrics]);
+
+  const statsDefinitiva = useMemo(() => {
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => o.tipo === 'Licença Definitiva');
+      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
+      const arquivadas = all.filter(o => o.status === 'Arquivado').length;
+      return { total: all.length, ativas, arquivadas };
+    }
+    const total = metrics?.totalLicencaDefinitiva ?? 0;
+    const arquivadas = metrics?.totalAposentados ?? 0;
+    return { total, ativas: Math.max(0, total - arquivadas), arquivadas };
+  }, [occurrences, metrics]);
+
   if (loading || !metrics) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
           ))}
         </div>
@@ -108,97 +135,195 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Primary Metrics Strip (Four Key Indicators) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Servidores */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Servidores Cadastrados
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
-              <Users className="w-4 h-4" />
+      {/* Primary Metrics Strip (6 Indicadores Oficiais com Preenchimento Degradê) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Card 1: Total Servidores (Azul Institucional) */}
+        <div 
+          onClick={() => onNavigateTab('employees')}
+          className="bg-gradient-to-br from-[#1E426D]/15 via-blue-50/80 to-white rounded-xl p-4 border border-blue-200 shadow-xs hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para gerenciar a base de servidores"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-[#1E426D] uppercase tracking-wider truncate">
+                Quadro Geral
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-blue-100/90 border border-blue-200/80 flex items-center justify-center text-[#1E426D] shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-[#0F223D] tabular-nums tracking-tight">
+                {metrics.totalEmployees}
+              </div>
+              <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                Servidores na base
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-slate-900 tabular-nums">
-              {metrics.totalEmployees}
-            </span>
-            <span className="text-xs text-slate-500 font-medium">ativos na base</span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Em exercício regular:</span>
-            <span className="font-semibold text-emerald-700 font-mono tabular-nums">
+          <div className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center justify-between text-[10.5px] text-slate-600">
+            <span>Em exercício:</span>
+            <span className="font-bold text-emerald-700 font-mono tabular-nums">
               {metrics.totalAtivos}
             </span>
           </div>
         </div>
 
-        {/* Card 2: Licenças Médicas Ativas */}
-        <div className="bg-white rounded-xl p-5 border border-amber-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
-              Em Licença Saúde
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-              <HeartPulse className="w-4 h-4" />
+        {/* Card 2: Licenças Médicas Ativas (Âmbar / Laranja) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences')}
+          className="bg-gradient-to-br from-amber-500/15 via-amber-50/80 to-white rounded-xl p-4 border border-amber-300 shadow-xs hover:shadow-md hover:border-amber-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para ver afastamentos por licença saúde"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider truncate">
+                Licença Saúde
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-amber-100/90 border border-amber-200 flex items-center justify-center text-amber-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <HeartPulse className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-amber-950 tabular-nums tracking-tight">
+                {metrics.totalLicencaSaude}
+              </div>
+              <div className="text-[11px] font-semibold text-amber-900/80 mt-0.5">
+                Afastamentos médicos
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-amber-700 tabular-nums">
-              {metrics.totalLicencaSaude}
-            </span>
-            <span className="text-xs text-amber-800 font-medium">afastamentos médicos</span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-amber-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Percentual da folha:</span>
-            <span className="font-semibold font-mono tabular-nums text-slate-700">
+          <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[10.5px] text-amber-900/80">
+            <span>Impacto folha:</span>
+            <span className="font-bold font-mono tabular-nums text-amber-950">
               {metrics.totalEmployees > 0 ? ((metrics.totalLicencaSaude / metrics.totalEmployees) * 100).toFixed(1) : 0}%
             </span>
           </div>
         </div>
 
-        {/* Card 3: Readaptações Funcionais */}
-        <div className="bg-white rounded-xl p-5 border border-sky-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-sky-700 uppercase tracking-wider">
-              Readaptações Funcionais
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600">
-              <RefreshCw className="w-4 h-4" />
+        {/* Card 3: Readaptações Funcionais (Sky / Ciano) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences')}
+          className="bg-gradient-to-br from-sky-500/15 via-sky-50/80 to-white rounded-xl p-4 border border-sky-300 shadow-xs hover:shadow-md hover:border-sky-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para ver servidores readaptados"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-sky-900 uppercase tracking-wider truncate">
+                Readaptação
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-sky-100/90 border border-sky-200 flex items-center justify-center text-sky-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <RefreshCw className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-sky-950 tabular-nums tracking-tight">
+                {metrics.totalReadaptados}
+              </div>
+              <div className="text-[11px] font-semibold text-sky-900/80 mt-0.5">
+                Servidores readaptados
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-sky-700 tabular-nums">
-              {metrics.totalReadaptados}
-            </span>
-            <span className="text-xs text-sky-800 font-medium">servidores readaptados</span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-sky-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Restrição ergonômica / física</span>
-            <span className="text-xs text-sky-700 font-semibold">Ativos em setor</span>
+          <div className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[10.5px] text-sky-900/80">
+            <span>Restrição laboral:</span>
+            <span className="font-bold text-sky-900">Em setor</span>
           </div>
         </div>
 
-        {/* Card 4: Vencendo em Breve / Reavaliação */}
-        <div className="bg-white rounded-xl p-5 border border-purple-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-purple-700 uppercase tracking-wider">
-              Reavaliação Pericial
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
-              <CalendarClock className="w-4 h-4" />
+        {/* Card 4: Licença Maternidade (Rose / Rosa - NOVO) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences')}
+          className="bg-gradient-to-br from-rose-500/15 via-rose-50/80 to-white rounded-xl p-4 border border-rose-300 shadow-xs hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para ver licenças maternidade homologadas"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-rose-900 uppercase tracking-wider truncate">
+                Maternidade
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center text-rose-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <Baby className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-rose-950 tabular-nums tracking-tight">
+                {statsMaternidade.total}
+              </div>
+              <div className="text-[11px] font-semibold text-rose-900/80 mt-0.5">
+                Licenças maternidade
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-purple-700 tabular-nums">
-              {metrics.expiringSoon.length}
+          <div className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[10.5px] text-rose-900/80">
+            <span>Em gozo ativo:</span>
+            <span className="font-bold font-mono tabular-nums text-rose-950">
+              {statsMaternidade.ativas} ato(s)
             </span>
-            <span className="text-xs text-purple-800 font-medium">vencem em até 30 dias</span>
           </div>
-          <div className="mt-3 pt-3 border-t border-purple-100 flex items-center justify-between text-xs text-slate-500">
+        </div>
+
+        {/* Card 5: Licença Definitiva / Aposentadorias (Purple / Roxo - NOVO) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences')}
+          className="bg-gradient-to-br from-purple-500/15 via-purple-50/80 to-white rounded-xl p-4 border border-purple-300 shadow-xs hover:shadow-md hover:border-purple-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para ver licenças definitivas e aposentadorias homologadas"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-purple-900 uppercase tracking-wider truncate">
+                Licença Definitiva
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-purple-100/90 border border-purple-200 flex items-center justify-center text-purple-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <Award className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-purple-950 tabular-nums tracking-tight">
+                {statsDefinitiva.total}
+              </div>
+              <div className="text-[11px] font-semibold text-purple-900/80 mt-0.5">
+                Incapacidade definitiva
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-purple-200/60 flex items-center justify-between text-[10.5px] text-purple-900/80">
+            <span>Vigentes / Arq:</span>
+            <span className="font-bold font-mono tabular-nums text-purple-950">
+              {statsDefinitiva.ativas} ativ. / {statsDefinitiva.arquivadas} arq.
+            </span>
+          </div>
+        </div>
+
+        {/* Card 6: Reavaliação Pericial / Prazos a Vencer (Emerald / Verde) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences')}
+          className="bg-gradient-to-br from-emerald-500/15 via-emerald-50/80 to-white rounded-xl p-4 border border-emerald-300 shadow-xs hover:shadow-md hover:border-emerald-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para ver afastamentos com vencimento próximo"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider truncate">
+                Reavaliação Pericial
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-100/90 border border-emerald-200 flex items-center justify-center text-emerald-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <CalendarClock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-emerald-950 tabular-nums tracking-tight">
+                {metrics.expiringSoon.length}
+              </div>
+              <div className="text-[11px] font-semibold text-emerald-900/80 mt-0.5">
+                Vencem em até 30 dias
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[10.5px] text-emerald-900/80">
             <span>Ação requerida:</span>
-            <span className="text-xs font-semibold text-purple-700">Prorrogar ou Concluir</span>
+            <span className="font-bold text-emerald-900">
+              Prorrogar ou Concluir
+            </span>
           </div>
         </div>
       </div>
