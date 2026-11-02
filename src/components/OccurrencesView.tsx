@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Occurrence, UserRole, Employee } from '../types/index.ts';
 import { ProrrogacoesHistoryModal } from './ProrrogacoesHistoryModal.tsx';
 import { 
@@ -139,6 +139,244 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
     }
   });
   const pageSize = 8;
+
+  // Referências para a tabela e barra de rolagem superior sincronizada
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const topScrollInnerRef = useRef<HTMLDivElement>(null);
+
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isTableInView, setIsTableInView] = useState(true);
+  const [buttonHorizontalPos, setButtonHorizontalPos] = useState({ left: 16, right: 16 });
+
+  const isMouseDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const hasMovedRef = useRef(false);
+
+  // Sincronização direta unidirecional entre barra superior e tabela (Zero loops, zero tremores)
+  useEffect(() => {
+    const tableEl = tableContainerRef.current;
+    const topEl = topScrollRef.current;
+    if (!tableEl || !topEl) return;
+
+    let activeSource: 'top' | 'table' | null = null;
+    let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const onTableScroll = () => {
+      // Se quem está no controle da rolagem é a barra superior, NÃO reescrevemos na barra superior!
+      if (activeSource === 'top') return;
+      activeSource = 'table';
+      if (releaseTimer) clearTimeout(releaseTimer);
+      releaseTimer = setTimeout(() => { activeSource = null; }, 80);
+
+      topEl.scrollLeft = tableEl.scrollLeft;
+
+      const leftActive = tableEl.scrollLeft > 15;
+      const rightActive = tableEl.scrollWidth - tableEl.clientWidth - tableEl.scrollLeft > 15;
+      setCanScrollLeft(prev => (prev !== leftActive ? leftActive : prev));
+      setCanScrollRight(prev => (prev !== rightActive ? rightActive : prev));
+    };
+
+    const onTopScroll = () => {
+      // Se quem está no controle da rolagem é a tabela, NÃO reescrevemos na tabela!
+      if (activeSource === 'table') return;
+      activeSource = 'top';
+      if (releaseTimer) clearTimeout(releaseTimer);
+      releaseTimer = setTimeout(() => { activeSource = null; }, 80);
+
+      tableEl.scrollLeft = topEl.scrollLeft;
+
+      const leftActive = tableEl.scrollLeft > 15;
+      const rightActive = tableEl.scrollWidth - tableEl.clientWidth - tableEl.scrollLeft > 15;
+      setCanScrollLeft(prev => (prev !== leftActive ? leftActive : prev));
+      setCanScrollRight(prev => (prev !== rightActive ? rightActive : prev));
+    };
+
+    tableEl.addEventListener('scroll', onTableScroll, { passive: true });
+    topEl.addEventListener('scroll', onTopScroll, { passive: true });
+
+    return () => {
+      if (releaseTimer) clearTimeout(releaseTimer);
+      tableEl.removeEventListener('scroll', onTableScroll);
+      topEl.removeEventListener('scroll', onTopScroll);
+    };
+  }, []);
+
+  // Medição da largura exata da tabela e alinhamento dos botões (Apenas ao redimensionar / trocar de página)
+  useEffect(() => {
+    const tableEl = tableContainerRef.current;
+    if (!tableEl) return;
+
+    const measureLayout = () => {
+      if (topScrollInnerRef.current && tableEl.scrollWidth > 0) {
+        topScrollInnerRef.current.style.width = `${tableEl.scrollWidth}px`;
+      }
+      const rect = tableEl.getBoundingClientRect();
+      setButtonHorizontalPos({
+        left: Math.max(rect.left + 8, 12),
+        right: Math.max(window.innerWidth - rect.right + 8, 12)
+      });
+      const leftActive = tableEl.scrollLeft > 15;
+      const rightActive = tableEl.scrollWidth - tableEl.clientWidth - tableEl.scrollLeft > 15;
+      setCanScrollLeft(prev => (prev !== leftActive ? leftActive : prev));
+      setCanScrollRight(prev => (prev !== rightActive ? rightActive : prev));
+    };
+
+    measureLayout();
+    const timer = setTimeout(measureLayout, 80);
+    window.addEventListener('resize', measureLayout);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', measureLayout);
+    };
+  }, [currentPage, occurrences]);
+
+  // Monitora visibilidade da tabela na tela de forma otimizada (IntersectionObserver, roda fora da main thread)
+  useEffect(() => {
+    const tableEl = tableContainerRef.current;
+    if (!tableEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setIsTableInView(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+
+    observer.observe(tableEl);
+    return () => observer.disconnect();
+  }, []);
+
+  const animationFrameRef = useRef<number | null>(null);
+  const targetScrollRef = useRef<number | null>(null);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Navegação horizontal instantânea e ultra-rápida (140ms com aceleração acumulativa em cliques rápidos)
+  const scrollFast = (direction: 'left' | 'right') => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+
+    // Avança 580px (aproximadamente metade da tabela / 3 a 4 colunas de uma vez só)
+    const step = 580;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const currentTarget = targetScrollRef.current !== null ? targetScrollRef.current : el.scrollLeft;
+    const nextTarget = direction === 'right' 
+      ? Math.min(maxScroll, currentTarget + step) 
+      : Math.max(0, currentTarget - step);
+
+    targetScrollRef.current = nextTarget;
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    const startPos = el.scrollLeft;
+    const distance = nextTarget - startPos;
+    const startTime = performance.now();
+    const duration = 140; // 140ms: super ágil e instantâneo
+
+    const stepAnimation = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Easing veloz e suave (easeOutQuad)
+      const ease = progress * (2 - progress);
+      el.scrollLeft = startPos + distance * ease;
+
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(stepAnimation);
+      } else {
+        el.scrollLeft = nextTarget;
+        targetScrollRef.current = null;
+        animationFrameRef.current = null;
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(stepAnimation);
+  };
+
+  // Salto direto para o início ou final da tabela ao dar duplo clique
+  const handleDoubleClickNav = (direction: 'left' | 'right') => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    targetScrollRef.current = null;
+    el.scrollLeft = direction === 'right' ? el.scrollWidth : 0;
+  };
+
+  // Suporte a pressionar e segurar o botão com o mouse para deslizar em alta velocidade contínua
+  const handleStartHold = (direction: 'left' | 'right') => {
+    scrollFast(direction);
+    holdTimerRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => {
+        const el = tableContainerRef.current;
+        if (!el) return;
+        el.scrollLeft += direction === 'right' ? 38 : -38;
+      }, 16);
+    }, 200);
+  };
+
+  const handleEndHold = () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+    };
+  }, []);
+
+  // Drag-to-scroll com o mouse (arraste fluido estilo celular/tablet)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, input, select, textarea, [role="button"]')) {
+      return;
+    }
+    isMouseDownRef.current = true;
+    hasMovedRef.current = false;
+    startXRef.current = e.pageX - (tableContainerRef.current?.offsetLeft || 0);
+    scrollLeftRef.current = tableContainerRef.current?.scrollLeft || 0;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDownRef.current || !tableContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - (tableContainerRef.current.offsetLeft || 0);
+    const walk = x - startXRef.current;
+    if (Math.abs(walk) > 4) {
+      hasMovedRef.current = true;
+      if (!isDragging) setIsDragging(true);
+    }
+    tableContainerRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isMouseDownRef.current = false;
+    setIsDragging(false);
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasMovedRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      hasMovedRef.current = false;
+    }
+  };
+
+  // Suporte a Shift + Wheel para rolagem horizontal
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.shiftKey && tableContainerRef.current) {
+      tableContainerRef.current.scrollLeft += e.deltaY;
+    }
+  };
 
   // Total de ocorrências com previsão de retorno em atraso
   const totalEmAtraso = useMemo(() => {
@@ -585,19 +823,96 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
       </div>
 
       {/* Occurrences Data Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1220px]">
-            <thead>
-              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                {/* 1. Código ID (Fixado com Ordenação Crescente por Padrão) */}
-                <th 
-                  onClick={() => handleToggleSort('id')}
-                  title="Clique para alternar ordenação por Código ID (Crescente / Decrescente)"
-                  className={`py-3 px-3.5 whitespace-nowrap transition-colors cursor-pointer select-none hover:bg-slate-100/90 ${
-                    freezeColumns ? 'sticky left-0 z-20 bg-slate-50 min-w-[95px] w-[95px] max-w-[95px]' : 'min-w-[95px]'
-                  }`}
-                >
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden relative">
+
+
+        {/* Barra de Rolagem Horizontal Superior Sincronizada (Imediata no topo dos registros com largura exata da tabela) */}
+        <div 
+          ref={topScrollRef}
+          className="overflow-x-auto overflow-y-hidden h-[18px] bg-slate-100 border-b border-slate-300 select-none"
+          title="Barra de rolagem horizontal superior sincronizada"
+        >
+          <div 
+            ref={topScrollInnerRef}
+            className="h-[1px] min-w-[1750px] pointer-events-none" 
+          />
+        </div>
+
+        {/* Container da Tabela com Suporte a Drag-to-Scroll e Botões Flutuantes GPU-Accelerated */}
+        <div className="relative">
+          {/* Botão flutuante esquerdo - Centrado verticalmente na tela (100% CSS / GPU, alta velocidade) */}
+          {isTableInView && canScrollLeft && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleStartHold('left');
+              }}
+              onMouseUp={handleEndHold}
+              onMouseLeave={handleEndHold}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                handleDoubleClickNav('left');
+              }}
+              style={{
+                top: '50%',
+                transform: 'translateY(-50%)',
+                left: `${buttonHorizontalPos.left}px`
+              }}
+              className="fixed z-40 w-11 h-11 rounded-full bg-white/95 hover:bg-white text-slate-800 hover:text-blue-700 shadow-2xl border border-slate-300 flex items-center justify-center transition-transform hover:scale-115 active:scale-90 cursor-pointer backdrop-blur-md ring-3 ring-slate-300/60 select-none"
+              title="Clique para voltar rápido • Segure para deslizar contínuo • Duplo clique para início"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Botão flutuante direito - Centrado verticalmente na tela (100% CSS / GPU, alta velocidade) */}
+          {isTableInView && canScrollRight && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleStartHold('right');
+              }}
+              onMouseUp={handleEndHold}
+              onMouseLeave={handleEndHold}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                handleDoubleClickNav('right');
+              }}
+              style={{
+                top: '50%',
+                transform: 'translateY(-50%)',
+                right: `${buttonHorizontalPos.right}px`
+              }}
+              className="fixed z-40 w-11 h-11 rounded-full bg-blue-600/95 hover:bg-blue-600 text-white shadow-2xl border border-blue-500 flex items-center justify-center transition-transform hover:scale-115 active:scale-90 cursor-pointer backdrop-blur-md ring-3 ring-blue-400/50 select-none"
+              title="Clique para avançar rápido • Segure para deslizar contínuo • Duplo clique para ir ao fim"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
+          <div 
+            ref={tableContainerRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            onClickCapture={handleClickCapture}
+            onWheel={handleWheel}
+            className={`overflow-x-auto select-text ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+          >
+            <table className="w-full text-left border-collapse min-w-[1220px]">
+              <thead>
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  {/* 1. Código ID (Fixado com Ordenação Crescente por Padrão) */}
+                  <th 
+                    onClick={() => handleToggleSort('id')}
+                    title="Clique para alternar ordenação por Código ID (Crescente / Decrescente)"
+                    className={`py-3 px-3.5 whitespace-nowrap transition-colors cursor-pointer select-none hover:bg-slate-100/90 ${
+                      freezeColumns ? 'sticky left-0 z-20 bg-slate-50 min-w-[95px] w-[95px] max-w-[95px]' : 'min-w-[95px]'
+                    }`}
+                  >
                   <div className="flex items-center gap-1.5">
                     <span className={sortField === 'id' ? 'text-sky-950 font-bold' : ''}>Código ID</span>
                     {sortField === 'id' ? (
@@ -1069,6 +1384,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
             </tbody>
           </table>
         </div>
+      </div>
 
         {/* Pagination Footer */}
         {totalPages > 1 && (

@@ -251,17 +251,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   return (
     <div className={`min-h-screen ${themeConfig.pageBgClass} flex flex-col justify-between font-sans transition-colors duration-200 selection:bg-[#3868A0] selection:text-white`}>
-      {/* Top Banner / Brasão Neutro Multi-Institucional */}
-      <header className={`${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} px-4 sm:px-8 py-3.5 shadow-xs transition-colors`}>
+      {/* Top Banner com Logomarca Oficial LPC Sistemas e Assessoria */}
+      <header className={`${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} px-4 sm:px-8 py-3 shadow-xs transition-colors`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center shadow-xs overflow-hidden shrink-0 text-white">
-              <Landmark className="w-5 h-5 text-sky-200" />
+            <div className="h-11 bg-white rounded-xl p-1.5 border border-white/30 flex items-center justify-center shadow-xs overflow-hidden shrink-0">
+              <img
+                src="/assets/aistudio/Logo_Teste_c3a8827b.jpg"
+                alt="LPC Sistemas e Assessoria"
+                className="h-full w-auto object-contain"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className={`font-extrabold tracking-tight text-sm sm:text-base ${theme === 'azul_ipme_light' ? 'text-[#2B5485]' : 'text-white'}`}>
-                  PrevSaúde
+                  LPC Sistemas e Assessoria
                 </span>
                 <span className="opacity-40 text-white/50">·</span>
                 <span className={`text-xs sm:text-sm font-semibold ${theme === 'azul_ipme_light' ? 'text-slate-700' : 'text-blue-100'}`}>
@@ -287,17 +291,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* THE SINGLE UNIFIED LOGIN CARD */}
           <div className={`bg-white rounded-2xl border-2 ${getThemeCardBorder()} p-6 sm:p-8 shadow-xl relative overflow-hidden transition-all duration-200`}>
             
-            {/* Top decorative badge - Neutro Multi-Cliente com Brasão Previdenciário */}
+            {/* Logomarca da Empresa - LPC Sistemas e Assessoria */}
             <div className="text-center space-y-3 mb-6">
-              <div className="relative w-24 h-24 mx-auto">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#16325B] via-[#204977] to-[#2B5485] border-2 border-blue-200/50 p-2.5 shadow-lg flex flex-col items-center justify-center text-white">
-                  <Landmark className="w-10 h-10 text-sky-200" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 mt-0.5 font-sans">
-                    PrevSaúde
-                  </span>
-                </div>
-                <div className="absolute -bottom-1 -right-1 bg-emerald-600 rounded-full p-1 border-2 border-white shadow-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-white" />
+              <div className="flex items-center justify-center">
+                <div className="bg-white p-3 rounded-2xl border-2 border-slate-200/90 shadow-md inline-flex items-center justify-center hover:shadow-lg transition-shadow">
+                  <img
+                    src="/assets/aistudio/Logo_Teste_c3a8827b.jpg"
+                    alt="LPC Sistemas e Assessoria"
+                    className="h-16 sm:h-18 w-auto object-contain max-w-[260px]"
+                  />
                 </div>
               </div>
 
@@ -306,7 +308,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   Portal de Acesso Previdenciário
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Junta Médica & Gestão Integrada de Licenças e Readaptações
+                  LPC Sistemas e Assessoria · Junta Médica & Gestão Integrada
                 </p>
                 <div className="mt-2">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${themeConfig.accentBadgeClass}`}>
@@ -733,7 +735,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       {/* Institutional Bottom Banner styled with active theme */}
       <footer className={`${themeConfig.footerClass} border-t ${themeConfig.footerBorderClass} ${themeConfig.footerTextClass} px-4 py-3 text-center text-[11px] transition-colors`}>
         <p className="max-w-2xl mx-auto">
-          Sistema Integrado de Perícia Médica & Gestão Previdenciária · Acesso Seguro, Segregado & Auditado
+          Desenvolvido e Gerenciado por <strong>LPC Sistemas e Assessoria</strong> · Acesso Seguro, Segregado & Auditado
         </p>
       </footer>
     </div>

@@ -124,12 +124,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F223D]/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full border border-[#BED4EF] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className="px-6 py-4 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
-          <div className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-blue-100" />
+        {/* Header com Logomarca Oficial LPC Sistemas e Assessoria */}
+        <div className="px-6 py-3.5 bg-[#3868A0] text-white flex items-center justify-between border-b border-[#2B5485]">
+          <div className="flex items-center gap-3">
+            <div className="h-8 bg-white rounded-lg p-1 flex items-center justify-center shadow-xs">
+              <img
+                src="/assets/aistudio/Logo_Teste_c3a8827b.jpg"
+                alt="LPC Sistemas e Assessoria"
+                className="h-full w-auto object-contain"
+              />
+            </div>
             <h2 className="text-sm font-bold">
-              Autenticação de Acesso · IPME
+              Autenticação de Acesso · LPC Sistemas
             </h2>
           </div>
           <button onClick={onClose} className="text-white/80 hover:text-white cursor-pointer">
