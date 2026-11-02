@@ -22,6 +22,8 @@ import {
   AlertCircle, 
   ChevronLeft, 
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ShieldAlert,
   Building,
   Briefcase,
@@ -450,18 +452,40 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </div>
             <div className="flex items-center gap-1.5">
               <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-900 disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
+                title="Ir para a primeira página"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="p-1.5 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-900 disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
+                title="Página anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="p-1.5 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-900 disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
+                title="Próxima página"
               >
                 <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-900 disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
+                title="Ir para a última página"
+              >
+                <ChevronsRight className="w-4 h-4" />
               </button>
             </div>
           </div>
