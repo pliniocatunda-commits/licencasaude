@@ -240,12 +240,13 @@ export class ClientDatabase {
   public getMetrics(): DashboardMetrics {
     const totalServidores = this.data.employees.length;
     const servidoresAtivos = this.data.employees.filter(e => e.status === 'Ativo').length;
-    const servidoresLicenciados = this.data.employees.filter(e => e.status === 'Licenciado').length;
-    const servidoresReadaptados = this.data.employees.filter(e => e.status === 'Readaptado').length;
 
     const activeOccurrences = this.data.occurrences.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada');
-    const totalLicencasAtivas = activeOccurrences.filter(o => o.tipo !== 'Readaptação').length;
-    const totalReadaptacoesAtivas = activeOccurrences.filter(o => o.tipo === 'Readaptação').length;
+    const totalLicencasSaude = this.data.occurrences.filter(o => o.tipo === 'Licença Saúde').length;
+    const totalReadaptacoes = this.data.occurrences.filter(o => o.tipo === 'Readaptação').length;
+    const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
+    const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
+    const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
 
     const totalDiasAfastamentoAcumulados = activeOccurrences.reduce((acc, curr) => acc + (curr.quantidade_dias || 0), 0);
     const totalDiasPagosPeloMunicipio = activeOccurrences.reduce((acc, curr) => acc + calcularDiasPagos(curr.quantidade_dias || 0), 0);
@@ -268,8 +269,21 @@ export class ClientDatabase {
       const s = e.secretaria ? e.secretaria.split(' - ')[0].trim() : 'Outros';
       if (!secMap[s]) secMap[s] = { total: 0, licencas: 0, readaptados: 0 };
       secMap[s].total++;
-      if (e.status === 'Licenciado') secMap[s].licencas++;
-      if (e.status === 'Readaptado') secMap[s].readaptados++;
+    });
+
+    // Contabiliza afastamentos por secretaria estritamente por tipo de ocorrência ativo
+    this.data.occurrences.forEach(occ => {
+      if (occ.status === 'Ativa' || occ.status === 'Prorrogada') {
+        const rawSec = occ.employee_secretaria || '';
+        const s = rawSec ? rawSec.split(' - ')[0].trim() : 'Outros';
+        if (secMap[s]) {
+          if (occ.tipo === 'Licença Saúde') {
+            secMap[s].licencas++;
+          } else if (occ.tipo === 'Readaptação') {
+            secMap[s].readaptados++;
+          }
+        }
+      }
     });
 
     const secretariaBreakdown = Object.entries(secMap).map(([secretaria, d]) => ({
@@ -297,15 +311,11 @@ export class ClientDatabase {
 
     const leaveTypeBreakdown = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
-    const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
-    const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
-    const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
-
     return {
       totalEmployees: totalServidores,
       totalAtivos: servidoresAtivos,
-      totalLicencaSaude: servidoresLicenciados,
-      totalReadaptados: servidoresReadaptados,
+      totalLicencaSaude: totalLicencasSaude,
+      totalReadaptados: totalReadaptacoes,
       totalLicencaMaternidade,
       totalLicencaDefinitiva,
       totalAposentados,

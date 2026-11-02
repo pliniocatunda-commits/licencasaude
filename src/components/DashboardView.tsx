@@ -20,11 +20,22 @@ import {
   Award
 } from 'lucide-react';
 
+export interface DashboardNavigationFilter {
+  tipo?: string;
+  status?: string;
+  secretaria?: string;
+  employeeStatus?: string;
+  search?: string;
+}
+
 interface DashboardViewProps {
   metrics: DashboardMetrics | null;
   occurrences?: Occurrence[];
   loading: boolean;
-  onNavigateTab: (tab: 'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users') => void;
+  onNavigateTab: (
+    tab: 'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users',
+    filter?: DashboardNavigationFilter
+  ) => void;
   onOpenNewOccurrence: (preselectedMatricula?: string) => void;
   onOpenNewEmployee: () => void;
   onOpenProrrogar: (occ: Occurrence) => void;
@@ -47,7 +58,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const { themeConfig } = useAppTheme();
 
-  // Estatísticas dinâmicas de Licença Maternidade e Licença Definitiva
+  // Estatísticas dinâmicas estritamente separadas por tipo de ato pericial
+  const statsSaude = useMemo(() => {
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => o.tipo === 'Licença Saúde');
+      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
+      return { total: all.length, ativas };
+    }
+    const total = metrics?.totalLicencaSaude ?? 0;
+    return { total, ativas: total };
+  }, [occurrences, metrics]);
+
+  const statsReadaptacao = useMemo(() => {
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => o.tipo === 'Readaptação');
+      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
+      return { total: all.length, ativas };
+    }
+    const total = metrics?.totalReadaptados ?? 0;
+    return { total, ativas: total };
+  }, [occurrences, metrics]);
+
   const statsMaternidade = useMemo(() => {
     if (occurrences && occurrences.length > 0) {
       const all = occurrences.filter(o => o.tipo === 'Licença Maternidade');
@@ -139,9 +170,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Card 1: Total Servidores (Azul Institucional) */}
         <div 
-          onClick={() => onNavigateTab('employees')}
+          onClick={() => onNavigateTab('employees', { employeeStatus: 'ALL' })}
           className="bg-gradient-to-br from-[#1E426D]/15 via-blue-50/80 to-white rounded-xl p-4 border border-blue-200 shadow-xs hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para gerenciar a base de servidores"
+          title="Clique para abrir e filtrar o Quadro Geral de Servidores"
         >
           <div>
             <div className="flex items-center justify-between gap-1.5">
@@ -161,7 +192,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center justify-between text-[10.5px] text-slate-600">
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('employees', { employeeStatus: 'Ativo' });
+            }}
+            className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center justify-between text-[10.5px] text-slate-600 hover:text-blue-900 transition-colors"
+            title="Clique para filtrar apenas servidores em exercício ativo"
+          >
             <span>Em exercício:</span>
             <span className="font-bold text-emerald-700 font-mono tabular-nums">
               {metrics.totalAtivos}
@@ -171,9 +209,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Card 2: Licenças Médicas Ativas (Âmbar / Laranja) */}
         <div 
-          onClick={() => onNavigateTab('occurrences')}
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Saúde', status: 'ALL' })}
           className="bg-gradient-to-br from-amber-500/15 via-amber-50/80 to-white rounded-xl p-4 border border-amber-300 shadow-xs hover:shadow-md hover:border-amber-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para ver afastamentos por licença saúde"
+          title="Clique para filtrar ocorrências de Licença Saúde"
         >
           <div>
             <div className="flex items-center justify-between gap-1.5">
@@ -186,26 +224,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="mt-2.5">
               <div className="text-2xl lg:text-3xl font-extrabold font-mono text-amber-950 tabular-nums tracking-tight">
-                {metrics.totalLicencaSaude}
+                {statsSaude.total}
               </div>
               <div className="text-[11px] font-semibold text-amber-900/80 mt-0.5">
                 Afastamentos médicos
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[10.5px] text-amber-900/80">
-            <span>Impacto folha:</span>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Licença Saúde', status: 'Ativa' });
+            }}
+            className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[10.5px] text-amber-900/80 hover:text-amber-950 transition-colors"
+            title="Clique para filtrar licenças saúde vigentes em gozo"
+          >
+            <span>Em gozo ativo:</span>
             <span className="font-bold font-mono tabular-nums text-amber-950">
-              {metrics.totalEmployees > 0 ? ((metrics.totalLicencaSaude / metrics.totalEmployees) * 100).toFixed(1) : 0}%
+              {statsSaude.ativas} ato(s)
             </span>
           </div>
         </div>
 
         {/* Card 3: Readaptações Funcionais (Sky / Ciano) */}
         <div 
-          onClick={() => onNavigateTab('occurrences')}
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'ALL' })}
           className="bg-gradient-to-br from-sky-500/15 via-sky-50/80 to-white rounded-xl p-4 border border-sky-300 shadow-xs hover:shadow-md hover:border-sky-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para ver servidores readaptados"
+          title="Clique para filtrar servidores em Readaptação Funcional"
         >
           <div>
             <div className="flex items-center justify-between gap-1.5">
@@ -218,24 +263,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="mt-2.5">
               <div className="text-2xl lg:text-3xl font-extrabold font-mono text-sky-950 tabular-nums tracking-tight">
-                {metrics.totalReadaptados}
+                {statsReadaptacao.total}
               </div>
               <div className="text-[11px] font-semibold text-sky-900/80 mt-0.5">
                 Servidores readaptados
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[10.5px] text-sky-900/80">
-            <span>Restrição laboral:</span>
-            <span className="font-bold text-sky-900">Em setor</span>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'Ativa' });
+            }}
+            className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[10.5px] text-sky-900/80 hover:text-sky-950 transition-colors"
+            title="Clique para filtrar servidores readaptados ativos"
+          >
+            <span>Em exercício:</span>
+            <span className="font-bold font-mono tabular-nums text-sky-900">
+              {statsReadaptacao.ativas} ato(s)
+            </span>
           </div>
         </div>
 
         {/* Card 4: Licença Maternidade (Rose / Rosa - NOVO) */}
         <div 
-          onClick={() => onNavigateTab('occurrences')}
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'ALL' })}
           className="bg-gradient-to-br from-rose-500/15 via-rose-50/80 to-white rounded-xl p-4 border border-rose-300 shadow-xs hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para ver licenças maternidade homologadas"
+          title="Clique para filtrar apenas Licenças Maternidade"
         >
           <div>
             <div className="flex items-center justify-between gap-1.5">
@@ -255,7 +309,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[10.5px] text-rose-900/80">
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'Ativa' });
+            }}
+            className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[10.5px] text-rose-900/80 hover:text-rose-950 transition-colors"
+            title="Clique para filtrar licenças maternidade vigentes em gozo"
+          >
             <span>Em gozo ativo:</span>
             <span className="font-bold font-mono tabular-nums text-rose-950">
               {statsMaternidade.ativas} ato(s)
@@ -265,9 +326,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Card 5: Licença Definitiva / Aposentadorias (Purple / Roxo - NOVO) */}
         <div 
-          onClick={() => onNavigateTab('occurrences')}
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Definitiva', status: 'ALL' })}
           className="bg-gradient-to-br from-purple-500/15 via-purple-50/80 to-white rounded-xl p-4 border border-purple-300 shadow-xs hover:shadow-md hover:border-purple-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para ver licenças definitivas e aposentadorias homologadas"
+          title="Clique para filtrar Licenças Definitivas e Aposentadorias"
         >
           <div>
             <div className="flex items-center justify-between gap-1.5">
@@ -287,7 +348,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-purple-200/60 flex items-center justify-between text-[10.5px] text-purple-900/80">
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Licença Definitiva', status: 'ALL' });
+            }}
+            className="mt-3 pt-2.5 border-t border-purple-200/60 flex items-center justify-between text-[10.5px] text-purple-900/80 hover:text-purple-950 transition-colors"
+            title="Clique para filtrar ocorrências definitivas"
+          >
             <span>Vigentes / Arq:</span>
             <span className="font-bold font-mono tabular-nums text-purple-950">
               {statsDefinitiva.ativas} ativ. / {statsDefinitiva.arquivadas} arq.
@@ -297,9 +365,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Card 6: Reavaliação Pericial / Prazos a Vencer (Emerald / Verde) */}
         <div 
-          onClick={() => onNavigateTab('occurrences')}
+          onClick={() => onNavigateTab('occurrences', { tipo: 'ALL', status: 'VENCENDO_30_DIAS' })}
           className="bg-gradient-to-br from-emerald-500/15 via-emerald-50/80 to-white rounded-xl p-4 border border-emerald-300 shadow-xs hover:shadow-md hover:border-emerald-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para ver afastamentos com vencimento próximo"
+          title="Clique para filtrar perícias com vencimento nos próximos 30 dias"
         >
           <div>
             <div className="flex items-center justify-between gap-1.5">
@@ -320,9 +388,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[10.5px] text-emerald-900/80">
-            <span>Ação requerida:</span>
+            <span>Previsão de retorno:</span>
             <span className="font-bold text-emerald-900">
-              Prorrogar ou Concluir
+              Próximos 30d
             </span>
           </div>
         </div>
@@ -344,10 +412,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </p>
             </div>
             <button
-              onClick={() => onNavigateTab('occurrences')}
-              className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1"
+              onClick={() => onNavigateTab('occurrences', { tipo: 'ALL', status: 'VENCENDO_30_DIAS' })}
+              className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1 cursor-pointer"
+              title="Filtrar todas as ocorrências que vencem nos próximos 30 dias"
             >
-              <span>Ver todos</span>
+              <span>Ver todos ({metrics.expiringSoon.length})</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

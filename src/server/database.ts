@@ -2469,8 +2469,11 @@ class DatabaseManager {
   public getMetrics(): DashboardMetrics {
     const totalEmployees = this.data.employees.length;
     const totalAtivos = this.data.employees.filter(e => e.status === 'Ativo').length;
-    const totalLicencaSaude = this.data.employees.filter(e => e.status === 'Licenciado').length;
-    const totalReadaptados = this.data.employees.filter(e => e.status === 'Readaptado').length;
+    const totalLicencaSaude = this.data.occurrences.filter(o => o.tipo === 'Licença Saúde').length;
+    const totalReadaptados = this.data.occurrences.filter(o => o.tipo === 'Readaptação').length;
+    const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
+    const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
+    const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
 
     // Recent active occurrences
     const recentOccurrences = this.getOccurrences().slice(0, 5);
@@ -2490,8 +2493,21 @@ class DatabaseManager {
         secMap[shortSec] = { count: 0, licencaCount: 0, readaptadoCount: 0 };
       }
       secMap[shortSec].count++;
-      if (emp.status === 'Licenciado') secMap[shortSec].licencaCount++;
-      if (emp.status === 'Readaptado') secMap[shortSec].readaptadoCount++;
+    }
+
+    // Contabiliza afastamentos ativos por secretaria estritamente pelo tipo de ato
+    for (const occ of this.data.occurrences) {
+      if (occ.status === 'Ativa' || occ.status === 'Prorrogada') {
+        const rawSec = occ.employee_secretaria || '';
+        const shortSec = rawSec.split(' - ')[0].trim() || 'Outros';
+        if (secMap[shortSec]) {
+          if (occ.tipo === 'Licença Saúde') {
+            secMap[shortSec].licencaCount++;
+          } else if (occ.tipo === 'Readaptação') {
+            secMap[shortSec].readaptadoCount++;
+          }
+        }
+      }
     }
 
     const secretariaBreakdown = Object.entries(secMap).map(([secretaria, stats]) => ({
@@ -2504,12 +2520,8 @@ class DatabaseManager {
       { name: 'Licença Maternidade', value: this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
       { name: 'Licença Definitiva', value: this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
       { name: 'Readaptação', value: this.data.occurrences.filter(o => o.tipo === 'Readaptação' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
-      { name: 'Concluídas / Históricas', value: this.data.occurrences.filter(o => o.status === 'Concluída').length },
+      { name: 'Concluídas / Históricas', value: this.data.occurrences.filter(o => o.status === 'Concluída' || o.status === 'Cancelada').length },
     ];
-
-    const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
-    const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
-    const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
 
     return {
       totalEmployees,

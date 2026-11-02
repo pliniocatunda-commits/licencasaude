@@ -72,6 +72,35 @@ export default function App() {
   const [secretariaModalOpen, setSecretariaModalOpen] = useState(false);
   const [selectedSecretariaForEdit, setSelectedSecretariaForEdit] = useState<Secretaria | null>(null);
   const [initialSecretariaFilterForEmployees, setInitialSecretariaFilterForEmployees] = useState<string | undefined>(undefined);
+  const [initialStatusFilterForEmployees, setInitialStatusFilterForEmployees] = useState<string | undefined>(undefined);
+  const [initialTipoFilterForOccurrences, setInitialTipoFilterForOccurrences] = useState<string | undefined>(undefined);
+  const [initialStatusFilterForOccurrences, setInitialStatusFilterForOccurrences] = useState<string | undefined>(undefined);
+  const [initialSearchTermForOccurrences, setInitialSearchTermForOccurrences] = useState<string | undefined>(undefined);
+
+  const handleNavigateFromDashboard = (
+    tab: 'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users',
+    filter?: {
+      tipo?: string;
+      status?: string;
+      secretaria?: string;
+      employeeStatus?: string;
+      search?: string;
+    }
+  ) => {
+    if (tab === 'occurrences') {
+      setInitialTipoFilterForOccurrences(filter?.tipo ?? 'ALL');
+      setInitialStatusFilterForOccurrences(filter?.status ?? 'ALL');
+      setInitialSearchTermForOccurrences(filter?.search ?? '');
+    } else if (tab === 'employees') {
+      if (filter?.secretaria !== undefined) {
+        setInitialSecretariaFilterForEmployees(filter.secretaria);
+      }
+      if (filter?.employeeStatus !== undefined) {
+        setInitialStatusFilterForEmployees(filter.employeeStatus);
+      }
+    }
+    setActiveTab(tab);
+  };
 
   const [doctorModalOpen, setDoctorModalOpen] = useState(false);
   const [selectedDoctorForEdit, setSelectedDoctorForEdit] = useState<Doctor | null>(null);
@@ -697,7 +726,7 @@ export default function App() {
             metrics={metrics}
             occurrences={occurrences}
             loading={loading}
-            onNavigateTab={setActiveTab}
+            onNavigateTab={handleNavigateFromDashboard}
             onOpenNewOccurrence={handleOpenNewOccurrence}
             onOpenNewEmployee={handleOpenNewEmployee}
             onOpenProrrogar={handleOpenProrrogar}
@@ -719,7 +748,11 @@ export default function App() {
             onOpenImportCsv={() => setImportCsvModalOpen(true)}
             secretariasList={secretarias}
             initialSecretariaFilter={initialSecretariaFilterForEmployees}
-            onClearSecretariaFilter={() => setInitialSecretariaFilterForEmployees(undefined)}
+            initialStatusFilter={initialStatusFilterForEmployees}
+            onClearSecretariaFilter={() => {
+              setInitialSecretariaFilterForEmployees(undefined);
+              setInitialStatusFilterForEmployees(undefined);
+            }}
           />
         )}
 
@@ -767,6 +800,14 @@ export default function App() {
             onViewEmployeeDetailByMatricula={handleViewEmployeeDetailByMatricula}
             onOpenExecutiveReport={() => setExecutiveReportModalOpen(true)}
             onOpenAuditTrail={() => setActiveTab('audit')}
+            initialTipoFilter={initialTipoFilterForOccurrences}
+            initialStatusFilter={initialStatusFilterForOccurrences}
+            initialSearchTerm={initialSearchTermForOccurrences}
+            onClearInitialFilters={() => {
+              setInitialTipoFilterForOccurrences(undefined);
+              setInitialStatusFilterForOccurrences(undefined);
+              setInitialSearchTermForOccurrences(undefined);
+            }}
           />
         )}
 

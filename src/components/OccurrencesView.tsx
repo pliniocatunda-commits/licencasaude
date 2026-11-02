@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Occurrence, UserRole, Employee } from '../types/index.ts';
 import { ProrrogacoesHistoryModal } from './ProrrogacoesHistoryModal.tsx';
 import { 
@@ -58,6 +58,10 @@ interface OccurrencesViewProps {
   onViewEmployeeDetailByMatricula: (matricula: string) => void;
   onOpenExecutiveReport?: () => void;
   onOpenAuditTrail?: () => void;
+  initialTipoFilter?: string;
+  initialStatusFilter?: string;
+  initialSearchTerm?: string;
+  onClearInitialFilters?: () => void;
 }
 
 export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
@@ -77,10 +81,14 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   onViewEmployeeDetailByMatricula,
   onOpenExecutiveReport,
   onOpenAuditTrail,
+  initialTipoFilter,
+  initialStatusFilter,
+  initialSearchTerm,
+  onClearInitialFilters,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTipo, setSelectedTipo] = useState('ALL');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
+  const [selectedTipo, setSelectedTipo] = useState(initialTipoFilter || 'ALL');
+  const [selectedStatus, setSelectedStatus] = useState(initialStatusFilter || 'ALL');
   const [dataInicioFilter, setDataInicioFilter] = useState('');
   const [dataTerminoFilter, setDataTerminoFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -89,6 +97,28 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
   const [sortField, setSortField] = useState<'id' | 'employee_nome' | 'tipo' | 'employee_secretaria' | 'data_inicio' | 'data_termino'>('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Sincroniza filtros recebidos via navegação externa (ex: cliques nos painéis do Dashboard)
+  useEffect(() => {
+    if (initialTipoFilter !== undefined) {
+      setSelectedTipo(initialTipoFilter);
+      setCurrentPage(1);
+    }
+  }, [initialTipoFilter]);
+
+  useEffect(() => {
+    if (initialStatusFilter !== undefined) {
+      setSelectedStatus(initialStatusFilter);
+      setCurrentPage(1);
+    }
+  }, [initialStatusFilter]);
+
+  useEffect(() => {
+    if (initialSearchTerm !== undefined) {
+      setSearchTerm(initialSearchTerm);
+      setCurrentPage(1);
+    }
+  }, [initialSearchTerm]);
 
   const handleToggleSort = (field: 'id' | 'employee_nome' | 'tipo' | 'employee_secretaria' | 'data_inicio' | 'data_termino') => {
     if (sortField === field) {
@@ -115,8 +145,22 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
     return occurrences.filter(occ => isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo)).length;
   }, [occurrences]);
 
+  // Total de perícias vencendo nos próximos 30 dias
+  const totalVencendo30d = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const next30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return occurrences.filter(
+      occ => (occ.status === 'Ativa' || occ.status === 'Prorrogada') &&
+             occ.data_termino >= todayStr && 
+             occ.data_termino <= next30Days
+    ).length;
+  }, [occurrences]);
+
   // Filter and sort occurrences - Ordenação Automática Interativa com Padrão Código ID crescente
   const filteredOccurrences = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const next30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
     const list = occurrences.filter(occ => {
       // Tipo
       if (selectedTipo !== 'ALL' && occ.tipo !== selectedTipo) return false;
@@ -124,6 +168,10 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
       // Status
       if (selectedStatus === 'EM_ATRASO') {
         if (!isPrevisaoRetornoEmAtraso(occ.data_termino, occ.status, occ.tipo)) return false;
+      } else if (selectedStatus === 'VENCENDO_30_DIAS') {
+        const isExpiring = (occ.status === 'Ativa' || occ.status === 'Prorrogada') &&
+          occ.data_termino >= todayStr && occ.data_termino <= next30Days;
+        if (!isExpiring) return false;
       } else if (selectedStatus !== 'ALL' && occ.status !== selectedStatus) {
         return false;
       }
@@ -343,10 +391,15 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
               className={`w-full py-2 px-3 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium ${
                 selectedStatus === 'EM_ATRASO'
                   ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold'
+                  : selectedStatus === 'VENCENDO_30_DIAS'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold'
                   : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}
             >
               <option value="ALL">Todos os Status</option>
+              {totalVencendo30d > 0 && (
+                <option value="VENCENDO_30_DIAS">⏳ Vencem em até 30 dias ({totalVencendo30d})</option>
+              )}
               {totalEmAtraso > 0 && (
                 <option value="EM_ATRASO">⚠️ Em Atraso ({totalEmAtraso})</option>
               )}
@@ -397,6 +450,76 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
             )}
           </div>
         </div>
+
+        {/* Active Filter Chips Banner */}
+        {(selectedTipo !== 'ALL' || selectedStatus !== 'ALL' || searchTerm) && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+            <span className="font-semibold text-slate-600">Filtro aplicado:</span>
+            {selectedTipo !== 'ALL' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-medium">
+                Tipo: <strong>{selectedTipo}</strong>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedTipo('ALL'); setCurrentPage(1); }}
+                  className="hover:text-blue-950 cursor-pointer"
+                  title="Remover filtro de tipo"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+            {selectedStatus !== 'ALL' && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium ${
+                selectedStatus === 'VENCENDO_30_DIAS'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : selectedStatus === 'EM_ATRASO'
+                  ? 'bg-rose-50 text-rose-800 border-rose-300'
+                  : 'bg-slate-100 text-slate-800 border-slate-300'
+              }`}>
+                Status: <strong>{selectedStatus === 'VENCENDO_30_DIAS' ? 'Vencem em até 30 dias' : selectedStatus === 'EM_ATRASO' ? 'Em Atraso' : selectedStatus}</strong>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedStatus('ALL'); setCurrentPage(1); }}
+                  className="hover:text-slate-950 cursor-pointer"
+                  title="Remover filtro de status"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                Busca: <strong>"{searchTerm}"</strong>
+                <button
+                  type="button"
+                  onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                  className="hover:text-amber-950 cursor-pointer"
+                  title="Remover termo de busca"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+            <span className="text-slate-500 font-medium ml-1">
+              ({filteredOccurrences.length} registro(s) encontrado(s))
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTipo('ALL');
+                setSelectedStatus('ALL');
+                setSearchTerm('');
+                setDataInicioFilter('');
+                setDataTerminoFilter('');
+                setCurrentPage(1);
+                if (onClearInitialFilters) onClearInitialFilters();
+              }}
+              className="ml-auto text-xs font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+            >
+              Limpar todos os filtros
+            </button>
+          </div>
+        )}
 
         {/* Counts strip */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">

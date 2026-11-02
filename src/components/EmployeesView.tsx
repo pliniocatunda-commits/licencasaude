@@ -41,6 +41,7 @@ interface EmployeesViewProps {
   onOpenImportCsv?: () => void;
   secretariasList?: Secretaria[];
   initialSecretariaFilter?: string;
+  initialStatusFilter?: string;
   onClearSecretariaFilter?: () => void;
 }
 
@@ -55,11 +56,12 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   onOpenImportCsv,
   secretariasList = [],
   initialSecretariaFilter,
+  initialStatusFilter,
   onClearSecretariaFilter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSecretaria, setSelectedSecretaria] = useState(initialSecretariaFilter || 'ALL');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [selectedStatus, setSelectedStatus] = useState(initialStatusFilter || 'ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -71,6 +73,13 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       setCurrentPage(1);
     }
   }, [initialSecretariaFilter]);
+
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setSelectedStatus(initialStatusFilter);
+      setCurrentPage(1);
+    }
+  }, [initialStatusFilter]);
 
   // Compute available secretarias names
   const secretariaOptions = useMemo(() => {
