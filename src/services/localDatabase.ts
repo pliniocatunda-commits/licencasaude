@@ -61,6 +61,73 @@ export class ClientDatabase {
     }
   }
 
+  public getFullData(): DatabaseSchema {
+    return JSON.parse(JSON.stringify(this.data));
+  }
+
+  public syncFromCloud(emps?: Employee[], occs?: Occurrence[], docs?: Doctor[], secs?: Secretaria[]) {
+    let changed = false;
+    if (emps && emps.length > 0) {
+      this.data.employees = emps;
+      changed = true;
+    }
+    if (occs && occs.length > 0) {
+      this.data.occurrences = occs;
+      changed = true;
+    }
+    if (docs && docs.length > 0) {
+      this.data.doctors = docs;
+      changed = true;
+    }
+    if (secs && secs.length > 0) {
+      this.data.secretarias = secs;
+      changed = true;
+    }
+    if (changed) {
+      this.saveToStorage(this.data);
+    }
+  }
+
+  public downloadBackupFile(): void {
+    if (typeof window === 'undefined') return;
+    const jsonStr = JSON.stringify(this.data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const occCount = this.data.occurrences?.length || 0;
+    const empCount = this.data.employees?.length || 0;
+    a.href = url;
+    a.download = `backup_ipme_${this.activeTenantId}_${dateStr}_${empCount}serv_${occCount}licencas.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  public importFullData(imported: DatabaseSchema): { success: boolean; employees: number; occurrences: number } {
+    if (!imported || !Array.isArray(imported.employees) || !Array.isArray(imported.occurrences)) {
+      throw new Error('Arquivo de backup inválido: não contém a estrutura de servidores e ocorrências.');
+    }
+    this.data = {
+      employees: imported.employees,
+      occurrences: imported.occurrences,
+      doctors: imported.doctors || this.data.doctors || [],
+      secretarias: imported.secretarias || this.data.secretarias || [],
+      users: imported.users || this.data.users || [],
+      audit_logs: imported.audit_logs || this.data.audit_logs || [],
+    };
+    this.saveToStorage(this.data);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('ipme_data_updated', { detail: { tenantId: this.activeTenantId } }));
+    }
+    return {
+      success: true,
+      employees: this.data.employees.length,
+      occurrences: this.data.occurrences.length,
+    };
+  }
+
   private getStorageKey(): string {
     return `ipme_browser_db_tenant_${this.activeTenantId}`;
   }

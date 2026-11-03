@@ -13,7 +13,8 @@ import {
   X, 
   Lock,
   Layers,
-  Sparkles
+  Sparkles,
+  FileDown
 } from 'lucide-react';
 
 interface TenantSelectorModalProps {
@@ -348,6 +349,19 @@ export const TenantSelectorModal: React.FC<TenantSelectorModalProps> = ({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Backup Download Button */}
+          <div className="pt-1 pb-1 flex items-center justify-between border-t border-slate-200">
+            <span className="text-[11px] text-slate-500">Cópia de Segurança Local:</span>
+            <button
+              type="button"
+              onClick={() => api.exportBackup()}
+              className="text-xs text-[#1E426D] hover:underline font-semibold flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded hover:bg-slate-100 transition-colors"
+            >
+              <FileDown className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Baixar Backup Completo Deste Ambiente (.JSON)</span>
+            </button>
           </div>
 
           {/* Add New Tenant Accordion/Button */}

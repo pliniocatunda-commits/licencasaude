@@ -37,8 +37,9 @@ import { ImportCsvModal } from './components/ImportCsvModal.tsx';
 import { LoginModal } from './components/LoginModal.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 import { ChangePasswordModal } from './components/ChangePasswordModal.tsx';
+import { CloudDatabaseModal } from './components/CloudDatabaseModal.tsx';
 import { useAppTheme } from './context/ThemeContext.tsx';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, X, Cloud, CloudUpload } from 'lucide-react';
 
 interface ToastNotification {
   id: string;
@@ -52,6 +53,9 @@ export default function App() {
   const [currentTenantId, setCurrentTenantId] = useState<string>(() => api.getActiveTenantId());
   const [authLoading, setAuthLoading] = useState(false);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
+  const [cloudDatabaseModalOpen, setCloudDatabaseModalOpen] = useState(false);
+  const [cloudOccurrencesCount, setCloudOccurrencesCount] = useState<number | null>(null);
+  const [cloudSyncBannerDismissed, setCloudSyncBannerDismissed] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'secretarias' | 'doctors' | 'occurrences' | 'audit' | 'users'>('dashboard');
 
 
@@ -165,13 +169,11 @@ export default function App() {
       setAuditLogs(logs);
       setUsers(usrs);
 
-      // Sincroniza dados com o Cloud Firestore de forma transparente
-      firestoreService.syncInitialDataIfEmpty({
-        employees: emps,
-        occurrences: occs,
-        doctors: docs,
-        secretarias: secs,
-        users: usrs,
+      // Verifica status de sincronização da nuvem Firestore
+      api.getCloudSummary().then(sum => {
+        if (sum.connected) {
+          setCloudOccurrencesCount(sum.occurrencesCount);
+        }
       }).catch(() => {});
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -718,6 +720,57 @@ export default function App() {
         </div>
       )}
 
+      {/* Banner de Sincronização em Nuvem (quando este navegador tem mais ocorrências que a nuvem, ex: as 64 licenças no Chrome) */}
+      {cloudOccurrencesCount !== null && occurrences.length > cloudOccurrencesCount && occurrences.length >= 10 && !cloudSyncBannerDismissed && (
+        <div className="bg-gradient-to-r from-[#173252] via-[#1E426D] to-[#255285] text-white border-b border-sky-400/30 px-4 py-3 shadow-md animate-in slide-in-from-top-2 duration-200">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center shrink-0">
+                <Cloud className="w-4 h-4 text-sky-300" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Base deste Navegador Pronta para Publicação na Nuvem</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.2 rounded-full font-bold">
+                    {occurrences.length} Licenças & {employees.length} Servidores
+                  </span>
+                </p>
+                <p className="text-[11px] text-blue-100/80">
+                  Publique seus dados no <strong>Google Cloud Firestore</strong> para que fiquem disponíveis no <strong>Mozilla Firefox</strong>, em celulares e outros computadores em tempo real.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCloudDatabaseModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <CloudUpload className="w-3.5 h-3.5" />
+                <span>Publicar no Cloud Firestore</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => api.exportBackup()}
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all cursor-pointer"
+                title="Gera arquivo de backup JSON no seu computador"
+              >
+                Baixar Backup JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => setCloudSyncBannerDismissed(true)}
+                className="text-white/60 hover:text-white p-1 rounded-md cursor-pointer ml-1"
+                title="Dispensar aviso"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Viewport Content */}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -996,6 +1049,13 @@ export default function App() {
         currentUser={currentUser}
         onSavePassword={handleSavePassword}
         isForcedFirstAccess={Boolean(currentUser?.must_change_password)}
+      />
+
+      {/* Central de Nuvem & Backup Modal */}
+      <CloudDatabaseModal
+        isOpen={cloudDatabaseModalOpen}
+        onClose={() => setCloudDatabaseModalOpen(false)}
+        onDataChanged={loadAllData}
       />
 
       {/* Floating Toast Container */}

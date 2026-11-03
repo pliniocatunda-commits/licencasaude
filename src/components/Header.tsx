@@ -3,6 +3,7 @@ import { AppUser, UserRole, TenantInfo } from '../types/index.ts';
 import { useAppTheme } from '../context/ThemeContext.tsx';
 import { ThemeSelectorModal } from './ThemeSelectorModal.tsx';
 import { TenantSelectorModal } from './TenantSelectorModal.tsx';
+import { CloudDatabaseModal } from './CloudDatabaseModal.tsx';
 import { api } from '../services/api.ts';
 import { 
   Building2, 
@@ -25,7 +26,8 @@ import {
   KeyRound,
   Database,
   FlaskConical,
-  ShieldAlert
+  ShieldAlert,
+  Cloud
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -60,6 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { theme, themeConfig } = useAppTheme();
   const [themeModalOpen, setThemeModalOpen] = useState(false);
   const [tenantModalOpen, setTenantModalOpen] = useState(false);
+  const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [activeTenantId, setActiveTenantId] = useState<string>(() => api.getActiveTenantId());
   const [currentTenant, setCurrentTenant] = useState<TenantInfo | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -288,6 +291,19 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
           )}
+
+          {/* Botão Central de Nuvem & Backup Firestore */}
+          <button
+            type="button"
+            onClick={() => setCloudModalOpen(true)}
+            title="Central de Nuvem & Backup: Google Cloud Firestore"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-sky-400/40 bg-sky-500/20 text-sky-200 hover:bg-sky-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+          >
+            <Cloud className="w-3.5 h-3.5 text-sky-300" />
+            <span className="hidden sm:inline font-mono uppercase text-[10px] tracking-wider">
+              Nuvem & Backup
+            </span>
+          </button>
 
           {/* User Account Dropdown */}
           <div ref={profileRef} className="relative z-50">
@@ -876,6 +892,15 @@ export const Header: React.FC<HeaderProps> = ({
         onTenantChanged={(tenantId) => {
           setActiveTenantId(tenantId);
           onTenantChanged?.(tenantId);
+        }}
+      />
+
+      {/* Cloud Firestore & Backup Modal */}
+      <CloudDatabaseModal
+        isOpen={cloudModalOpen}
+        onClose={() => setCloudModalOpen(false)}
+        onDataChanged={() => {
+          onTenantChanged?.(activeTenantId);
         }}
       />
     </header>

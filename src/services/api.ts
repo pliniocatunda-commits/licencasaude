@@ -150,7 +150,20 @@ class ApiService {
     return this.request(
       '/api/stats',
       { method: 'GET' },
-      () => clientDb.getMetrics()
+      async () => {
+        try {
+          const [cloudOccs, cloudEmps] = await Promise.all([
+            firestoreService.getOccurrences(undefined, this.getActiveTenantId()),
+            firestoreService.getEmployees(this.getActiveTenantId()),
+          ]);
+          if (cloudOccs && cloudOccs.length > 0) {
+            clientDb.syncFromCloud(cloudEmps, cloudOccs);
+          }
+        } catch (e) {
+          console.warn('[API] Falha ao carregar métricas da nuvem, usando cache local:', e);
+        }
+        return clientDb.getMetrics();
+      }
     );
   }
 
@@ -165,7 +178,18 @@ class ApiService {
     return this.request(
       `/api/employees${query}`,
       { method: 'GET' },
-      () => clientDb.getEmployees(search, secretaria, status)
+      async () => {
+        try {
+          const cloudEmps = await firestoreService.getEmployees(this.getActiveTenantId());
+          if (cloudEmps && cloudEmps.length > 0) {
+            clientDb.syncFromCloud(cloudEmps);
+            return clientDb.getEmployees(search, secretaria, status);
+          }
+        } catch (e) {
+          console.warn('[API] Falha ao ler servidores do Firestore:', e);
+        }
+        return clientDb.getEmployees(search, secretaria, status);
+      }
     );
   }
 
@@ -193,7 +217,13 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...emp, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveEmployee(emp, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveEmployee(emp, this.actorEmail, this.actorRole);
+        firestoreService.saveEmployee(saved, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao salvar servidor na nuvem:', err);
+        });
+        return saved;
+      }
     );
   }
 
@@ -204,7 +234,13 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify({ ...emp, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveEmployee({ ...emp, matricula }, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveEmployee({ ...emp, matricula }, this.actorEmail, this.actorRole);
+        firestoreService.saveEmployee(saved, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao atualizar servidor na nuvem:', err);
+        });
+        return saved;
+      }
     );
   }
 
@@ -215,7 +251,15 @@ class ApiService {
         method: 'DELETE',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteEmployee(matricula, this.actorEmail, this.actorRole)
+      async () => {
+        const deleted = clientDb.deleteEmployee(matricula, this.actorEmail, this.actorRole);
+        if (deleted) {
+          firestoreService.deleteEmployee(matricula, this.getActiveTenantId()).catch(err => {
+            console.warn('[Firestore] Erro ao deletar servidor na nuvem:', err);
+          });
+        }
+        return deleted;
+      }
     );
   }
 
@@ -232,7 +276,18 @@ class ApiService {
     return this.request(
       `/api/occurrences${query}`,
       { method: 'GET' },
-      () => clientDb.getOccurrences(matricula, tipo, status, dataInicio, dataTermino)
+      async () => {
+        try {
+          const cloudOccs = await firestoreService.getOccurrences(matricula, this.getActiveTenantId());
+          if (cloudOccs && cloudOccs.length > 0) {
+            clientDb.syncFromCloud(undefined, cloudOccs);
+            return clientDb.getOccurrences(matricula, tipo, status, dataInicio, dataTermino);
+          }
+        } catch (e) {
+          console.warn('[API] Falha ao ler ocorrências do Firestore:', e);
+        }
+        return clientDb.getOccurrences(matricula, tipo, status, dataInicio, dataTermino);
+      }
     );
   }
 
@@ -255,7 +310,13 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...occ, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveOccurrence(occ, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveOccurrence(occ, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(saved, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao salvar ocorrência na nuvem:', err);
+        });
+        return saved;
+      }
     );
   }
 
@@ -266,7 +327,13 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify({ ...occ, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveOccurrence({ ...occ, id }, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveOccurrence({ ...occ, id }, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(saved, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao atualizar ocorrência na nuvem:', err);
+        });
+        return saved;
+      }
     );
   }
 
@@ -280,7 +347,13 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.prorrogarOccurrence(id, data, this.actorEmail, this.actorRole)
+      async () => {
+        const updated = clientDb.prorrogarOccurrence(id, data, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(updated, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao prorrogar ocorrência na nuvem:', err);
+        });
+        return updated;
+      }
     );
   }
 
@@ -302,7 +375,13 @@ class ApiService {
           actorRole: this.actorRole,
         }),
       },
-      () => clientDb.concluirOccurrence(id, parecerFinal, this.actorEmail, this.actorRole, dataConcessao, atoConcessao)
+      async () => {
+        const updated = clientDb.concluirOccurrence(id, parecerFinal, this.actorEmail, this.actorRole, dataConcessao, atoConcessao);
+        firestoreService.saveOccurrence(updated, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao concluir ocorrência na nuvem:', err);
+        });
+        return updated;
+      }
     );
   }
 
@@ -316,7 +395,13 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.retornarTrabalhoOccurrence(id, data, this.actorEmail, this.actorRole)
+      async () => {
+        const updated = clientDb.retornarTrabalhoOccurrence(id, data, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(updated, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao registrar retorno na nuvem:', err);
+        });
+        return updated;
+      }
     );
   }
 
@@ -330,7 +415,13 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.converterOccurrenceDefinitiva(id, data, this.actorEmail, this.actorRole)
+      async () => {
+        const updated = clientDb.converterOccurrenceDefinitiva(id, data, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(updated, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao converter ocorrência na nuvem:', err);
+        });
+        return updated;
+      }
     );
   }
 
@@ -341,7 +432,13 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ motivo, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.cancelarOccurrence(id, motivo, this.actorEmail, this.actorRole)
+      async () => {
+        const updated = clientDb.cancelarOccurrence(id, motivo, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(updated, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao cancelar ocorrência na nuvem:', err);
+        });
+        return updated;
+      }
     );
   }
 
@@ -352,7 +449,15 @@ class ApiService {
         method: 'DELETE',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteOccurrence(id, this.actorEmail, this.actorRole)
+      async () => {
+        const deleted = clientDb.deleteOccurrence(id, this.actorEmail, this.actorRole);
+        if (deleted) {
+          firestoreService.deleteOccurrence(id, this.getActiveTenantId()).catch(err => {
+            console.warn('[Firestore] Erro ao deletar ocorrência na nuvem:', err);
+          });
+        }
+        return deleted;
+      }
     );
   }
 
@@ -372,7 +477,17 @@ class ApiService {
     return this.request(
       '/api/secretarias',
       { method: 'GET' },
-      () => clientDb.getSecretarias()
+      async () => {
+        try {
+          const cloudSecs = await firestoreService.getSecretarias(this.getActiveTenantId());
+          if (cloudSecs && cloudSecs.length > 0) {
+            clientDb.syncFromCloud(undefined, undefined, undefined, cloudSecs);
+          }
+        } catch (e) {
+          console.warn('[API] Falha ao carregar secretarias da nuvem:', e);
+        }
+        return clientDb.getSecretarias();
+      }
     );
   }
 
@@ -383,7 +498,11 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...sec, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveSecretaria(sec, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveSecretaria(sec, this.actorEmail, this.actorRole);
+        firestoreService.saveSecretaria(saved, this.getActiveTenantId()).catch(() => {});
+        return saved;
+      }
     );
   }
 
@@ -394,7 +513,11 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify({ ...sec, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveSecretaria({ ...sec, id }, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveSecretaria({ ...sec, id }, this.actorEmail, this.actorRole);
+        firestoreService.saveSecretaria(saved, this.getActiveTenantId()).catch(() => {});
+        return saved;
+      }
     );
   }
 
@@ -405,7 +528,13 @@ class ApiService {
         method: 'DELETE',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteSecretaria(id, this.actorEmail, this.actorRole)
+      async () => {
+        const deleted = clientDb.deleteSecretaria(id, this.actorEmail, this.actorRole);
+        if (deleted) {
+          firestoreService.deleteSecretaria(id, this.getActiveTenantId()).catch(() => {});
+        }
+        return deleted;
+      }
     );
   }
 
@@ -414,7 +543,17 @@ class ApiService {
     return this.request(
       '/api/doctors',
       { method: 'GET' },
-      () => clientDb.getDoctors()
+      async () => {
+        try {
+          const cloudDocs = await firestoreService.getDoctors(this.getActiveTenantId());
+          if (cloudDocs && cloudDocs.length > 0) {
+            clientDb.syncFromCloud(undefined, undefined, cloudDocs);
+          }
+        } catch (e) {
+          console.warn('[API] Falha ao carregar médicos da nuvem:', e);
+        }
+        return clientDb.getDoctors();
+      }
     );
   }
 
@@ -425,7 +564,11 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ ...doc, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveDoctor(doc, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveDoctor(doc, this.actorEmail, this.actorRole);
+        firestoreService.saveDoctor(saved, this.getActiveTenantId()).catch(() => {});
+        return saved;
+      }
     );
   }
 
@@ -436,7 +579,11 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify({ ...doc, actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.saveDoctor({ ...doc, id: doc.id || idOrCrm }, this.actorEmail, this.actorRole)
+      async () => {
+        const saved = clientDb.saveDoctor({ ...doc, id: doc.id || idOrCrm }, this.actorEmail, this.actorRole);
+        firestoreService.saveDoctor(saved, this.getActiveTenantId()).catch(() => {});
+        return saved;
+      }
     );
   }
 
@@ -447,7 +594,13 @@ class ApiService {
         method: 'DELETE',
         body: JSON.stringify({ actorEmail: this.actorEmail, actorRole: this.actorRole }),
       },
-      () => clientDb.deleteDoctor(idOrCrm, this.actorEmail, this.actorRole)
+      async () => {
+        const deleted = clientDb.deleteDoctor(idOrCrm, this.actorEmail, this.actorRole);
+        if (deleted) {
+          firestoreService.deleteDoctor(idOrCrm, this.getActiveTenantId()).catch(() => {});
+        }
+        return deleted;
+      }
     );
   }
 
@@ -842,7 +995,44 @@ class ApiService {
       }
     );
   }
+
+  // --- Central de Nuvem Firestore & Backup de Contingência ---
+  public exportBackup(): void {
+    clientDb.downloadBackupFile();
+  }
+
+  public importBackup(data: any): { success: boolean; employees: number; occurrences: number } {
+    return clientDb.importFullData(data);
+  }
+
+  public async publishToCloud(onProgress?: (msg: string, pct: number) => void): Promise<{ success: boolean; totalUploaded: number; message: string }> {
+    const fullData = clientDb.getFullData();
+    return firestoreService.uploadFullDatabaseToFirestore(this.getActiveTenantId(), fullData, onProgress);
+  }
+
+  public async getCloudSummary(): Promise<{ connected: boolean; occurrencesCount: number; employeesCount: number }> {
+    return firestoreService.getCloudSummary(this.getActiveTenantId());
+  }
+
+  public getLocalSummary(): { employeesCount: number; occurrencesCount: number; doctorsCount: number; secretariasCount: number } {
+    const data = clientDb.getFullData();
+    return {
+      employeesCount: data.employees?.length || 0,
+      occurrencesCount: data.occurrences?.length || 0,
+      doctorsCount: data.doctors?.length || 0,
+      secretariasCount: data.secretarias?.length || 0,
+    };
+  }
+
+  public async downloadFromCloud(): Promise<{ success: boolean; employees: number; occurrences: number }> {
+    const cloudData = await firestoreService.downloadFullDatabaseFromFirestore(this.getActiveTenantId());
+    if (!cloudData) {
+      throw new Error('Nenhum dado encontrado no Cloud Firestore para este ambiente.');
+    }
+    return clientDb.importFullData(cloudData);
+  }
 }
 
 export const api = new ApiService();
+
 

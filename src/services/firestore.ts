@@ -180,7 +180,173 @@ export const firestoreService = {
   },
 
   /**
-   * Sync initial batch of data into Firestore if Firestore is currently empty.
+   * Retorna um resumo rápido do que está atualmente gravado no Cloud Firestore para o Tenant
+   */
+  async getCloudSummary(tenantId?: string): Promise<{
+    connected: boolean;
+    occurrencesCount: number;
+    employeesCount: number;
+    lastUpdated?: string;
+  }> {
+    const tid = this.getTenantId(tenantId);
+    try {
+      const isOnline = await validateFirestoreConnection();
+      if (!isOnline) {
+        return { connected: false, occurrencesCount: 0, employeesCount: 0 };
+      }
+      const occSnap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid)));
+      const empSnap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid)));
+      return {
+        connected: true,
+        occurrencesCount: occSnap.size,
+        employeesCount: empSnap.size,
+      };
+    } catch (err) {
+      console.warn('[Firestore] Erro ao obter resumo da nuvem:', err);
+      return { connected: false, occurrencesCount: 0, employeesCount: 0 };
+    }
+  },
+
+  /**
+   * Faz upload completo e em lotes de toda a base (servidores, licenças, médicos, secretarias)
+   * para a partição isolada do Tenant no Google Cloud Firestore.
+   */
+  async uploadFullDatabaseToFirestore(
+    tenantId: string,
+    data: {
+      employees: Employee[];
+      occurrences: Occurrence[];
+      doctors?: Doctor[];
+      secretarias?: Secretaria[];
+      users?: AppUser[];
+      audit_logs?: AuditLog[];
+    },
+    onProgress?: (message: string, percent: number) => void
+  ): Promise<{ success: boolean; totalUploaded: number; message: string }> {
+    const tid = this.getTenantId(tenantId);
+    let totalUploaded = 0;
+
+    onProgress?.('Conectando ao Google Cloud Firestore...', 5);
+
+    // 1. Médicos Peritos
+    if (data.doctors && data.doctors.length > 0) {
+      onProgress?.(`Enviando ${data.doctors.length} médicos peritos...`, 10);
+      const batchDoc = writeBatch(firestoreDb);
+      for (const d of data.doctors) {
+        batchDoc.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.DOCTORS, tid), String(d.id)), d, { merge: true });
+        totalUploaded++;
+      }
+      await batchDoc.commit();
+    }
+
+    // 2. Secretarias Municipais
+    if (data.secretarias && data.secretarias.length > 0) {
+      onProgress?.(`Enviando catálogo de ${data.secretarias.length} secretarias...`, 20);
+      const batchSec = writeBatch(firestoreDb);
+      for (const s of data.secretarias) {
+        batchSec.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.SECRETARIAS, tid), s.id), s, { merge: true });
+        totalUploaded++;
+      }
+      await batchSec.commit();
+    }
+
+    // 3. Ocorrências (Licenças de Saúde, Readaptações, Maternidade)
+    if (data.occurrences && data.occurrences.length > 0) {
+      onProgress?.(`Enviando ${data.occurrences.length} licenças e ocorrências periciais...`, 30);
+      const occChunks: Occurrence[][] = [];
+      for (let i = 0; i < data.occurrences.length; i += 400) {
+        occChunks.push(data.occurrences.slice(i, i + 400));
+      }
+      for (let idx = 0; idx < occChunks.length; idx++) {
+        const chunk = occChunks[idx];
+        const batchOcc = writeBatch(firestoreDb);
+        for (const o of chunk) {
+          batchOcc.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid), String(o.id)), o, { merge: true });
+          totalUploaded++;
+        }
+        await batchOcc.commit();
+      }
+    }
+
+    // 4. Servidores em lotes de 400 (limite seguro do Firestore)
+    if (data.employees && data.employees.length > 0) {
+      const empChunks: Employee[][] = [];
+      for (let i = 0; i < data.employees.length; i += 400) {
+        empChunks.push(data.employees.slice(i, i + 400));
+      }
+      for (let idx = 0; idx < empChunks.length; idx++) {
+        const chunk = empChunks[idx];
+        const pct = 40 + Math.round(((idx + 1) / empChunks.length) * 50);
+        onProgress?.(`Enviando servidores para a nuvem (${Math.min((idx + 1) * 400, data.employees.length)} de ${data.employees.length})...`, pct);
+        const batchEmp = writeBatch(firestoreDb);
+        for (const e of chunk) {
+          batchEmp.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid), e.matricula), e, { merge: true });
+          totalUploaded++;
+        }
+        await batchEmp.commit();
+      }
+    }
+
+    // 5. Atualiza Metadados do Tenant
+    onProgress?.('Gravando metadados e selo de segurança...', 95);
+    await setDoc(doc(firestoreDb, COLLECTIONS.TENANTS, tid), {
+      id: tid,
+      updated_at: new Date().toISOString(),
+      occurrences_count: data.occurrences?.length || 0,
+      employees_count: data.employees?.length || 0,
+      status: 'ativo_nuvem',
+    }, { merge: true });
+
+    onProgress?.('Publicação concluída com sucesso!', 100);
+
+    return {
+      success: true,
+      totalUploaded,
+      message: `Sucesso! ${data.employees?.length || 0} servidores e ${data.occurrences?.length || 0} licenças foram gravados com sucesso no Cloud Firestore.`
+    };
+  },
+
+  /**
+   * Baixa a base completa do Tenant a partir do Cloud Firestore
+   */
+  async downloadFullDatabaseFromFirestore(tenantId?: string): Promise<{
+    employees: Employee[];
+    occurrences: Occurrence[];
+    doctors: Doctor[];
+    secretarias: Secretaria[];
+    users: AppUser[];
+    audit_logs: AuditLog[];
+  } | null> {
+    const tid = this.getTenantId(tenantId);
+    try {
+      const occs = await this.getOccurrences(undefined, tid);
+      if (occs.length === 0) {
+        return null;
+      }
+      const [emps, docs, secs, logs, usrs] = await Promise.all([
+        this.getEmployees(tid),
+        this.getDoctors(tid),
+        this.getSecretarias(tid),
+        this.getAuditLogs(100, tid),
+        this.getUsers(),
+      ]);
+
+      return {
+        employees: emps,
+        occurrences: occs,
+        doctors: docs,
+        secretarias: secs,
+        users: usrs,
+        audit_logs: logs,
+      };
+    } catch (err) {
+      console.warn('Erro ao carregar dados completos do Firestore:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Sincronização automática para primeira carga se o Firestore estiver vazio
    */
   async syncInitialDataIfEmpty(initialData: {
     employees: Employee[];
@@ -190,54 +356,14 @@ export const firestoreService = {
     users: AppUser[];
   }): Promise<{ synced: boolean; message: string }> {
     try {
-      const snap = await getDocs(query(collection(firestoreDb, COLLECTIONS.DOCTORS), limit(1)));
+      const tid = this.getTenantId();
+      const snap = await getDocs(query(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid)), limit(1)));
       if (!snap.empty) {
         return { synced: false, message: 'Cloud Firestore já possui dados cadastrados.' };
       }
-
-      console.info('Sincronizando dados iniciais para o Cloud Firestore...');
-
-      // Batch 1: Doctors
-      const batchDocs = writeBatch(firestoreDb);
-      for (const d of initialData.doctors) {
-        batchDocs.set(doc(firestoreDb, COLLECTIONS.DOCTORS, String(d.id)), d);
-      }
-      await batchDocs.commit();
-
-      // Batch 2: Secretarias
-      const batchSec = writeBatch(firestoreDb);
-      for (const s of initialData.secretarias) {
-        batchSec.set(doc(firestoreDb, COLLECTIONS.SECRETARIAS, s.id), s);
-      }
-      await batchSec.commit();
-
-      // Batch 3: Users
-      const batchUsers = writeBatch(firestoreDb);
-      for (const u of initialData.users) {
-        batchUsers.set(doc(firestoreDb, COLLECTIONS.USERS, u.email.toLowerCase()), u);
-      }
-      await batchUsers.commit();
-
-      // Batch 4: Occurrences
-      if (initialData.occurrences.length > 0) {
-        const batchOcc = writeBatch(firestoreDb);
-        for (const o of initialData.occurrences) {
-          batchOcc.set(doc(firestoreDb, COLLECTIONS.OCCURRENCES, String(o.id)), o);
-        }
-        await batchOcc.commit();
-      }
-
-      // Batch 5: Employees (sync up to first 50 in batch)
-      const empSample = initialData.employees.slice(0, 50);
-      const batchEmp = writeBatch(firestoreDb);
-      for (const e of empSample) {
-        batchEmp.set(doc(firestoreDb, COLLECTIONS.EMPLOYEES, e.matricula), e);
-      }
-      await batchEmp.commit();
-
-      return { synced: true, message: 'Dados sincronizados com o Cloud Firestore com sucesso.' };
+      const res = await this.uploadFullDatabaseToFirestore(tid, initialData);
+      return { synced: res.success, message: res.message };
     } catch (err) {
-      console.warn('Erro ao sincronizar dados iniciais no Firestore:', err);
       return { synced: false, message: (err as Error).message };
     }
   }
