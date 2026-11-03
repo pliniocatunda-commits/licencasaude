@@ -199,67 +199,70 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`sticky top-0 z-40 ${themeConfig.headerClass} border-b ${themeConfig.headerBorderClass} transition-colors duration-200`}>
       {/* Tier 1: Main Brand & User Profile Row (Logomarca e Nome Institucional Dinâmicos conforme Cliente Ativo) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-4">
         
         {/* Brand Block com Logomarca e Título Dinâmicos */}
-        <div className="flex items-center gap-3.5 sm:gap-5 min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
           {/* Logomarca Dinâmica do Cliente / Autarquia */}
-          <div className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-white/35 bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 transition-transform hover:scale-[1.02]">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-white/35 bg-white flex items-center justify-center shrink-0 shadow-md p-1 sm:p-1.5 transition-transform hover:scale-[1.02]">
             {renderTenantLogo()}
           </div>
 
           {/* Textos de Identidade Visual e Nome Institucional Dinâmicos */}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className={`text-xl sm:text-2xl md:text-3xl font-black tracking-tight font-sans ${themeConfig.brandTextClass}`}>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-lg sm:text-xl md:text-2xl font-black tracking-tight font-sans whitespace-nowrap ${themeConfig.brandTextClass}`}>
                 {tenantSigla}
               </span>
-              <span className={`text-[10px] sm:text-xs uppercase font-extrabold px-2 py-0.5 rounded-md border tracking-wider shadow-2xs ${
+              <span className={`text-[9px] sm:text-[10px] md:text-xs uppercase font-extrabold px-1.5 sm:px-2 py-0.5 rounded-md border tracking-wider shadow-2xs whitespace-nowrap ${
                 isHomologacao
                   ? 'bg-amber-900/90 text-amber-300 border-amber-600/60'
                   : 'bg-emerald-900/90 text-emerald-300 border-emerald-600/60'
               }`}>
-                {isHomologacao ? 'Homologação / Testes' : 'Previdência Oficial'}
+                {isHomologacao ? 'Homologação' : 'Previdência Oficial'}
               </span>
             </div>
 
             {/* Nome Institucional Completo do Cliente / Autarquia Ativa */}
-            <h1 className={`text-xs sm:text-sm md:text-[15px] font-bold uppercase tracking-wide mt-1 leading-snug line-clamp-2 sm:line-clamp-none ${
-              theme === 'azul_ipme_light' ? 'text-[#1E426D]' : 'text-white/95'
-            }`}>
+            <h1 
+              className={`text-xs sm:text-sm font-bold uppercase tracking-wide mt-0.5 leading-snug truncate ${
+                theme === 'azul_ipme_light' ? 'text-[#1E426D]' : 'text-white/95'
+              }`}
+              title={tenantNome}
+            >
               {tenantNome}
             </h1>
-            <p className={`text-[11px] sm:text-xs font-medium mt-0.5 flex items-center gap-2 flex-wrap ${themeConfig.brandSubtextClass}`}>
-              <span>Sistema Integrado de Perícia Médica & Gestão Previdenciária</span>
-              <span className="opacity-40 hidden md:inline">·</span>
-              <span className="hidden md:inline">{tenantCidadeUf}</span>
+            <p className={`text-[10px] sm:text-[11px] md:text-xs font-medium mt-0.5 flex items-center gap-1.5 truncate ${themeConfig.brandSubtextClass}`}>
+              <span className="truncate">Sistema Integrado de Perícia Médica & Gestão Previdenciária</span>
+              <span className="opacity-40 hidden lg:inline">·</span>
+              <span className="hidden lg:inline shrink-0">{tenantCidadeUf}</span>
             </p>
           </div>
         </div>
 
         {/* User Profile, Environment Badge & Direct Logout */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Indicador & Seletor de Ambiente / Cliente Isolado */}
           {isMasterAdmin ? (
             <button
               type="button"
               onClick={() => setTenantModalOpen(true)}
               title="Acesso Master: Clique para gerenciar ou alternar entre bases e clientes"
-              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
                 isHomologacao
                   ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 hover:bg-amber-500/30'
                   : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40 hover:bg-emerald-500/30'
               }`}
             >
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <span className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
                   isHomologacao ? 'bg-amber-400' : 'bg-emerald-400'
                 }`} />
                 <Database className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden md:inline font-mono uppercase text-[10px] tracking-wider">
+                <span className="hidden lg:inline font-mono uppercase text-[10px] tracking-wider">
                   {isHomologacao ? 'Homologação' : 'Produção Oficial'}
                 </span>
-                <span className="md:hidden font-mono uppercase text-[10px]">
+                <span className="hidden sm:inline lg:hidden font-mono uppercase text-[10px]">
                   {isHomologacao ? 'Testes' : 'Produção'}
                 </span>
               </div>
@@ -270,18 +273,18 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <div
               title={`Base vinculada ao seu usuário: ${tenantNome}`}
-              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold shadow-xs select-none ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl border text-xs font-bold shadow-xs select-none ${
                 isHomologacao
                   ? 'bg-amber-500/20 text-amber-200 border-amber-400/40'
                   : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
               }`}
             >
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${
                   isHomologacao ? 'bg-amber-400' : 'bg-emerald-400'
                 }`} />
                 <Database className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden md:inline font-mono uppercase text-[10px] tracking-wider">
+                <span className="hidden lg:inline font-mono uppercase text-[10px] tracking-wider">
                   {isHomologacao ? 'Homologação' : 'Produção'}
                 </span>
               </div>
@@ -319,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-xs font-semibold truncate max-w-[130px] ${theme === 'azul_ipme_light' ? 'text-slate-900' : 'text-white'}`}>
+                  <span className={`text-xs font-semibold truncate max-w-[90px] md:max-w-[120px] lg:max-w-[150px] ${theme === 'azul_ipme_light' ? 'text-slate-900' : 'text-white'}`}>
                     {currentUser.name}
                   </span>
                   <span className={`text-[10px] font-mono uppercase px-1.5 py-0.2 rounded font-bold ${
@@ -330,11 +333,11 @@ export const Header: React.FC<HeaderProps> = ({
                     {currentUser.role === 'admin' ? 'Admin' : 'Operador'}
                   </span>
                 </div>
-                <p className={`text-[10px] truncate max-w-[150px] ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-100/80'}`}>
+                <p className={`text-[10px] truncate max-w-[140px] hidden lg:block ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-100/80'}`}>
                   {currentUser.email}
                 </p>
               </div>
-              <ChevronDown className={`w-3.5 h-3.5 ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-200'}`} />
+              <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-200'}`} />
             </button>
 
             {/* Profile Menu Dropdown */}
@@ -491,10 +494,10 @@ export const Header: React.FC<HeaderProps> = ({
           ? 'bg-[#F2F6FC] border-[#C8DCF4]' 
           : 'bg-black/20 border-white/10'
       } shadow-inner transition-colors`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto scrollbar-none">
           
           {/* Menu Principal de Navegação (Deslocado para a linha de baixo com total destaque) */}
-          <nav className={`flex items-center gap-1.5 sm:gap-2 font-medium text-xs sm:text-sm ${themeConfig.navTextClass} py-0.5`}>
+          <nav className={`flex items-center gap-1 sm:gap-1.5 md:gap-2 font-medium text-xs sm:text-sm ${themeConfig.navTextClass} py-0.5 shrink-0`}>
             {/* 1. Painel */}
             <button
               type="button"
@@ -858,13 +861,13 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Atalhos Rápidos Operacionais alinhados à direita na barra de navegação */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ml-auto pl-2">
             {onOpenExecutiveReport && (
               <button
                 type="button"
                 onClick={onOpenExecutiveReport}
                 title="Abrir Relatório Executivo Oficial (A4 Paisagem)"
-                className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border shadow-2xs ${
+                className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border shadow-2xs whitespace-nowrap shrink-0 ${
                   theme === 'azul_ipme_light'
                     ? 'bg-white border-[#BED4EF] text-[#2B5485] hover:bg-[#EBF3FC]'
                     : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
@@ -879,7 +882,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenNewOccurrence}
               title="Cadastrar Nova Licença Médica ou Readaptação"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
             >
               <Plus className="w-3.5 h-3.5 shrink-0" />
               <span>Nova Ocorrência</span>

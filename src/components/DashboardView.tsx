@@ -121,27 +121,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Welcome & Context Banner no Azul Institucional IPME */}
-      <div className={`${themeConfig.heroBannerClass} rounded-2xl p-6 text-white border ${themeConfig.heroBannerBorderClass} shadow-md`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className={`${themeConfig.heroBannerClass} rounded-2xl p-5 sm:p-6 text-white border ${themeConfig.heroBannerBorderClass} shadow-md`}>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-200 uppercase tracking-wider">
               <span>Gestão Previdenciária Municipal</span>
               <span>·</span>
               <span>Exercício 2026</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white mt-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white mt-1">
               Controle de Licenças Médicas & Readaptações
             </h1>
-            <p className="text-sm text-blue-100/90 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-blue-100/90 mt-1 max-w-2xl">
               Central oficial do IPME para acompanhamento pericial de servidores da Prefeitura Municipal de Eusébio, histórico pericial e controle temporal de afastamentos.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {onOpenExecutiveReport && (
               <button
                 onClick={onOpenExecutiveReport}
-                className="px-4 py-2.5 bg-[#2B5485] hover:bg-[#1E426D] text-white border border-[#5D8BBE]/80 rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-[#2B5485] hover:bg-[#1E426D] text-white border border-[#5D8BBE]/80 rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
                 title="Emitir Relatório Gerencial de Licenças & Readaptações em formato PDF Paisagem"
               >
                 <FileSpreadsheet className="w-4 h-4 text-blue-100" />
@@ -150,14 +150,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
             <button
               onClick={() => onOpenNewOccurrence()}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Registrar Afastamento</span>
             </button>
             <button
               onClick={onOpenNewEmployee}
-              className="px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer backdrop-blur-xs"
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer backdrop-blur-xs whitespace-nowrap"
             >
               <UserPlus className="w-4 h-4 text-blue-200" />
               <span>Novo Servidor</span>
@@ -167,7 +167,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Primary Metrics Strip (6 Indicadores Oficiais com Preenchimento Degradê) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {/* Card 1: Total Servidores (Azul Institucional) */}
         <div 
           onClick={() => onNavigateTab('employees', { employeeStatus: 'ALL' })}
