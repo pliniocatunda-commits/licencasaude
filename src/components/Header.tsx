@@ -494,7 +494,7 @@ export const Header: React.FC<HeaderProps> = ({
           ? 'bg-[#F2F6FC] border-[#C8DCF4]' 
           : 'bg-black/20 border-white/10'
       } shadow-inner transition-colors`}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto scrollbar-none">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between gap-2 sm:gap-3 overflow-visible">
           
           {/* Menu Principal de Navegação (Deslocado para a linha de baixo com total destaque) */}
           <nav className={`flex items-center gap-1 sm:gap-1.5 md:gap-2 font-medium text-xs sm:text-sm ${themeConfig.navTextClass} py-0.5 shrink-0`}>
