@@ -61,14 +61,41 @@ export class ClientDatabase {
     }
   }
 
+  public ensureFullEmployeesLoaded(): void {
+    if (this.activeTenantId === 'ipme_eusebio') {
+      if (!this.data.employees || this.data.employees.length < 1000) {
+        console.info(`[IPME] Restaurando catálogo oficial completo de ${INITIAL_DATA.employees.length} servidores de Eusébio.`);
+        const map = new Map<string, Employee>();
+        (INITIAL_DATA.employees || []).forEach(e => map.set(e.matricula.trim(), e));
+        (this.data.employees || []).forEach(e => map.set(e.matricula.trim(), e));
+        this.data.employees = Array.from(map.values());
+        this.saveToStorage(this.data);
+      }
+    }
+  }
+
   public getFullData(): DatabaseSchema {
+    this.ensureFullEmployeesLoaded();
     return JSON.parse(JSON.stringify(this.data));
   }
 
   public syncFromCloud(emps?: Employee[], occs?: Occurrence[], docs?: Doctor[], secs?: Secretaria[]) {
     let changed = false;
     if (emps && emps.length > 0) {
-      this.data.employees = emps;
+      if (this.activeTenantId === 'ipme_eusebio') {
+        // Se a nuvem tiver menos de 1.000 servidores, nunca descarta o catálogo de 1.527 servidores de Eusébio!
+        const map = new Map<string, Employee>();
+        if (this.data.employees && this.data.employees.length >= 1000) {
+          this.data.employees.forEach(e => map.set(e.matricula.trim(), e));
+        } else {
+          (INITIAL_DATA.employees || []).forEach(e => map.set(e.matricula.trim(), e));
+          (this.data.employees || []).forEach(e => map.set(e.matricula.trim(), e));
+        }
+        emps.forEach(e => map.set(e.matricula.trim(), e));
+        this.data.employees = Array.from(map.values());
+      } else {
+        this.data.employees = emps;
+      }
       changed = true;
     }
     if (occs && occs.length > 0) {
@@ -147,14 +174,21 @@ export class ClientDatabase {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.employees && parsed.occurrences) {
-          // SE estiver em Produção Oficial (ipme_eusebio) e o cache contiver menos de 100 servidores (cache com os 5 servidores mock antigos),
-          // atualiza de imediato para a base oficial completa de 1.527 servidores de Eusébio!
-          if (this.activeTenantId === 'ipme_eusebio' && parsed.employees.length < 100) {
-            console.info(`[IPME] Detectado cache com apenas ${parsed.employees.length} servidores. Atualizando para os ${INITIAL_DATA.employees.length} servidores oficiais.`);
+          // SE estiver em Produção Oficial (ipme_eusebio) e o cache contiver menos de 1.000 servidores,
+          // restaura de imediato o catálogo completo oficial de 1.527 servidores de Eusébio!
+          if (this.activeTenantId === 'ipme_eusebio' && parsed.employees.length < 1000) {
+            console.info(`[IPME] Detectado cache com apenas ${parsed.employees.length} servidores. Restaurando os ${INITIAL_DATA.employees.length} servidores oficiais.`);
             const full = JSON.parse(JSON.stringify(INITIAL_DATA)) as DatabaseSchema;
-            if (parsed.occurrences && parsed.occurrences.length > full.occurrences.length) {
+            if (parsed.occurrences && parsed.occurrences.length > 0) {
               full.occurrences = parsed.occurrences;
             }
+            const empMap = new Map<string, Employee>();
+            full.employees.forEach(e => empMap.set(e.matricula.trim(), e));
+            (parsed.employees || []).forEach((e: Employee) => empMap.set(e.matricula.trim(), e));
+            full.employees = Array.from(empMap.values());
+            if (parsed.doctors && parsed.doctors.length > 0) full.doctors = parsed.doctors;
+            if (parsed.secretarias && parsed.secretarias.length > 0) full.secretarias = parsed.secretarias;
+            if (parsed.users && parsed.users.length > 0) full.users = parsed.users;
             this.saveToStorage(full);
             return full;
           }

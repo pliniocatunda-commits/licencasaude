@@ -280,7 +280,9 @@ export const firestoreService = {
         onProgress?.(`Enviando servidores para a nuvem (${Math.min((idx + 1) * 400, data.employees.length)} de ${data.employees.length})...`, pct);
         const batchEmp = writeBatch(firestoreDb);
         for (const e of chunk) {
-          batchEmp.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid), e.matricula), e, { merge: true });
+          if (!e.matricula || !String(e.matricula).trim()) continue;
+          const cleanMatricula = String(e.matricula).trim().replace(/[\/\\]/g, '_');
+          batchEmp.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid), cleanMatricula), e, { merge: true });
           totalUploaded++;
         }
         await batchEmp.commit();

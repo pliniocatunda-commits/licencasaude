@@ -157,7 +157,7 @@ class ApiService {
             firestoreService.getEmployees(this.getActiveTenantId()),
           ]);
           if (cloudOccs && cloudOccs.length > 0) {
-            clientDb.syncFromCloud(cloudEmps, cloudOccs);
+            clientDb.syncFromCloud(cloudEmps && cloudEmps.length >= 1000 ? cloudEmps : undefined, cloudOccs);
           }
         } catch (e) {
           console.warn('[API] Falha ao carregar métricas da nuvem, usando cache local:', e);
@@ -181,7 +181,7 @@ class ApiService {
       async () => {
         try {
           const cloudEmps = await firestoreService.getEmployees(this.getActiveTenantId());
-          if (cloudEmps && cloudEmps.length > 0) {
+          if (cloudEmps && cloudEmps.length >= 1000) {
             clientDb.syncFromCloud(cloudEmps);
             return clientDb.getEmployees(search, secretaria, status);
           }

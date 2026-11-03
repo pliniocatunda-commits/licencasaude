@@ -167,7 +167,8 @@ export const CloudDatabaseModal: React.FC<CloudDatabaseModalProps> = ({
     event.target.value = '';
   };
 
-  const hasMoreLocalOccurrences = localSummary.occurrencesCount > cloudSummary.occurrencesCount;
+  const needsCloudSync = localSummary.occurrencesCount > cloudSummary.occurrencesCount || localSummary.employeesCount > cloudSummary.employeesCount;
+  const hasMoreLocalOccurrences = needsCloudSync;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -337,6 +338,26 @@ export const CloudDatabaseModal: React.FC<CloudDatabaseModalProps> = ({
                   style={{ width: `${progressPct}%` }}
                 ></div>
               </div>
+            </div>
+          )}
+
+          {/* Alerta se a base de servidores local estiver incompleta */}
+          {localSummary.employeesCount < 1000 && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs flex items-center justify-between gap-2">
+              <span className="text-amber-900 font-medium">
+                Detectado apenas {localSummary.employeesCount} servidor na memória local. Deseja recarregar a lista oficial com todos os 1.527 servidores de Eusébio?
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  await api.resetEusebioOfficial();
+                  await loadSummaries();
+                  if (onDataChanged) onDataChanged();
+                }}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shrink-0 cursor-pointer shadow-xs"
+              >
+                Restaurar 1.527 Servidores
+              </button>
             </div>
           )}
 
