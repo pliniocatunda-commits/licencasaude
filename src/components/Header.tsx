@@ -292,18 +292,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* Botão Central de Nuvem & Backup Firestore */}
-          <button
-            type="button"
-            onClick={() => setCloudModalOpen(true)}
-            title="Central de Nuvem & Backup: Google Cloud Firestore"
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-sky-400/40 bg-sky-500/20 text-sky-200 hover:bg-sky-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
-          >
-            <Cloud className="w-3.5 h-3.5 text-sky-300" />
-            <span className="hidden sm:inline font-mono uppercase text-[10px] tracking-wider">
-              Nuvem & Backup
-            </span>
-          </button>
 
           {/* User Account Dropdown */}
           <div ref={profileRef} className="relative z-50">
@@ -426,6 +414,26 @@ export const Header: React.FC<HeaderProps> = ({
                       <Lock className="w-3 h-3 text-slate-400" />
                     </div>
                   )}
+
+                  {/* Central de Nuvem & Backup Firestore */}
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setCloudModalOpen(true);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-sky-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-sky-300 shrink-0" />
+                      <div>
+                        <span className="font-semibold block text-white">Nuvem & Backup</span>
+                        <span className="text-[10px] text-sky-200/80">Google Cloud Firestore</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1.5 py-0.5 rounded font-bold">
+                      Acessar
+                    </span>
+                  </button>
                 </div>
 
                 <div className="border-t border-white/10 mt-2 pt-2 px-2 space-y-1">
