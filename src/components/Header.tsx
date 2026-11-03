@@ -296,178 +296,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
 
-          {/* User Account Dropdown */}
-          <div ref={profileRef} className="relative z-50">
-            <button
-              type="button"
-              onClick={() => {
-                setProfileDropdownOpen(!profileDropdownOpen);
-              }}
-              className={`flex items-center gap-2.5 p-1.5 sm:p-2 rounded-xl transition-colors text-left border shadow-2xs ${themeConfig.profileBtnHoverClass} ${themeConfig.profileBtnBorderClass}`}
-            >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-700 border border-emerald-400/30 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden shadow-xs">
-                {currentUser.avatar_url ? (
-                  <img 
-                    src={currentUser.avatar_url} 
-                    alt={currentUser.name} 
-                    className="w-full h-full object-cover" 
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <span>{currentUser.name.charAt(0)}</span>
-                )}
-              </div>
-              <div className="hidden sm:block">
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs font-semibold truncate max-w-[90px] md:max-w-[120px] lg:max-w-[150px] ${theme === 'azul_ipme_light' ? 'text-slate-900' : 'text-white'}`}>
-                    {currentUser.name}
-                  </span>
-                  <span className={`text-[10px] font-mono uppercase px-1.5 py-0.2 rounded font-bold ${
-                    currentUser.role === 'admin' 
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
-                      : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                  }`}>
-                    {currentUser.role === 'admin' ? 'Admin' : 'Operador'}
-                  </span>
-                </div>
-                <p className={`text-[10px] truncate max-w-[140px] hidden lg:block ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-100/80'}`}>
-                  {currentUser.email}
-                </p>
-              </div>
-              <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-200'}`} />
-            </button>
 
-            {/* Profile Menu Dropdown */}
-            {profileDropdownOpen && (
-              <div 
-                className={`absolute right-0 mt-2 w-72 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} shadow-2xl py-2 z-50 text-white animate-in fade-in zoom-in-95 duration-100`}
-                onClick={() => setProfileDropdownOpen(false)}
-              >
-                <div className="px-4 py-2 border-b border-white/10">
-                  <p className="text-xs font-semibold text-white">{currentUser.name}</p>
-                  <p className="text-[11px] text-blue-100/80">{currentUser.email}</p>
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300">
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>{currentUser.department}</span>
-                  </div>
-                  <div className="mt-2 text-[10px] bg-white/10 p-1.5 rounded text-white/90 border border-white/10">
-                    <span className="font-semibold text-white">Nível de Permissão:</span>{' '}
-                    {currentUser.role === 'admin' 
-                      ? 'Superusuário Admin (Acesso Total, Exclusão e RBAC)' 
-                      : 'Operador Pericial (Leitura, Escrita, Prorrogação e Conclusão)'}
-                  </div>
-                </div>
-
-                {/* Theme Selector Option inside Profile */}
-                <div className="p-2 border-b border-white/10 space-y-1">
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      setThemeModalOpen(true);
-                    }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-blue-100 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-blue-200" />
-                      <div>
-                        <span className="font-semibold block text-white">Mudar Cores do Sistema</span>
-                        <span className="text-[10px] text-blue-200/80">Ativo: {themeConfig.name}</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-white/20 text-white border border-white/30 px-1.5 py-0.5 rounded font-bold">
-                      Trocar
-                    </span>
-                  </button>
-
-                  {isMasterAdmin ? (
-                    <button
-                      onClick={() => {
-                        setProfileDropdownOpen(false);
-                        setTenantModalOpen(true);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-emerald-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Database className="w-4 h-4 text-emerald-300" />
-                        <div>
-                          <span className="font-semibold block text-white">Banco de Dados & Clientes</span>
-                          <span className="text-[10px] text-emerald-200/90">
-                            {tenantNome}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-1.5 py-0.5 rounded font-bold">
-                        Acesso Master
-                      </span>
-                    </button>
-                  ) : (
-                    <div className="w-full px-2.5 py-1.5 rounded-lg text-xs text-slate-300 bg-white/5 border border-white/10 flex items-center justify-between select-none">
-                      <div className="flex items-center gap-2">
-                        <Database className="w-4 h-4 text-slate-400" />
-                        <div>
-                          <span className="font-semibold block text-white">Base Vinculada</span>
-                          <span className="text-[10px] text-slate-300">
-                            {tenantNome}
-                          </span>
-                        </div>
-                      </div>
-                      <Lock className="w-3 h-3 text-slate-400" />
-                    </div>
-                  )}
-
-                  {/* Central de Nuvem & Backup Firestore */}
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      setCloudModalOpen(true);
-                    }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-sky-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Cloud className="w-4 h-4 text-sky-300 shrink-0" />
-                      <div>
-                        <span className="font-semibold block text-white">Nuvem & Backup</span>
-                        <span className="text-[10px] text-sky-200/80">Google Cloud Firestore</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1.5 py-0.5 rounded font-bold">
-                      Acessar
-                    </span>
-                  </button>
-                </div>
-
-                <div className="border-t border-white/10 mt-2 pt-2 px-2 space-y-1">
-                  {onOpenChangePassword && (
-                    <button
-                      onClick={() => {
-                        setProfileDropdownOpen(false);
-                        onOpenChangePassword();
-                      }}
-                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-amber-200 hover:bg-white/10 hover:text-amber-100 flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <KeyRound className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Alterar Minha Senha</span>
-                    </button>
-                  )}
-                  {onLogout && (
-                    <button
-                      onClick={() => {
-                        setProfileDropdownOpen(false);
-                        onLogout();
-                      }}
-                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-red-300 hover:bg-red-500/20 hover:text-red-100 flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <LogOut className="w-3.5 h-3.5 text-red-400" />
-                      <span>Encerrar Sessão / Sair</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Direct Logout Button */}
           {onLogout && (
@@ -837,56 +666,221 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
             </div>
+          </nav>
 
-            {/* 4. HISTÓRICO & TRILHA DE AUDITORIA */}
+          {/* Menu do Operador Logado posicionado na barra de navegação com alinhamento e proporção perfeitos */}
+          <div ref={profileRef} className="relative shrink-0 z-50 ml-auto">
             <button
               type="button"
               onClick={() => {
-                setActiveTab('audit');
+                setProfileDropdownOpen(!profileDropdownOpen);
                 setCadastrosDropdownOpen(false);
                 setLicencasDropdownOpen(false);
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                activeTab === 'audit'
-                  ? theme === 'azul_ipme_light'
-                    ? 'bg-[#EBF3FC] text-[#1E426D] font-bold border border-[#97BDE8] shadow-xs'
-                    : 'bg-white/20 text-white font-bold border border-white/30 shadow-xs'
-                  : themeConfig.navHoverClass
-              }`}
-              title="Trilha de Auditoria e Histórico Completo de Alterações"
+              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-left border shadow-2xs cursor-pointer ${themeConfig.profileBtnHoverClass} ${themeConfig.profileBtnBorderClass}`}
+              title={`Operador logado: ${currentUser.name} (${currentUser.role === 'admin' ? 'Administrador' : 'Operador'})`}
             >
-              <History className={`w-4 h-4 shrink-0 ${activeTab === 'audit' ? 'text-blue-200' : 'opacity-70'}`} />
-              <span>Histórico / Trilha</span>
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-700 border border-emerald-400/30 flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden shadow-xs">
+                {currentUser.avatar_url ? (
+                  <img 
+                    src={currentUser.avatar_url} 
+                    alt={currentUser.name} 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span>{currentUser.name.charAt(0)}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-semibold truncate max-w-[120px] sm:max-w-[170px] md:max-w-[220px] ${theme === 'azul_ipme_light' ? 'text-slate-900' : 'text-white'}`}>
+                  {currentUser.name}
+                </span>
+                <span className={`text-[10px] font-mono uppercase px-1.5 py-0.2 rounded font-bold ${
+                  currentUser.role === 'admin' 
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                    : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                }`}>
+                  {currentUser.role === 'admin' ? 'Admin' : 'Operador'}
+                </span>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 shrink-0 opacity-70 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 opacity-100' : ''} ${theme === 'azul_ipme_light' ? 'text-slate-500' : 'text-blue-200'}`} />
             </button>
-          </nav>
 
-          {/* Atalhos Rápidos Operacionais alinhados à direita na barra de navegação */}
-          <div className="flex items-center gap-2 shrink-0 ml-auto pl-2">
-            {onOpenExecutiveReport && (
-              <button
-                type="button"
-                onClick={onOpenExecutiveReport}
-                title="Abrir Relatório Executivo Oficial (A4 Paisagem)"
-                className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border shadow-2xs whitespace-nowrap shrink-0 ${
-                  theme === 'azul_ipme_light'
-                    ? 'bg-white border-[#BED4EF] text-[#2B5485] hover:bg-[#EBF3FC]'
-                    : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-                }`}
+            {/* Profile Menu Dropdown */}
+            {profileDropdownOpen && (
+              <div 
+                className={`absolute right-0 mt-2 w-72 sm:w-80 rounded-xl ${themeConfig.dropdownBgClass} border ${themeConfig.dropdownBorderClass} shadow-2xl py-2 z-50 text-white animate-in fade-in zoom-in-95 duration-100`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-300 shrink-0" />
-                <span>Relatório Executivo</span>
-              </button>
-            )}
+                <div className="px-4 py-2 border-b border-white/10">
+                  <p className="text-xs font-semibold text-white">{currentUser.name}</p>
+                  <p className="text-[11px] text-blue-100/80 truncate">{currentUser.email}</p>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>{currentUser.department}</span>
+                  </div>
+                  <div className="mt-2 text-[10px] bg-white/10 p-1.5 rounded text-white/90 border border-white/10">
+                    <span className="font-semibold text-white">Nível de Permissão:</span>{' '}
+                    {currentUser.role === 'admin' 
+                      ? 'Superusuário Admin (Acesso Total, Exclusão e RBAC)' 
+                      : 'Operador Pericial (Leitura, Escrita, Prorrogação e Conclusão)'}
+                  </div>
+                </div>
 
-            <button
-              type="button"
-              onClick={onOpenNewOccurrence}
-              title="Cadastrar Nova Licença Médica ou Readaptação"
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5 shrink-0" />
-              <span>Nova Ocorrência</span>
-            </button>
+                {/* Menu de Ações e Ferramentas do Operador */}
+                <div className="p-2 border-b border-white/10 space-y-1">
+                  {/* 1. HISTÓRICO & TRILHA DE AUDITORIA (Deslocado para cá conforme solicitado) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('audit');
+                      setProfileDropdownOpen(false);
+                      setCadastrosDropdownOpen(false);
+                      setLicencasDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                      activeTab === 'audit'
+                        ? 'bg-purple-500/25 text-purple-200 border border-purple-400/40 font-semibold'
+                        : 'text-purple-200 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
+                        <History className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="font-semibold block text-white">Histórico / Trilha</span>
+                        <span className="text-[10px] text-purple-200/80">Trilha de auditoria e logs</span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-400/30 px-1.5 py-0.5 rounded font-mono font-bold">
+                      Acessar
+                    </span>
+                  </button>
+
+                  {/* 2. Mudar Cores do Sistema */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setThemeModalOpen(true);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-blue-100 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 shrink-0">
+                        <Palette className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="font-semibold block text-white">Mudar Cores do Sistema</span>
+                        <span className="text-[10px] text-blue-200/80">Ativo: {themeConfig.name}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-white/20 text-white border border-white/30 px-1.5 py-0.5 rounded font-bold">
+                      Trocar
+                    </span>
+                  </button>
+
+                  {/* 3. Banco de Dados & Clientes */}
+                  {isMasterAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        setTenantModalOpen(true);
+                      }}
+                      className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-emerald-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-md bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+                          <Database className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="font-semibold block text-white">Banco de Dados & Clientes</span>
+                          <span className="text-[10px] text-emerald-200/90 truncate max-w-[150px] block">
+                            {tenantNome}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-1.5 py-0.5 rounded font-bold">
+                        Master
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="w-full px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-white/5 border border-white/10 flex items-center justify-between select-none">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-md bg-white/10 border border-white/20 flex items-center justify-center text-slate-300 shrink-0">
+                          <Database className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="font-semibold block text-white">Base Vinculada</span>
+                          <span className="text-[10px] text-slate-300 truncate max-w-[150px] block">
+                            {tenantNome}
+                          </span>
+                        </div>
+                      </div>
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  )}
+
+                  {/* 4. Central de Nuvem & Backup Firestore */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setCloudModalOpen(true);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-sky-200 hover:bg-white/10 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 shrink-0">
+                        <Cloud className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="font-semibold block text-white">Nuvem & Backup</span>
+                        <span className="text-[10px] text-sky-200/80">Google Cloud Firestore</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1.5 py-0.5 rounded font-bold">
+                      Acessar
+                    </span>
+                  </button>
+                </div>
+
+                {/* Footer com Alterar Senha e Sair */}
+                <div className="border-t border-white/10 mt-1 pt-1.5 px-2 space-y-1">
+                  {onOpenChangePassword && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        onOpenChangePassword();
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-amber-200 hover:bg-white/10 hover:text-amber-100 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Alterar Minha Senha</span>
+                    </button>
+                  )}
+                  {onLogout && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-red-300 hover:bg-red-500/20 hover:text-red-100 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-red-400" />
+                      <span>Encerrar Sessão / Sair</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
