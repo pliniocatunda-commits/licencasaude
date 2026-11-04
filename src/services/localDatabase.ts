@@ -14,6 +14,56 @@ export interface DatabaseSchema {
   audit_logs: AuditLog[];
 }
 
+export const DEFAULT_IPME_USERS: AppUser[] = [
+  {
+    id: 'user_master_plinio',
+    email: 'pliniocatunda@gmail.com',
+    name: 'Plínio Catunda (Administrador Master)',
+    role: 'admin',
+    auth_provider: 'google',
+    department: 'IPME - Presidência & Governança',
+    cargo: 'Diretor-Presidente do IPME',
+    funcao_pericial: 'Diretor-Presidente do Instituto',
+    ativo: true,
+    email_verified: true,
+    is_master_admin: true,
+    is_presidente: true,
+    avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
+    created_at: '2026-01-01T08:00:00.000Z',
+  },
+  {
+    id: 'user_oper_luiz_plinio',
+    email: 'plinio.catunda@ipmeusebio.ce.gov.br',
+    name: 'Luiz Plinio',
+    role: 'operator',
+    auth_provider: 'corporate',
+    department: 'IPME - Junta Médica Pericial',
+    cargo: 'Assistente operacional',
+    funcao_pericial: 'Assistente Operacional da Junta Médica',
+    ativo: true,
+    email_verified: true,
+    password: 'Ipme@2026',
+    tenant_id: 'ipme_eusebio',
+    created_at: '2026-01-01T08:00:00.000Z',
+  },
+  {
+    id: 'user_oper_plinio_camara',
+    email: 'plinio.camara@ipmeusebio.ce.gov.br',
+    name: 'Plinio Bezerra Camara Campos',
+    role: 'operator',
+    auth_provider: 'corporate',
+    department: 'IPME - Junta Médica Pericial',
+    cargo: 'Presidente do IPME',
+    funcao_pericial: 'Presidente do IPME',
+    ativo: true,
+    email_verified: true,
+    password: 'Ipme@2026',
+    is_presidente: true,
+    tenant_id: 'ipme_eusebio',
+    created_at: '2026-01-01T08:00:00.000Z',
+  },
+];
+
 const INITIAL_DATA: DatabaseSchema = eusebioOfficialData as unknown as DatabaseSchema;
 const SANDBOX_INITIAL_DATA: DatabaseSchema = sandboxOfficialData as unknown as DatabaseSchema;
 
@@ -79,7 +129,7 @@ export class ClientDatabase {
     return JSON.parse(JSON.stringify(this.data));
   }
 
-  public syncFromCloud(emps?: Employee[], occs?: Occurrence[], docs?: Doctor[], secs?: Secretaria[]) {
+  public syncFromCloud(emps?: Employee[], occs?: Occurrence[], docs?: Doctor[], secs?: Secretaria[], usrs?: AppUser[]) {
     let changed = false;
     if (emps && emps.length > 0) {
       if (this.activeTenantId === 'ipme_eusebio') {
@@ -108,6 +158,22 @@ export class ClientDatabase {
     }
     if (secs && secs.length > 0) {
       this.data.secretarias = secs;
+      changed = true;
+    }
+    if (usrs && usrs.length > 0) {
+      if (!this.data.users) this.data.users = [];
+      const userMap = new Map<string, AppUser>();
+      this.data.users.forEach(u => {
+        if (u.email) userMap.set(u.email.toLowerCase().trim(), u);
+      });
+      usrs.forEach(u => {
+        if (u.email) {
+          const key = u.email.toLowerCase().trim();
+          const existing = userMap.get(key);
+          userMap.set(key, { ...existing, ...u });
+        }
+      });
+      this.data.users = Array.from(userMap.values());
       changed = true;
     }
     if (changed) {
@@ -202,25 +268,45 @@ export class ClientDatabase {
             );
           }
 
-          if (parsed.users && Array.isArray(parsed.users)) {
-            let hasPresidente = parsed.users.some((u: AppUser) => u.is_presidente === true);
-            for (const u of parsed.users) {
-              if (u.email?.toLowerCase() === 'pliniocatunda@gmail.com') {
-                if (!u.cargo || u.cargo.includes('Administrador')) {
-                  u.cargo = 'Diretor-Presidente do IPME';
-                }
-                if (!u.funcao_pericial) {
-                  u.funcao_pericial = 'Diretor-Presidente do Instituto';
-                }
-                if (!hasPresidente) {
-                  u.is_presidente = true;
-                  hasPresidente = true;
-                }
+          if (!parsed.users || !Array.isArray(parsed.users)) {
+            parsed.users = [];
+          }
+
+          if (this.activeTenantId === 'ipme_eusebio') {
+            const userMap = new Map<string, AppUser>();
+            parsed.users.forEach((u: AppUser) => {
+              if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
+            });
+            DEFAULT_IPME_USERS.forEach(defU => {
+              const key = defU.email.toLowerCase().trim();
+              if (!userMap.has(key)) {
+                userMap.set(key, { ...defU });
+              } else {
+                const cur = userMap.get(key)!;
+                if (!cur.password && defU.password) cur.password = defU.password;
+                if (cur.ativo === undefined) cur.ativo = true;
+              }
+            });
+            parsed.users = Array.from(userMap.values());
+          }
+
+          let hasPresidente = parsed.users.some((u: AppUser) => u.is_presidente === true);
+          for (const u of parsed.users) {
+            if (u.email?.toLowerCase() === 'pliniocatunda@gmail.com') {
+              if (!u.cargo || u.cargo.includes('Administrador')) {
+                u.cargo = 'Diretor-Presidente do IPME';
+              }
+              if (!u.funcao_pericial) {
+                u.funcao_pericial = 'Diretor-Presidente do Instituto';
+              }
+              if (!hasPresidente) {
+                u.is_presidente = true;
+                hasPresidente = true;
               }
             }
-            if (!hasPresidente && parsed.users.length > 0) {
-              parsed.users[0].is_presidente = true;
-            }
+          }
+          if (!hasPresidente && parsed.users.length > 0) {
+            parsed.users[0].is_presidente = true;
           }
 
           // Normalização e consolidação automática de secretarias em servidores e ocorrências
@@ -263,6 +349,12 @@ export class ClientDatabase {
     const seed = this.activeTenantId === 'studio_sandbox'
       ? (JSON.parse(JSON.stringify(SANDBOX_INITIAL_DATA)) as DatabaseSchema)
       : (JSON.parse(JSON.stringify(INITIAL_DATA)) as DatabaseSchema);
+    if (!seed.users || !Array.isArray(seed.users)) {
+      seed.users = [];
+    }
+    if (this.activeTenantId === 'ipme_eusebio') {
+      seed.users = JSON.parse(JSON.stringify(DEFAULT_IPME_USERS));
+    }
     this.saveToStorage(seed);
     return seed;
   }

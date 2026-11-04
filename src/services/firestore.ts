@@ -170,13 +170,53 @@ export const firestoreService = {
   },
 
   // --- Users ---
-  async getUsers(): Promise<AppUser[]> {
-    const snap = await getDocs(collection(firestoreDb, COLLECTIONS.USERS));
-    return snap.docs.map(d => d.data() as AppUser);
+  async getUsers(tenantId?: string): Promise<AppUser[]> {
+    const tid = this.getTenantId(tenantId);
+    const usersMap = new Map<string, AppUser>();
+    
+    // 1. Tenta carregar da partição do tenant
+    try {
+      const snapTenant = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid)));
+      snapTenant.docs.forEach(d => {
+        const u = d.data() as AppUser;
+        if (u && u.email) usersMap.set(u.email.toLowerCase().trim(), u);
+      });
+    } catch (e) {
+      console.warn('[Firestore] Falha ao carregar usuários da partição do tenant:', e);
+    }
+
+    // 2. Carrega da raiz global (para redundância e compatibilidade)
+    try {
+      const snapRoot = await getDocs(collection(firestoreDb, COLLECTIONS.USERS));
+      snapRoot.docs.forEach(d => {
+        const u = d.data() as AppUser;
+        if (u && u.email && !usersMap.has(u.email.toLowerCase().trim())) {
+          usersMap.set(u.email.toLowerCase().trim(), u);
+        }
+      });
+    } catch (e) {
+      console.warn('[Firestore] Falha ao carregar usuários da coleção raiz:', e);
+    }
+
+    return Array.from(usersMap.values());
   },
 
-  async saveUser(user: AppUser): Promise<void> {
-    await setDoc(doc(firestoreDb, COLLECTIONS.USERS, user.email.toLowerCase()), user, { merge: true });
+  async saveUser(user: AppUser, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    const docId = user.email.toLowerCase().trim();
+    await Promise.all([
+      setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId), user, { merge: true }),
+      setDoc(doc(firestoreDb, COLLECTIONS.USERS, docId), user, { merge: true }),
+    ]);
+  },
+
+  async deleteUser(email: string, tenantId?: string): Promise<void> {
+    const tid = this.getTenantId(tenantId);
+    const docId = email.toLowerCase().trim();
+    await Promise.all([
+      deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId)).catch(() => {}),
+      deleteDoc(doc(firestoreDb, COLLECTIONS.USERS, docId)).catch(() => {}),
+    ]);
   },
 
   /**
@@ -186,6 +226,7 @@ export const firestoreService = {
     connected: boolean;
     occurrencesCount: number;
     employeesCount: number;
+    usersCount?: number;
     lastUpdated?: string;
   }> {
     const tid = this.getTenantId(tenantId);
@@ -194,12 +235,16 @@ export const firestoreService = {
       if (!isOnline) {
         return { connected: false, occurrencesCount: 0, employeesCount: 0 };
       }
-      const occSnap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid)));
-      const empSnap = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid)));
+      const [occSnap, empSnap, usrSnap] = await Promise.all([
+        getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.OCCURRENCES, tid))),
+        getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.EMPLOYEES, tid))),
+        getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid))),
+      ]);
       return {
         connected: true,
         occurrencesCount: occSnap.size,
         employeesCount: empSnap.size,
+        usersCount: usrSnap.size,
       };
     } catch (err) {
       console.warn('[Firestore] Erro ao obter resumo da nuvem:', err);
@@ -208,7 +253,7 @@ export const firestoreService = {
   },
 
   /**
-   * Faz upload completo e em lotes de toda a base (servidores, licenças, médicos, secretarias)
+   * Faz upload completo e em lotes de toda a base (servidores, licenças, médicos, secretarias, operadores)
    * para a partição isolada do Tenant no Google Cloud Firestore.
    */
   async uploadFullDatabaseToFirestore(
@@ -228,9 +273,23 @@ export const firestoreService = {
 
     onProgress?.('Conectando ao Google Cloud Firestore...', 5);
 
+    // 0. Operadores e Usuários Credenciados
+    if (data.users && data.users.length > 0) {
+      onProgress?.(`Enviando ${data.users.length} operadores do sistema...`, 10);
+      const batchUser = writeBatch(firestoreDb);
+      for (const u of data.users) {
+        if (!u.email) continue;
+        const docId = u.email.toLowerCase().trim();
+        batchUser.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId), u, { merge: true });
+        batchUser.set(doc(firestoreDb, COLLECTIONS.USERS, docId), u, { merge: true });
+        totalUploaded++;
+      }
+      await batchUser.commit();
+    }
+
     // 1. Médicos Peritos
     if (data.doctors && data.doctors.length > 0) {
-      onProgress?.(`Enviando ${data.doctors.length} médicos peritos...`, 10);
+      onProgress?.(`Enviando ${data.doctors.length} médicos peritos...`, 15);
       const batchDoc = writeBatch(firestoreDb);
       for (const d of data.doctors) {
         batchDoc.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.DOCTORS, tid), String(d.id)), d, { merge: true });
@@ -330,7 +389,7 @@ export const firestoreService = {
         this.getDoctors(tid),
         this.getSecretarias(tid),
         this.getAuditLogs(100, tid),
-        this.getUsers(),
+        this.getUsers(tid),
       ]);
 
       return {

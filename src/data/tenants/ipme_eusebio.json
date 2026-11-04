@@ -22872,5 +22872,51 @@
       "vinculo": "Temporário",
       "is_diretor": false
     }
+  ],
+  "users": [
+    {
+      "id": "user_master_plinio",
+      "email": "pliniocatunda@gmail.com",
+      "name": "Plínio Catunda (Administrador Master)",
+      "role": "admin",
+      "auth_provider": "google",
+      "department": "IPME - Presidência & Governança",
+      "cargo": "Diretor-Presidente do IPME",
+      "funcao_pericial": "Diretor-Presidente do Instituto",
+      "ativo": true,
+      "email_verified": true,
+      "is_master_admin": true,
+      "is_presidente": true,
+      "avatar_url": "/src/assets/images/ipme_logo_correto_1792419543135.jpg"
+    },
+    {
+      "id": "user_oper_luiz_plinio",
+      "email": "plinio.catunda@ipmeusebio.ce.gov.br",
+      "name": "Luiz Plinio",
+      "role": "operator",
+      "auth_provider": "corporate",
+      "department": "IPME - Junta Médica Pericial",
+      "cargo": "Assistente operacional",
+      "funcao_pericial": "Assistente Operacional da Junta Médica",
+      "ativo": true,
+      "email_verified": true,
+      "password": "Ipme@2026",
+      "tenant_id": "ipme_eusebio"
+    },
+    {
+      "id": "user_oper_plinio_camara",
+      "email": "plinio.camara@ipmeusebio.ce.gov.br",
+      "name": "Plinio Bezerra Camara Campos",
+      "role": "operator",
+      "auth_provider": "corporate",
+      "department": "IPME - Junta Médica Pericial",
+      "cargo": "Presidente do IPME",
+      "funcao_pericial": "Presidente do IPME",
+      "ativo": true,
+      "email_verified": true,
+      "password": "Ipme@2026",
+      "is_presidente": true,
+      "tenant_id": "ipme_eusebio"
+    }
   ]
 }

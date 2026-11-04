@@ -152,13 +152,19 @@ class ApiService {
       { method: 'GET' },
       async () => {
         try {
-          const [cloudOccs, cloudEmps] = await Promise.all([
-            firestoreService.getOccurrences(undefined, this.getActiveTenantId()),
-            firestoreService.getEmployees(this.getActiveTenantId()),
+          const tid = this.getActiveTenantId();
+          const [cloudOccs, cloudEmps, cloudUsers] = await Promise.all([
+            firestoreService.getOccurrences(undefined, tid),
+            firestoreService.getEmployees(tid),
+            firestoreService.getUsers(tid),
           ]);
-          if (cloudOccs && cloudOccs.length > 0) {
-            clientDb.syncFromCloud(cloudEmps && cloudEmps.length >= 1000 ? cloudEmps : undefined, cloudOccs);
-          }
+          clientDb.syncFromCloud(
+            cloudEmps && cloudEmps.length >= 1000 ? cloudEmps : undefined,
+            cloudOccs && cloudOccs.length > 0 ? cloudOccs : undefined,
+            undefined,
+            undefined,
+            cloudUsers && cloudUsers.length > 0 ? cloudUsers : undefined
+          );
         } catch (e) {
           console.warn('[API] Falha ao carregar métricas da nuvem, usando cache local:', e);
         }
@@ -643,20 +649,28 @@ class ApiService {
 
   // --- Users ---
   public async getUsers(): Promise<AppUser[]> {
-    const users = await this.request(
-      '/api/users',
-      { method: 'GET' },
-      () => clientDb.getUsers()
-    );
-    if (Array.isArray(users)) {
-      clientDb.syncUsers(users);
+    const tid = this.getActiveTenantId();
+    try {
+      const cloudUsers = await firestoreService.getUsers(tid);
+      if (cloudUsers && cloudUsers.length > 0) {
+        clientDb.syncUsers(cloudUsers);
+      } else {
+        // Se a nuvem estiver vazia, sobe os operadores padrão para o Firestore
+        const localUsers = clientDb.getUsers();
+        if (localUsers.length > 0) {
+          localUsers.forEach(u => firestoreService.saveUser(u, tid).catch(() => {}));
+        }
+      }
+    } catch (e) {
+      console.warn('[API] Falha ao carregar usuários da nuvem:', e);
     }
-    return users;
+    return clientDb.getUsers();
   }
 
   public async createUser(user: Partial<AppUser>): Promise<AppUser> {
     const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
     const actorRole = this.currentUser?.role || 'admin';
+    const tid = this.getActiveTenantId();
     const created = await this.request(
       '/api/users',
       {
@@ -667,6 +681,9 @@ class ApiService {
     );
     if (created) {
       clientDb.upsertUser(created);
+      firestoreService.saveUser(created, tid).catch(err => {
+        console.warn('[Firestore] Erro ao salvar operador na nuvem:', err);
+      });
     }
     return created;
   }
@@ -678,6 +695,7 @@ class ApiService {
   public async updateUser(email: string, user: Partial<AppUser>): Promise<AppUser> {
     const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
     const actorRole = this.currentUser?.role || 'admin';
+    const tid = this.getActiveTenantId();
     const updated = await this.request(
       `/api/users/${email}`,
       {
@@ -688,6 +706,9 @@ class ApiService {
     );
     if (updated) {
       clientDb.upsertUser(updated);
+      firestoreService.saveUser(updated, tid).catch(err => {
+        console.warn('[Firestore] Erro ao atualizar operador na nuvem:', err);
+      });
     }
     return updated;
   }
@@ -695,7 +716,8 @@ class ApiService {
   public async deleteUser(email: string): Promise<boolean> {
     const actorEmail = this.currentUser?.email || 'Pliniocatunda@gmail.com';
     const actorRole = this.currentUser?.role || 'admin';
-    return this.request(
+    const tid = this.getActiveTenantId();
+    const deleted = await this.request(
       `/api/users/${email}`,
       {
         method: 'DELETE',
@@ -703,12 +725,35 @@ class ApiService {
       },
       () => clientDb.deleteUser(email, actorEmail, actorRole)
     );
+    if (deleted) {
+      clientDb.deleteUser(email, actorEmail, actorRole);
+      firestoreService.deleteUser(email, tid).catch(err => {
+        console.warn('[Firestore] Erro ao excluir operador na nuvem:', err);
+      });
+    }
+    return deleted;
   }
 
   public async login(email: string, name?: string, provider: 'google' | 'corporate' = 'corporate', password?: string, tenantId?: string): Promise<AppUser> {
+    const tid = tenantId || this.getActiveTenantId();
     if (tenantId && email.toLowerCase() !== 'pliniocatunda@gmail.com') {
       this.setActiveTenantId(tenantId);
     }
+
+    // Antes de validar o login, sincroniza operadores com o Google Cloud Firestore
+    try {
+      const emailNorm = email.trim().toLowerCase();
+      const localUser = clientDb.getUsers().find(u => u.email.toLowerCase() === emailNorm);
+      if (!localUser || provider === 'corporate') {
+        const cloudUsers = await firestoreService.getUsers(tid);
+        if (cloudUsers && cloudUsers.length > 0) {
+          clientDb.syncUsers(cloudUsers);
+        }
+      }
+    } catch (e) {
+      console.warn('[API] Aviso ao buscar operadores da nuvem antes de logar:', e);
+    }
+
     const user = await this.request(
       '/api/auth/login',
       {
@@ -725,6 +770,8 @@ class ApiService {
         this.setActiveTenantId(user.tenant_id);
       }
       clientDb.upsertUser(user);
+      // Persiste o último login no Firestore
+      firestoreService.saveUser(user, tid).catch(() => {});
     }
     this.setCurrentUser(user);
     return user;
@@ -1010,17 +1057,18 @@ class ApiService {
     return firestoreService.uploadFullDatabaseToFirestore(this.getActiveTenantId(), fullData, onProgress);
   }
 
-  public async getCloudSummary(): Promise<{ connected: boolean; occurrencesCount: number; employeesCount: number }> {
+  public async getCloudSummary(): Promise<{ connected: boolean; occurrencesCount: number; employeesCount: number; usersCount?: number }> {
     return firestoreService.getCloudSummary(this.getActiveTenantId());
   }
 
-  public getLocalSummary(): { employeesCount: number; occurrencesCount: number; doctorsCount: number; secretariasCount: number } {
+  public getLocalSummary(): { employeesCount: number; occurrencesCount: number; doctorsCount: number; secretariasCount: number; usersCount: number } {
     const data = clientDb.getFullData();
     return {
       employeesCount: data.employees?.length || 0,
       occurrencesCount: data.occurrences?.length || 0,
       doctorsCount: data.doctors?.length || 0,
       secretariasCount: data.secretarias?.length || 0,
+      usersCount: data.users?.length || 0,
     };
   }
 

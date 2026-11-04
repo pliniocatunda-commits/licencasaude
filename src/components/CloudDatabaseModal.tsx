@@ -39,14 +39,16 @@ export const CloudDatabaseModal: React.FC<CloudDatabaseModalProps> = ({
     connected: boolean;
     occurrencesCount: number;
     employeesCount: number;
-  }>({ connected: false, occurrencesCount: 0, employeesCount: 0 });
+    usersCount?: number;
+  }>({ connected: false, occurrencesCount: 0, employeesCount: 0, usersCount: 0 });
 
   const [localSummary, setLocalSummary] = useState<{
     employeesCount: number;
     occurrencesCount: number;
     doctorsCount: number;
     secretariasCount: number;
-  }>({ employeesCount: 0, occurrencesCount: 0, doctorsCount: 0, secretariasCount: 0 });
+    usersCount: number;
+  }>({ employeesCount: 0, occurrencesCount: 0, doctorsCount: 0, secretariasCount: 0, usersCount: 0 });
 
   const loadSummaries = async () => {
     try {
@@ -267,6 +269,12 @@ export const CloudDatabaseModal: React.FC<CloudDatabaseModalProps> = ({
                       {cloudSummary.employeesCount} servidores
                     </span>
                   </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-600">Operadores do Sistema:</span>
+                    <span className="font-bold text-sky-700 text-sm">
+                      {cloudSummary.usersCount ?? 0} credenciados
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -307,6 +315,12 @@ export const CloudDatabaseModal: React.FC<CloudDatabaseModalProps> = ({
                     <span className="text-slate-600">Servidores na Memória:</span>
                     <span className="font-bold text-slate-900 text-sm">
                       {localSummary.employeesCount} servidores
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-600">Operadores na Memória:</span>
+                    <span className="font-bold text-slate-900 text-sm">
+                      {localSummary.usersCount} credenciados
                     </span>
                   </div>
                 </div>

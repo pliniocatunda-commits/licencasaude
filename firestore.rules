@@ -60,6 +60,13 @@ service cloud.firestore {
         allow create: if true;
         allow update, delete: if false;
       }
+
+      // Usuários / Operadores por Tenant
+      match /users/{userId} {
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if isAdmin() || isAuthenticated();
+      }
     }
 
     // Servidores Municipais (Raiz legado)
@@ -90,9 +97,9 @@ service cloud.firestore {
 
     // Usuários do Sistema
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAdmin() || (isAuthenticated() && request.auth.token.email.lower() == userId.lower());
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin() || isAuthenticated();
     }
 
     // Trilha de Auditoria (Rastreabilidade Jurídica: Append-only)

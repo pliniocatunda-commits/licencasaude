@@ -159,6 +159,10 @@
       "schema": { "$ref": "#/entities/AuditLog" },
       "description": "Trilha de auditoria pericial isolada e imutável por cliente."
     },
+    "/tenants/{tenantId}/users/{userId}": {
+      "schema": { "$ref": "#/entities/AppUser" },
+      "description": "Operadores e usuários credenciados vinculados ao cliente/tenant."
+    },
     "/employees/{matricula}": {
       "schema": { "$ref": "#/entities/Employee" },
       "description": "Coleção com todos os servidores públicos municipais de Eusébio (raiz legado)."
