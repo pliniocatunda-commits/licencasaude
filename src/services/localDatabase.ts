@@ -22,13 +22,29 @@ export const DEFAULT_IPME_USERS: AppUser[] = [
     role: 'admin',
     auth_provider: 'google',
     department: 'IPME - Presidência & Governança',
-    cargo: 'Diretor-Presidente do IPME',
-    funcao_pericial: 'Diretor-Presidente do Instituto',
+    cargo: 'Administrador Master do Sistema',
+    funcao_pericial: 'Administrador Master da Governança Previdenciária',
     ativo: true,
     email_verified: true,
     is_master_admin: true,
-    is_presidente: true,
+    is_presidente: false,
     avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
+    created_at: '2026-01-01T08:00:00.000Z',
+  },
+  {
+    id: 'user_oper_plinio_camara',
+    email: 'plinio.camara@ipmeusebio.ce.gov.br',
+    name: 'Plinio Bezerra Camara Campos',
+    role: 'operator',
+    auth_provider: 'corporate',
+    department: 'IPME - Presidência do Instituto',
+    cargo: 'Presidente do IPME',
+    funcao_pericial: 'Presidente do IPME',
+    ativo: true,
+    email_verified: true,
+    password: 'Ipme@2026',
+    is_presidente: true,
+    tenant_id: 'ipme_eusebio',
     created_at: '2026-01-01T08:00:00.000Z',
   },
   {
@@ -43,23 +59,59 @@ export const DEFAULT_IPME_USERS: AppUser[] = [
     ativo: true,
     email_verified: true,
     password: 'Ipme@2026',
+    is_presidente: false,
     tenant_id: 'ipme_eusebio',
     created_at: '2026-01-01T08:00:00.000Z',
   },
+];
+
+export const DEFAULT_SANDBOX_USERS: AppUser[] = [
   {
-    id: 'user_oper_plinio_camara',
-    email: 'plinio.camara@ipmeusebio.ce.gov.br',
-    name: 'Plinio Bezerra Camara Campos',
-    role: 'operator',
-    auth_provider: 'corporate',
-    department: 'IPME - Junta Médica Pericial',
-    cargo: 'Presidente do IPME',
-    funcao_pericial: 'Presidente do IPME',
+    id: 'user_master_plinio_sbx',
+    email: 'pliniocatunda@gmail.com',
+    name: 'Plínio Catunda (Administrador Master)',
+    role: 'admin',
+    auth_provider: 'google',
+    department: 'Studio Sandbox - Governança',
+    cargo: 'Administrador Master do Sistema',
+    funcao_pericial: 'Administrador Master da Governança Previdenciária',
     ativo: true,
     email_verified: true,
-    password: 'Ipme@2026',
+    is_master_admin: true,
     is_presidente: true,
-    tenant_id: 'ipme_eusebio',
+    avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
+    created_at: '2026-01-01T08:00:00.000Z',
+  },
+  {
+    id: 'user_perito_medico',
+    email: 'medico.perito@eusebio.ce.gov.br',
+    name: 'Dr. Marcelo Cavalcante Holanda',
+    role: 'operator',
+    auth_provider: 'corporate',
+    department: 'Studio Sandbox - Junta Médica',
+    cargo: 'Médico Perito Oficial',
+    funcao_pericial: 'Coordenador da Junta Médica Pericial Oficial',
+    ativo: true,
+    email_verified: true,
+    password: 'Perito@2026',
+    is_presidente: false,
+    tenant_id: 'studio_sandbox',
+    created_at: '2026-01-01T08:00:00.000Z',
+  },
+  {
+    id: 'user_rh_operador',
+    email: 'rh.operador@eusebio.ce.gov.br',
+    name: 'Mariana Vasconcelos de Albuquerque',
+    role: 'operator',
+    auth_provider: 'corporate',
+    department: 'Studio Sandbox - Recursos Humanos',
+    cargo: 'Analista de Recursos Humanos',
+    funcao_pericial: 'Coordenação de Gestão de Pessoas',
+    ativo: true,
+    email_verified: true,
+    password: 'RhOperador@2026',
+    is_presidente: false,
+    tenant_id: 'studio_sandbox',
     created_at: '2026-01-01T08:00:00.000Z',
   },
 ];
@@ -283,30 +335,44 @@ export class ClientDatabase {
                 userMap.set(key, { ...defU });
               } else {
                 const cur = userMap.get(key)!;
+                if (key === 'plinio.camara@ipmeusebio.ce.gov.br') {
+                  cur.cargo = 'Presidente do IPME';
+                  cur.funcao_pericial = 'Presidente do IPME';
+                  cur.is_presidente = true;
+                  cur.ativo = true;
+                }
                 if (!cur.password && defU.password) cur.password = defU.password;
                 if (cur.ativo === undefined) cur.ativo = true;
               }
             });
             parsed.users = Array.from(userMap.values());
-          }
+          } else {
+            // Em ambientes de outros clientes / sandbox, remove operadores exclusivos do IPME Eusébio que possam ter vazado
+            parsed.users = parsed.users.filter((u: AppUser) => 
+              u.email?.toLowerCase().trim() !== 'plinio.camara@ipmeusebio.ce.gov.br' &&
+              u.email?.toLowerCase().trim() !== 'plinio.catunda@ipmeusebio.ce.gov.br'
+            );
 
-          let hasPresidente = parsed.users.some((u: AppUser) => u.is_presidente === true);
-          for (const u of parsed.users) {
-            if (u.email?.toLowerCase() === 'pliniocatunda@gmail.com') {
-              if (!u.cargo || u.cargo.includes('Administrador')) {
-                u.cargo = 'Diretor-Presidente do IPME';
-              }
-              if (!u.funcao_pericial) {
-                u.funcao_pericial = 'Diretor-Presidente do Instituto';
-              }
-              if (!hasPresidente) {
-                u.is_presidente = true;
-                hasPresidente = true;
-              }
+            // Garante o Administrador Master em qualquer tenant
+            if (!parsed.users.some((u: AppUser) => u.email?.toLowerCase().trim() === 'pliniocatunda@gmail.com')) {
+              parsed.users.unshift({
+                id: `user_master_${this.activeTenantId}`,
+                email: 'pliniocatunda@gmail.com',
+                name: 'Plínio Catunda (Administrador Master)',
+                role: 'admin',
+                auth_provider: 'google',
+                department: 'Governança & Presidência',
+                cargo: 'Administrador Master do Sistema',
+                funcao_pericial: 'Administrador Master da Governança Previdenciária',
+                ativo: true,
+                email_verified: true,
+                is_master_admin: true,
+                is_presidente: true,
+                avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
+                tenant_id: this.activeTenantId,
+                created_at: '2026-01-01T08:00:00.000Z',
+              });
             }
-          }
-          if (!hasPresidente && parsed.users.length > 0) {
-            parsed.users[0].is_presidente = true;
           }
 
           // Normalização e consolidação automática de secretarias em servidores e ocorrências
@@ -354,6 +420,28 @@ export class ClientDatabase {
     }
     if (this.activeTenantId === 'ipme_eusebio') {
       seed.users = JSON.parse(JSON.stringify(DEFAULT_IPME_USERS));
+    } else if (this.activeTenantId === 'studio_sandbox') {
+      seed.users = JSON.parse(JSON.stringify(DEFAULT_SANDBOX_USERS));
+    } else {
+      seed.users = [
+        {
+          id: `user_master_${this.activeTenantId}`,
+          email: 'pliniocatunda@gmail.com',
+          name: 'Plínio Catunda (Administrador Master)',
+          role: 'admin',
+          auth_provider: 'google',
+          department: 'Governança Previdenciária',
+          cargo: 'Administrador Master do Sistema',
+          funcao_pericial: 'Administrador Master da Governança Previdenciária',
+          ativo: true,
+          email_verified: true,
+          is_master_admin: true,
+          is_presidente: true,
+          avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
+          tenant_id: this.activeTenantId,
+          created_at: '2026-01-01T08:00:00.000Z',
+        }
+      ];
     }
     this.saveToStorage(seed);
     return seed;
@@ -1325,13 +1413,62 @@ export class ClientDatabase {
 
   public syncUsers(serverUsers: AppUser[]): void {
     if (!Array.isArray(serverUsers)) return;
-    this.data.users = [...serverUsers];
+    if (this.activeTenantId === 'ipme_eusebio') {
+      const userMap = new Map<string, AppUser>();
+      serverUsers.forEach(u => {
+        if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
+      });
+      DEFAULT_IPME_USERS.forEach(defU => {
+        const key = defU.email.toLowerCase().trim();
+        if (!userMap.has(key)) {
+          userMap.set(key, { ...defU });
+        } else {
+          const existing = userMap.get(key)!;
+          if (key === 'plinio.camara@ipmeusebio.ce.gov.br') {
+            if (!existing.cargo || existing.cargo.includes('Médico') || existing.cargo.includes('Operador') || existing.cargo.includes('Assistente')) {
+              existing.cargo = 'Presidente do IPME';
+            }
+            if (!existing.funcao_pericial) existing.funcao_pericial = 'Presidente do IPME';
+            existing.is_presidente = true;
+          }
+          if (!existing.password) existing.password = defU.password;
+          if (existing.ativo === undefined) existing.ativo = true;
+        }
+      });
+      this.data.users = Array.from(userMap.values());
+    } else {
+      // Nos outros ambientes, garante que os operadores de Eusébio não vazem
+      this.data.users = serverUsers.filter(u => 
+        u.email?.toLowerCase().trim() !== 'plinio.camara@ipmeusebio.ce.gov.br' &&
+        u.email?.toLowerCase().trim() !== 'plinio.catunda@ipmeusebio.ce.gov.br'
+      );
+      if (!this.data.users.some(u => u.email?.toLowerCase().trim() === 'pliniocatunda@gmail.com')) {
+        this.data.users.unshift({
+          id: `user_master_${this.activeTenantId}`,
+          email: 'pliniocatunda@gmail.com',
+          name: 'Plínio Catunda (Administrador Master)',
+          role: 'admin',
+          auth_provider: 'google',
+          department: 'Governança & Presidência',
+          cargo: 'Administrador Master do Sistema',
+          funcao_pericial: 'Administrador Master da Governança Previdenciária',
+          ativo: true,
+          email_verified: true,
+          is_master_admin: true,
+          is_presidente: true,
+          avatar_url: '/src/assets/images/ipme_logo_correto_1792419543135.jpg',
+          tenant_id: this.activeTenantId,
+          created_at: '2026-01-01T08:00:00.000Z',
+        });
+      }
+    }
     this.saveToStorage(this.data);
   }
 
   public upsertUser(user: AppUser): void {
     if (!user || !user.email) return;
     const emailNorm = user.email.toLowerCase();
+    user.tenant_id = user.tenant_id || this.activeTenantId;
     const idx = this.data.users.findIndex(u => u.email.toLowerCase() === emailNorm);
     if (idx >= 0) {
       this.data.users[idx] = { ...this.data.users[idx], ...user };
@@ -1352,7 +1489,7 @@ export class ClientDatabase {
     const now = new Date().toISOString();
     const existingIndex = this.data.users.findIndex(u => u.email.toLowerCase() === emailNorm);
 
-    // Regra institucional: Apenas um único usuário pode ser designado como Presidente do IPME
+    // Regra institucional: Apenas um único usuário pode ser designado como Presidente dentro deste ambiente
     if (userData.is_presidente === true) {
       this.data.users.forEach(u => {
         if (u.email.toLowerCase() !== emailNorm) {
@@ -1367,11 +1504,12 @@ export class ClientDatabase {
         ...existing,
         ...userData,
         email: existing.email,
+        tenant_id: this.activeTenantId,
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
         cargo: userData.cargo !== undefined ? userData.cargo.trim() : existing.cargo,
         funcao_pericial: userData.funcao_pericial !== undefined ? userData.funcao_pericial.trim() : existing.funcao_pericial,
-        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (existing.is_presidente ?? (isMaster ? true : false)),
+        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (existing.is_presidente ?? false),
         ativo: isMaster ? true : (userData.ativo !== undefined ? userData.ativo : existing.ativo ?? true),
         password: userData.password ? userData.password.trim() : existing.password || 'Ipme@2026',
         email_verified: isMaster ? true : (userData.email_verified !== undefined ? userData.email_verified : existing.email_verified ?? true),
@@ -1382,7 +1520,7 @@ export class ClientDatabase {
         entity_type: 'user',
         entity_id: updated.email,
         action: 'UPDATE',
-        details: `Operador ${updated.name} (${updated.email}) atualizado. Cargo: ${updated.cargo || 'N/A'}. Função: ${updated.funcao_pericial || 'N/A'}. Presidente: ${updated.is_presidente ? 'Sim' : 'Não'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.`,
+        details: `Operador ${updated.name} (${updated.email}) atualizado no ambiente ${this.activeTenantId}. Cargo: ${updated.cargo || 'N/A'}. Função: ${updated.funcao_pericial || 'N/A'}. Presidente: ${updated.is_presidente ? 'Sim' : 'Não'}. Lotação: ${updated.department}. Status: ${updated.ativo !== false ? 'Ativo' : 'Inativo'}.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });
@@ -1402,13 +1540,14 @@ export class ClientDatabase {
         name: userData.name || emailNorm.split('@')[0],
         role: isMaster ? 'admin' : (userData.role || 'operator'),
         auth_provider: isMaster ? 'google' : 'corporate',
-        department: userData.department || 'Prefeitura Municipal de Eusébio',
-        cargo: userData.cargo ? userData.cargo.trim() : (isMaster ? 'Diretor-Presidente do IPME' : 'Operador Pericial'),
-        funcao_pericial: userData.funcao_pericial ? userData.funcao_pericial.trim() : (isMaster ? 'Diretor-Presidente do Instituto' : 'Operador da Junta Médica Pericial'),
-        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : (isMaster ? true : false),
+        tenant_id: this.activeTenantId,
+        department: userData.department || (this.activeTenantId === 'ipme_eusebio' ? 'IPME - Junta Médica Pericial' : 'Junta Médica Pericial'),
+        cargo: userData.cargo ? userData.cargo.trim() : (isMaster ? 'Administrador Master do Sistema' : 'Operador Pericial'),
+        funcao_pericial: userData.funcao_pericial ? userData.funcao_pericial.trim() : (isMaster ? 'Administrador Master da Governança Previdenciária' : 'Operador da Junta Médica Pericial'),
+        is_presidente: userData.is_presidente !== undefined ? !!userData.is_presidente : false,
         telefone: userData.telefone || '',
         ativo: userData.ativo !== undefined ? userData.ativo : true,
-        avatar_url: userData.avatar_url || (isMaster ? '/logo-ipme.png' : ''),
+        avatar_url: userData.avatar_url || (isMaster ? '/src/assets/images/ipme_logo_correto_1792419543135.jpg' : ''),
         password: initialPassword,
         email_verified: true,
         must_change_password: isMaster ? false : (userData.must_change_password !== undefined ? userData.must_change_password : false),
@@ -1419,7 +1558,7 @@ export class ClientDatabase {
         entity_type: 'user',
         entity_id: newUser.email,
         action: 'CREATE',
-        details: `Novo operador corporativo credenciado pelo Administrador: ${newUser.name} (${newUser.email}). Cargo: ${newUser.cargo}. Função: ${newUser.funcao_pericial}. Presidente: ${newUser.is_presidente ? 'Sim' : 'Não'}. Senha inicial definida. Acesso liberado.`,
+        details: `Novo operador corporativo credenciado no ambiente ${this.activeTenantId}: ${newUser.name} (${newUser.email}). Cargo: ${newUser.cargo}. Função: ${newUser.funcao_pericial}. Presidente: ${newUser.is_presidente ? 'Sim' : 'Não'}. Senha inicial definida.`,
         changed_by: actorEmail,
         user_role: actorRole,
       });

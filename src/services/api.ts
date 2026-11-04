@@ -655,14 +655,14 @@ class ApiService {
       if (cloudUsers && cloudUsers.length > 0) {
         clientDb.syncUsers(cloudUsers);
       } else {
-        // Se a nuvem estiver vazia, sobe os operadores padrão para o Firestore
+        // Se a nuvem estiver vazia para este ambiente, sobe os operadores deste ambiente para o Firestore
         const localUsers = clientDb.getUsers();
         if (localUsers.length > 0) {
           localUsers.forEach(u => firestoreService.saveUser(u, tid).catch(() => {}));
         }
       }
     } catch (e) {
-      console.warn('[API] Falha ao carregar usuários da nuvem:', e);
+      console.warn(`[API] Falha ao carregar usuários da nuvem para o ambiente ${tid}:`, e);
     }
     return clientDb.getUsers();
   }
@@ -675,20 +675,25 @@ class ApiService {
       '/api/users',
       {
         method: 'POST',
-        body: JSON.stringify({ ...user, actorEmail, actorRole }),
+        body: JSON.stringify({ ...user, actorEmail, actorRole, tenantId: tid }),
       },
-      () => clientDb.saveUser(user, actorEmail, actorRole)
+      () => clientDb.saveUser({ ...user, tenant_id: tid }, actorEmail, actorRole)
     );
     if (created) {
       clientDb.upsertUser(created);
       firestoreService.saveUser(created, tid).catch(err => {
-        console.warn('[Firestore] Erro ao salvar operador na nuvem:', err);
+        console.warn(`[Firestore] Erro ao salvar operador na nuvem (${tid}):`, err);
       });
     }
     return created;
   }
 
   public async saveUser(user: Partial<AppUser>): Promise<AppUser> {
+    const targetEmail = (user.email || '').trim().toLowerCase();
+    const existing = clientDb.getUsers().find(u => u.email.toLowerCase() === targetEmail);
+    if (existing) {
+      return this.updateUser(targetEmail, user);
+    }
     return this.createUser(user);
   }
 
@@ -700,14 +705,14 @@ class ApiService {
       `/api/users/${email}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ ...user, actorEmail, actorRole }),
+        body: JSON.stringify({ ...user, actorEmail, actorRole, tenantId: tid }),
       },
-      () => clientDb.saveUser({ ...user, email }, actorEmail, actorRole)
+      () => clientDb.saveUser({ ...user, email, tenant_id: tid }, actorEmail, actorRole)
     );
     if (updated) {
       clientDb.upsertUser(updated);
       firestoreService.saveUser(updated, tid).catch(err => {
-        console.warn('[Firestore] Erro ao atualizar operador na nuvem:', err);
+        console.warn(`[Firestore] Erro ao atualizar operador na nuvem (${tid}):`, err);
       });
     }
     return updated;
@@ -721,14 +726,14 @@ class ApiService {
       `/api/users/${email}`,
       {
         method: 'DELETE',
-        body: JSON.stringify({ actorEmail, actorRole }),
+        body: JSON.stringify({ actorEmail, actorRole, tenantId: tid }),
       },
       () => clientDb.deleteUser(email, actorEmail, actorRole)
     );
     if (deleted) {
       clientDb.deleteUser(email, actorEmail, actorRole);
       firestoreService.deleteUser(email, tid).catch(err => {
-        console.warn('[Firestore] Erro ao excluir operador na nuvem:', err);
+        console.warn(`[Firestore] Erro ao excluir operador na nuvem (${tid}):`, err);
       });
     }
     return deleted;

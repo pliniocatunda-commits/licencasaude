@@ -22881,12 +22881,12 @@
       "role": "admin",
       "auth_provider": "google",
       "department": "IPME - Presidência & Governança",
-      "cargo": "Diretor-Presidente do IPME",
-      "funcao_pericial": "Diretor-Presidente do Instituto",
+      "cargo": "Administrador Master do Sistema",
+      "funcao_pericial": "Administrador Master da Governança Previdenciária",
       "ativo": true,
       "email_verified": true,
       "is_master_admin": true,
-      "is_presidente": true,
+      "is_presidente": false,
       "avatar_url": "/src/assets/images/ipme_logo_correto_1792419543135.jpg"
     },
     {

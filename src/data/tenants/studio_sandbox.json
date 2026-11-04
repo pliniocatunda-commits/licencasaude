@@ -572,5 +572,53 @@
       "updated_at": "2026-01-15T14:30:00.000Z",
       "created_by": "Pliniocatunda@gmail.com"
     }
+  ],
+  "users": [
+    {
+      "id": "user_master_plinio_sbx",
+      "email": "pliniocatunda@gmail.com",
+      "name": "Plínio Catunda (Administrador Master)",
+      "role": "admin",
+      "auth_provider": "google",
+      "department": "Studio Sandbox - Governança",
+      "cargo": "Administrador Master do Sistema",
+      "funcao_pericial": "Administrador Master da Governança Previdenciária",
+      "ativo": true,
+      "email_verified": true,
+      "is_master_admin": true,
+      "is_presidente": true,
+      "avatar_url": "/src/assets/images/ipme_logo_correto_1792419543135.jpg",
+      "tenant_id": "studio_sandbox"
+    },
+    {
+      "id": "user_perito_medico",
+      "email": "medico.perito@eusebio.ce.gov.br",
+      "name": "Dr. Marcelo Cavalcante Holanda",
+      "role": "operator",
+      "auth_provider": "corporate",
+      "department": "Studio Sandbox - Junta Médica",
+      "cargo": "Médico Perito Oficial",
+      "funcao_pericial": "Coordenador da Junta Médica Pericial Oficial",
+      "ativo": true,
+      "email_verified": true,
+      "password": "Perito@2026",
+      "is_presidente": false,
+      "tenant_id": "studio_sandbox"
+    },
+    {
+      "id": "user_rh_operador",
+      "email": "rh.operador@eusebio.ce.gov.br",
+      "name": "Mariana Vasconcelos de Albuquerque",
+      "role": "operator",
+      "auth_provider": "corporate",
+      "department": "Studio Sandbox - Recursos Humanos",
+      "cargo": "Analista de Recursos Humanos",
+      "funcao_pericial": "Coordenação de Gestão de Pessoas",
+      "ativo": true,
+      "email_verified": true,
+      "password": "RhOperador@2026",
+      "is_presidente": false,
+      "tenant_id": "studio_sandbox"
+    }
   ]
 }

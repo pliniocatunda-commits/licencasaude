@@ -169,12 +169,12 @@ export const firestoreService = {
     await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.AUDIT_LOGS, tid), log.id), log);
   },
 
-  // --- Users ---
+  // --- Users (Isolamento Estrito por Tenant) ---
   async getUsers(tenantId?: string): Promise<AppUser[]> {
     const tid = this.getTenantId(tenantId);
     const usersMap = new Map<string, AppUser>();
     
-    // 1. Tenta carregar da partição do tenant
+    // Consulta exclusivamente a partição do Tenant no Firestore: tenants/{tid}/users
     try {
       const snapTenant = await getDocs(collection(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid)));
       snapTenant.docs.forEach(d => {
@@ -182,20 +182,7 @@ export const firestoreService = {
         if (u && u.email) usersMap.set(u.email.toLowerCase().trim(), u);
       });
     } catch (e) {
-      console.warn('[Firestore] Falha ao carregar usuários da partição do tenant:', e);
-    }
-
-    // 2. Carrega da raiz global (para redundância e compatibilidade)
-    try {
-      const snapRoot = await getDocs(collection(firestoreDb, COLLECTIONS.USERS));
-      snapRoot.docs.forEach(d => {
-        const u = d.data() as AppUser;
-        if (u && u.email && !usersMap.has(u.email.toLowerCase().trim())) {
-          usersMap.set(u.email.toLowerCase().trim(), u);
-        }
-      });
-    } catch (e) {
-      console.warn('[Firestore] Falha ao carregar usuários da coleção raiz:', e);
+      console.warn(`[Firestore] Falha ao carregar operadores da partição ${tid}:`, e);
     }
 
     return Array.from(usersMap.values());
@@ -204,19 +191,19 @@ export const firestoreService = {
   async saveUser(user: AppUser, tenantId?: string): Promise<void> {
     const tid = this.getTenantId(tenantId);
     const docId = user.email.toLowerCase().trim();
-    await Promise.all([
-      setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId), user, { merge: true }),
-      setDoc(doc(firestoreDb, COLLECTIONS.USERS, docId), user, { merge: true }),
-    ]);
+    const userToSave: AppUser = {
+      ...user,
+      tenant_id: tid,
+    };
+    // Grava exclusivamente na partição do Tenant
+    await setDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId), userToSave, { merge: true });
   },
 
   async deleteUser(email: string, tenantId?: string): Promise<void> {
     const tid = this.getTenantId(tenantId);
     const docId = email.toLowerCase().trim();
-    await Promise.all([
-      deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId)).catch(() => {}),
-      deleteDoc(doc(firestoreDb, COLLECTIONS.USERS, docId)).catch(() => {}),
-    ]);
+    // Exclui exclusivamente da partição do Tenant
+    await deleteDoc(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId)).catch(() => {});
   },
 
   /**
@@ -280,8 +267,8 @@ export const firestoreService = {
       for (const u of data.users) {
         if (!u.email) continue;
         const docId = u.email.toLowerCase().trim();
-        batchUser.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId), u, { merge: true });
-        batchUser.set(doc(firestoreDb, COLLECTIONS.USERS, docId), u, { merge: true });
+        const tenantUser = { ...u, tenant_id: tid };
+        batchUser.set(doc(firestoreDb, getTenantCollectionPath(COLLECTIONS.USERS, tid), docId), tenantUser, { merge: true });
         totalUploaded++;
       }
       await batchUser.commit();
