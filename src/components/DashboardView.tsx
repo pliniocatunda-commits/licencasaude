@@ -17,7 +17,8 @@ import {
   PlusCircle,
   FileSpreadsheet,
   Baby,
-  Award
+  Award,
+  ShieldCheck
 } from 'lucide-react';
 
 export interface DashboardNavigationFilter {
@@ -69,6 +70,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { total, ativas: total };
   }, [occurrences, metrics]);
 
+  const statsDefinitiva = useMemo(() => {
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => o.tipo === 'Licença Definitiva');
+      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
+      const arquivadas = all.filter(o => o.status === 'Arquivado').length;
+      return { total: all.length, ativas, arquivadas };
+    }
+    const total = metrics?.totalLicencaDefinitiva ?? 0;
+    const arquivadas = metrics?.totalAposentados ?? 0;
+    return { total, ativas: Math.max(0, total - arquivadas), arquivadas };
+  }, [occurrences, metrics]);
+
   const statsReadaptacao = useMemo(() => {
     if (occurrences && occurrences.length > 0) {
       const all = occurrences.filter(o => o.tipo === 'Readaptação');
@@ -76,6 +89,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return { total: all.length, ativas };
     }
     const total = metrics?.totalReadaptados ?? 0;
+    return { total, ativas: total };
+  }, [occurrences, metrics]);
+
+  const statsReadaptacaoPermanente = useMemo(() => {
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => o.tipo === 'Readaptação Permanente');
+      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
+      return { total: all.length, ativas };
+    }
+    const total = metrics?.totalReadaptacaoPermanente ?? 0;
     return { total, ativas: total };
   }, [occurrences, metrics]);
 
@@ -89,24 +112,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { total, ativas: total };
   }, [occurrences, metrics]);
 
-  const statsDefinitiva = useMemo(() => {
-    if (occurrences && occurrences.length > 0) {
-      const all = occurrences.filter(o => o.tipo === 'Licença Definitiva');
-      const ativas = all.filter(o => o.status === 'Ativa' || o.status === 'Prorrogada').length;
-      const arquivadas = all.filter(o => o.status === 'Arquivado').length;
-      return { total: all.length, ativas, arquivadas };
-    }
-    const total = metrics?.totalLicencaDefinitiva ?? 0;
-    const arquivadas = metrics?.totalAposentados ?? 0;
-    return { total, ativas: Math.max(0, total - arquivadas), arquivadas };
-  }, [occurrences, metrics]);
-
   if (loading || !metrics) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {[1, 2, 3, 4, 5, 6].map(i => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+          {[1, 2, 3, 4, 5, 6, 7].map(i => (
             <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
           ))}
         </div>
@@ -166,8 +177,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Primary Metrics Strip (6 Indicadores Oficiais com Preenchimento Degradê) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+      {/* Primary Metrics Strip (7 Indicadores Oficiais com Preenchimento Degradê) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-3.5">
         {/* Card 1: Total Servidores (Azul Institucional) */}
         <div 
           onClick={() => onNavigateTab('employees', { employeeStatus: 'ALL' })}
@@ -246,85 +257,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Readaptações Funcionais (Sky / Ciano) */}
-        <div 
-          onClick={() => onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'ALL' })}
-          className="bg-gradient-to-br from-sky-500/15 via-sky-50/80 to-white rounded-xl p-4 border border-sky-300 shadow-xs hover:shadow-md hover:border-sky-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para filtrar servidores em Readaptação Funcional"
-        >
-          <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-sky-900 uppercase tracking-wider truncate">
-                Readaptação
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-sky-100/90 border border-sky-200 flex items-center justify-center text-sky-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
-                <RefreshCw className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-sky-950 tabular-nums tracking-tight">
-                {statsReadaptacao.total}
-              </div>
-              <div className="text-[11px] font-semibold text-sky-900/80 mt-0.5">
-                Servidores readaptados
-              </div>
-            </div>
-          </div>
-          <div 
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'Ativa' });
-            }}
-            className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[10.5px] text-sky-900/80 hover:text-sky-950 transition-colors"
-            title="Clique para filtrar servidores readaptados ativos"
-          >
-            <span>Em exercício:</span>
-            <span className="font-bold font-mono tabular-nums text-sky-900">
-              {statsReadaptacao.ativas} ato(s)
-            </span>
-          </div>
-        </div>
-
-        {/* Card 4: Licença Maternidade (Rose / Rosa - NOVO) */}
-        <div 
-          onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'ALL' })}
-          className="bg-gradient-to-br from-rose-500/15 via-rose-50/80 to-white rounded-xl p-4 border border-rose-300 shadow-xs hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
-          title="Clique para filtrar apenas Licenças Maternidade"
-        >
-          <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-rose-900 uppercase tracking-wider truncate">
-                Maternidade
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center text-rose-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
-                <Baby className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-rose-950 tabular-nums tracking-tight">
-                {statsMaternidade.total}
-              </div>
-              <div className="text-[11px] font-semibold text-rose-900/80 mt-0.5">
-                Licenças maternidade
-              </div>
-            </div>
-          </div>
-          <div 
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'Ativa' });
-            }}
-            className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[10.5px] text-rose-900/80 hover:text-rose-950 transition-colors"
-            title="Clique para filtrar licenças maternidade vigentes em gozo"
-          >
-            <span>Em gozo ativo:</span>
-            <span className="font-bold font-mono tabular-nums text-rose-950">
-              {statsMaternidade.ativas} ato(s)
-            </span>
-          </div>
-        </div>
-
-        {/* Card 5: Licença Definitiva / Aposentadorias (Purple / Roxo - NOVO) */}
+        {/* Card 3: Licença Definitiva / Aposentadorias (Purple / Roxo - Próxima à Licença Saúde) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Definitiva', status: 'ALL' })}
           className="bg-gradient-to-br from-purple-500/15 via-purple-50/80 to-white rounded-xl p-4 border border-purple-300 shadow-xs hover:shadow-md hover:border-purple-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
@@ -363,7 +296,124 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 6: Reavaliação Pericial / Prazos a Vencer (Emerald / Verde) */}
+        {/* Card 4: Readaptações Funcionais em Curso (Sky / Ciano) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'ALL' })}
+          className="bg-gradient-to-br from-sky-500/15 via-sky-50/80 to-white rounded-xl p-4 border border-sky-300 shadow-xs hover:shadow-md hover:border-sky-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para filtrar servidores em Readaptação Funcional"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-sky-900 uppercase tracking-wider truncate">
+                Readaptação
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-sky-100/90 border border-sky-200 flex items-center justify-center text-sky-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <RefreshCw className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-sky-950 tabular-nums tracking-tight">
+                {statsReadaptacao.total}
+              </div>
+              <div className="text-[11px] font-semibold text-sky-900/80 mt-0.5">
+                Readaptações em curso
+              </div>
+            </div>
+          </div>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'Ativa' });
+            }}
+            className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[10.5px] text-sky-900/80 hover:text-sky-950 transition-colors"
+            title="Clique para filtrar servidores readaptados ativos"
+          >
+            <span>Em exercício:</span>
+            <span className="font-bold font-mono tabular-nums text-sky-900">
+              {statsReadaptacao.ativas} ato(s)
+            </span>
+          </div>
+        </div>
+
+        {/* Card 5: Readaptação Permanente (Teal / Esmeralda Petróleo - Próxima à Readaptação) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Readaptação Permanente', status: 'ALL' })}
+          className="bg-gradient-to-br from-teal-500/15 via-teal-50/80 to-white rounded-xl p-4 border border-teal-300 shadow-xs hover:shadow-md hover:border-teal-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para filtrar servidores em Readaptação Permanente homologada"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-teal-900 uppercase tracking-wider truncate">
+                Readaptação Perm.
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-teal-100/90 border border-teal-200 flex items-center justify-center text-teal-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-teal-950 tabular-nums tracking-tight">
+                {statsReadaptacaoPermanente.total}
+              </div>
+              <div className="text-[11px] font-semibold text-teal-900/80 mt-0.5">
+                Fixação definitiva
+              </div>
+            </div>
+          </div>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Readaptação Permanente', status: 'Ativa' });
+            }}
+            className="mt-3 pt-2.5 border-t border-teal-200/60 flex items-center justify-between text-[10.5px] text-teal-900/80 hover:text-teal-950 transition-colors"
+            title="Clique para filtrar servidores em readaptação permanente ativa"
+          >
+            <span>Em exercício perm.:</span>
+            <span className="font-bold font-mono tabular-nums text-teal-900">
+              {statsReadaptacaoPermanente.ativas} ato(s)
+            </span>
+          </div>
+        </div>
+
+        {/* Card 6: Licença Maternidade (Rose / Rosa) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'ALL' })}
+          className="bg-gradient-to-br from-rose-500/15 via-rose-50/80 to-white rounded-xl p-4 border border-rose-300 shadow-xs hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para filtrar apenas Licenças Maternidade"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10px] font-extrabold text-rose-900 uppercase tracking-wider truncate">
+                Maternidade
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center text-rose-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <Baby className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-rose-950 tabular-nums tracking-tight">
+                {statsMaternidade.total}
+              </div>
+              <div className="text-[11px] font-semibold text-rose-900/80 mt-0.5">
+                Licenças maternidade
+              </div>
+            </div>
+          </div>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'Ativa' });
+            }}
+            className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[10.5px] text-rose-900/80 hover:text-rose-950 transition-colors"
+            title="Clique para filtrar licenças maternidade vigentes em gozo"
+          >
+            <span>Em gozo ativo:</span>
+            <span className="font-bold font-mono tabular-nums text-rose-950">
+              {statsMaternidade.ativas} ato(s)
+            </span>
+          </div>
+        </div>
+
+        {/* Card 7: Reavaliação Pericial / Prazos a Vencer (Emerald / Verde) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'ALL', status: 'VENCENDO_30_DIAS' })}
           className="bg-gradient-to-br from-emerald-500/15 via-emerald-50/80 to-white rounded-xl p-4 border border-emerald-300 shadow-xs hover:shadow-md hover:border-emerald-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
@@ -442,6 +492,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             ? 'bg-amber-50 text-amber-800 border-amber-200' 
                             : occ.tipo === 'Readaptação'
                             ? 'bg-sky-50 text-sky-800 border-sky-200'
+                            : occ.tipo === 'Readaptação Permanente'
+                            ? 'bg-teal-50 text-teal-800 border-teal-300 font-bold'
                             : occ.tipo === 'Licença Definitiva'
                             ? 'bg-purple-50 text-purple-800 border-purple-200'
                             : 'bg-pink-50 text-pink-800 border-pink-200'

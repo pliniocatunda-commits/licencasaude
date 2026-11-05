@@ -1,6 +1,6 @@
 export type EmployeeStatus = 'Ativo' | 'Licenciado' | 'Readaptado' | 'Aposentado';
 
-export type OccurrenceType = 'Licença Saúde' | 'Readaptação' | 'Licença Definitiva' | 'Licença Maternidade';
+export type OccurrenceType = 'Licença Saúde' | 'Readaptação' | 'Licença Definitiva' | 'Licença Maternidade' | 'Readaptação Permanente';
 
 export type OccurrenceStatus = 'Ativa' | 'Concluída' | 'Prorrogada' | 'Cancelada' | 'Arquivado';
 
@@ -97,6 +97,7 @@ export interface Occurrence {
   data_concessao?: string;
   ato_concessao?: string;
   motivo_definitiva?: string;
+  motivo_permanente?: string;
   data_conversao?: string;
   data_retorno?: string;
   motivo_retorno?: string;
@@ -119,7 +120,7 @@ export interface AuditLog {
   id: string;
   entity_type: 'employee' | 'occurrence' | 'user' | 'secretaria' | 'doctor';
   entity_id: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PRORROGAR' | 'CONCLUIR' | 'CANCELAR' | 'CONVERTER_DEFINITIVA' | 'ARQUIVAR' | 'RETORNO_TRABALHO';
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PRORROGAR' | 'CONCLUIR' | 'CANCELAR' | 'CONVERTER_DEFINITIVA' | 'CONVERTER_PERMANENTE' | 'ARQUIVAR' | 'RETORNO_TRABALHO';
   details: string;
   changed_by: string;
   user_role: UserRole;
@@ -162,6 +163,7 @@ export interface DashboardMetrics {
   totalAtivos: number;
   totalLicencaSaude: number;
   totalReadaptados: number;
+  totalReadaptacaoPermanente?: number;
   totalLicencaMaternidade?: number;
   totalLicencaDefinitiva?: number;
   totalAposentados?: number;

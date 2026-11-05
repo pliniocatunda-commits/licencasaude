@@ -29,6 +29,7 @@ import {
   Stethoscope,
   Trash2,
   FileBadge,
+  ShieldCheck,
   History,
   Undo2,
   Archive
@@ -43,6 +44,7 @@ interface EmployeeDetailModalProps {
   onOpenProrrogar: (occ: Occurrence) => void;
   onOpenConcluir: (occ: Occurrence) => void;
   onOpenConverterDefinitiva?: (occ: Occurrence) => void;
+  onOpenConverterPermanente?: (occ: Occurrence) => void;
   onOpenRetornoTrabalho?: (occ: Occurrence) => void;
   onOpenHistory?: (occ: Occurrence) => void;
   onDeleteOccurrence?: (id: string) => void;
@@ -58,6 +60,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
   onOpenProrrogar,
   onOpenConcluir,
   onOpenConverterDefinitiva,
+  onOpenConverterPermanente,
   onOpenRetornoTrabalho,
   onOpenHistory,
   onDeleteOccurrence,
@@ -255,6 +258,8 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                             ? 'bg-amber-50 text-amber-800 border-amber-200' 
                             : occ.tipo === 'Readaptação'
                             ? 'bg-sky-50 text-sky-800 border-sky-200'
+                            : occ.tipo === 'Readaptação Permanente'
+                            ? 'bg-teal-50 text-teal-800 border-teal-300 font-bold'
                             : occ.tipo === 'Licença Definitiva'
                             ? 'bg-purple-50 text-purple-800 border-purple-200'
                             : 'bg-pink-50 text-pink-800 border-pink-200'
@@ -286,14 +291,14 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                             className="h-7 px-2.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                             title="Reversão pericial: homologar retorno do servidor da Licença Definitiva / Aposentadoria ao trabalho ativo"
                           >
-                            <Undo2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <Undo2 className="w-4 h-4 text-emerald-700 shrink-0" />
                             <span className="whitespace-nowrap">Retornar ao Trabalho</span>
                           </button>
                         )}
                         {(occ.status === 'Ativa' || occ.status === 'Prorrogada') && (
                           <>
                             {/* 1. Prorrogar */}
-                            {occ.tipo !== 'Licença Definitiva' && (
+                            {occ.tipo !== 'Licença Definitiva' && occ.tipo !== 'Readaptação Permanente' && (
                               <button
                                 onClick={() => onOpenProrrogar(occ)}
                                 className="h-7 px-2.5 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors inline-flex items-center justify-center whitespace-nowrap shrink-0"
@@ -322,8 +327,8 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                               )}
                             </button>
 
-                            {/* 3. Tornar Definitiva */}
-                            {occ.tipo !== 'Licença Definitiva' && onOpenConverterDefinitiva && (
+                            {/* 3. Tornar Definitiva (Apenas Licença Saúde) */}
+                            {occ.tipo === 'Licença Saúde' && onOpenConverterDefinitiva && (
                               <button
                                 onClick={() => onOpenConverterDefinitiva(occ)}
                                 className="h-7 px-2.5 text-[11px] font-semibold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
@@ -331,6 +336,18 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                               >
                                 <FileBadge className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                                 <span className="whitespace-nowrap">Tornar Definitiva</span>
+                              </button>
+                            )}
+
+                            {/* 4. Readaptação Permanente (Apenas servidores com Readaptação em curso) */}
+                            {occ.tipo === 'Readaptação' && onOpenConverterPermanente && (
+                              <button
+                                onClick={() => onOpenConverterPermanente(occ)}
+                                className="h-7 px-2.5 text-[11px] font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-md transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                title="Homologar Readaptação Permanente em caráter definitivo"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                <span className="whitespace-nowrap">Readaptação Permanente</span>
                               </button>
                             )}
                           </>

@@ -169,7 +169,7 @@ export function isPrevisaoRetornoEmAtraso(
   status?: string,
   tipo?: string
 ): boolean {
-  if (!dataTermino || tipo === 'Licença Definitiva') return false;
+  if (!dataTermino || tipo === 'Licença Definitiva' || tipo === 'Readaptação Permanente') return false;
   if (status === 'Arquivado' || status === 'Concluída' || status === 'Cancelada') return false;
 
   const hoje = new Date();

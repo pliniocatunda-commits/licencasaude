@@ -19,6 +19,7 @@ import {
   RefreshCw, 
   Baby,
   FileBadge,
+  ShieldCheck,
   Search, 
   Upload,
   User,
@@ -252,6 +253,13 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
       }
     }
 
+    if (tipo === 'Readaptação Permanente') {
+      if (!dataConcessao) {
+        setFormError('Informe a Data da Concessão da Readaptação Permanente.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await onSave({
@@ -269,8 +277,8 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
         anexo_url: anexoUrl,
         observacoes: observacoes.trim(),
         parecer_tecnico: parecerTecnico.trim(),
-        data_concessao: tipo === 'Licença Definitiva' ? (dataConcessao || dataInicio) : undefined,
-        ato_concessao: tipo === 'Licença Definitiva' ? atoConcessao.trim() : undefined,
+        data_concessao: (tipo === 'Licença Definitiva' || tipo === 'Readaptação Permanente') ? (dataConcessao || dataInicio) : undefined,
+        ato_concessao: (tipo === 'Licença Definitiva' || tipo === 'Readaptação Permanente') ? atoConcessao.trim() : undefined,
       });
       onClose();
     } catch (err) {
@@ -292,12 +300,15 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                 ? 'bg-amber-600' 
                 : tipo === 'Readaptação' 
                 ? 'bg-sky-600' 
+                : tipo === 'Readaptação Permanente'
+                ? 'bg-teal-600'
                 : tipo === 'Licença Definitiva'
                 ? 'bg-purple-600'
                 : 'bg-pink-600'
             }`}>
               {tipo === 'Licença Saúde' && <HeartPulse className="w-4 h-4" />}
               {tipo === 'Readaptação' && <RefreshCw className="w-4 h-4" />}
+              {tipo === 'Readaptação Permanente' && <ShieldCheck className="w-4 h-4" />}
               {tipo === 'Licença Definitiva' && <FileBadge className="w-4 h-4" />}
               {tipo === 'Licença Maternidade' && <Baby className="w-4 h-4" />}
             </div>
@@ -535,7 +546,57 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
                 Tipo de Ocorrência (Natureza do Ato Pericial) *
               </label>
 
-              {isEditing && tipo === 'Licença Definitiva' ? (
+              {isEditing && tipo === 'Readaptação Permanente' ? (
+                /* Caso esteja editando uma ocorrência de Readaptação Permanente */
+                <div className="p-3.5 rounded-xl bg-teal-50 border border-teal-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-teal-700 text-white flex items-center justify-center">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs text-teal-950 block">
+                          Readaptação Permanente · Fixação Definitiva
+                        </span>
+                        <span className="text-[10px] text-teal-700">
+                          Ato de readaptação funcional definitiva com atribuições compatíveis
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase bg-teal-200 text-teal-900 px-2 py-0.5 rounded">
+                      Permanente
+                    </span>
+                  </div>
+
+                  {/* Campos de Concessão Permanente */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-teal-200/80">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-teal-950 mb-1">
+                        Data da Concessão Permanente *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={dataConcessao}
+                        onChange={e => setDataConcessao(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-teal-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-teal-950 mb-1">
+                        Ato Concessório / Portaria
+                      </label>
+                      <input
+                        type="text"
+                        value={atoConcessao}
+                        onChange={e => setAtoConcessao(e.target.value)}
+                        placeholder="Ex: Portaria IPME nº 085/2026"
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-teal-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : isEditing && tipo === 'Licença Definitiva' ? (
                 /* Caso esteja editando uma ocorrência que já foi tornada Definitiva */
                 <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-200 space-y-3">
                   <div className="flex items-center justify-between">

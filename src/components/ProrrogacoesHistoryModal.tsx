@@ -64,6 +64,8 @@ export const ProrrogacoesHistoryModal: React.FC<ProrrogacoesHistoryModalProps> =
                     ? 'bg-amber-100/90 text-amber-900 border-amber-300' 
                     : occurrence.tipo === 'Readaptação'
                     ? 'bg-sky-100/90 text-sky-900 border-sky-300'
+                    : occurrence.tipo === 'Readaptação Permanente'
+                    ? 'bg-teal-100/90 text-teal-900 border-teal-300 font-bold'
                     : occurrence.tipo === 'Licença Definitiva'
                     ? 'bg-purple-100/90 text-purple-900 border-purple-300'
                     : 'bg-pink-100/90 text-pink-900 border-pink-300'
@@ -379,7 +381,75 @@ export const ProrrogacoesHistoryModal: React.FC<ProrrogacoesHistoryModalProps> =
                     <span className="font-semibold text-purple-900 block text-[10px] uppercase tracking-wider">
                       Fundamento da Transformação:
                     </span>
-                    <p className="mt-0.5 text-slate-800">{occurrence.motivo_definitiva}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 4. Marco de Homologação de Readaptação Permanente */}
+          {occurrence.tipo === 'Readaptação Permanente' && (
+            <div className="relative pl-6 pb-2 border-l-2 border-teal-500">
+              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-teal-600 border-2 border-white shadow-xs flex items-center justify-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-teal-50/90 border border-teal-200 space-y-2.5 text-xs shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-teal-950 text-xs flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-teal-700" />
+                      Homologação em Readaptação Permanente (Fixação Definitiva)
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-200 text-teal-900 border border-teal-300">
+                      Permanente
+                    </span>
+                  </div>
+                  {occurrence.data_conversao && (
+                    <span className="text-[11px] text-teal-800 font-mono">
+                      Homologado em: {formatarDataHoraBR(occurrence.data_conversao)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-white p-2.5 rounded-lg border border-teal-200 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Data Concessão:</span>
+                    <span className="font-bold text-teal-900 font-mono">
+                      {formatarDataBR(occurrence.data_concessao || occurrence.data_inicio)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Ato / Portaria:</span>
+                    <span className="font-semibold text-teal-900 font-mono">
+                      {occurrence.ato_concessao || 'Não informado'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Médico Perito:</span>
+                    <span className="font-semibold text-slate-900 block truncate" title={occurrence.medico_perito}>
+                      {occurrence.medico_perito}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">{occurrence.crm}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Efeito Funcional:</span>
+                    <span className="font-semibold text-teal-900 block">
+                      Readaptação Definitiva
+                    </span>
+                    <span className="text-[10px] text-slate-500">Servidor em exercício ativo</span>
+                  </div>
+                </div>
+
+                {occurrence.motivo_permanente && (
+                  <div className="bg-teal-100/60 p-2 rounded-lg border border-teal-200 text-teal-950 text-[11px]">
+                    <span className="font-semibold text-teal-900 block text-[10px] uppercase tracking-wider">
+                      Fundamento da Homologação Permanente:
+                    </span>
+                    <p className="mt-0.5 text-slate-800">{occurrence.motivo_permanente}</p>
                   </div>
                 )}
               </div>

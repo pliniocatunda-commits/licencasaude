@@ -29,6 +29,7 @@ import {
   ConcluirModal, 
   CancelarModal,
   ConverterDefinitivaModal,
+  ConverterPermanenteModal,
   RetornoTrabalhoModal
 } from './components/OccurrenceActionsModal.tsx';
 import { PrintCertificateModal } from './components/PrintCertificateModal.tsx';
@@ -120,8 +121,10 @@ export default function App() {
   const [concluirModalOpen, setConcluirModalOpen] = useState(false);
   const [cancelarModalOpen, setCancelarModalOpen] = useState(false);
   const [converterDefinitivaModalOpen, setConverterDefinitivaModalOpen] = useState(false);
+  const [converterPermanenteModalOpen, setConverterPermanenteModalOpen] = useState(false);
   const [targetOccurrence, setTargetOccurrence] = useState<Occurrence | null>(null);
   const [occurrenceToConvert, setOccurrenceToConvert] = useState<Occurrence | null>(null);
+  const [occurrenceToConvertPermanente, setOccurrenceToConvertPermanente] = useState<Occurrence | null>(null);
   const [occurrenceToRetornar, setOccurrenceToRetornar] = useState<Occurrence | null>(null);
   const [historyModalOccurrence, setHistoryModalOccurrence] = useState<Occurrence | null>(null);
 
@@ -615,6 +618,34 @@ export default function App() {
     }
   };
 
+  const handleOpenConverterPermanente = (occ: Occurrence) => {
+    setOccurrenceToConvertPermanente(occ);
+    setConverterPermanenteModalOpen(true);
+  };
+
+  const handleConfirmConverterPermanente = async (data: {
+    dataConcessao: string;
+    atoConcessao?: string;
+    motivo?: string;
+    medico?: string;
+    crm?: string;
+    parecerTecnico?: string;
+  }) => {
+    if (!occurrenceToConvertPermanente) return;
+    try {
+      const updated = await api.converterOccurrencePermanente(occurrenceToConvertPermanente.id, data);
+      addToast('success', `Ocorrência Nº ${updated.id} homologada como Readaptação Permanente com sucesso. Concessão: ${data.dataConcessao.split('-').reverse().join('/')}.`);
+      await loadAllData();
+      if (selectedEmployeeForDetail) {
+        const empOccurrences = await api.getOccurrences(selectedEmployeeForDetail.matricula);
+        setSelectedEmployeeForDetail(prev => prev ? { ...prev, history: empOccurrences } : null);
+      }
+    } catch (err) {
+      addToast('error', (err as Error).message || 'Erro ao homologar Readaptação Permanente.');
+      throw err;
+    }
+  };
+
   const handlePrintOccurrence = (occ: Occurrence) => {
     setPrintOccurrence(occ);
     setPrintModalOpen(true);
@@ -846,6 +877,7 @@ export default function App() {
             onOpenProrrogar={handleOpenProrrogar}
             onOpenConcluir={handleOpenConcluir}
             onOpenConverterDefinitiva={handleOpenConverterDefinitiva}
+            onOpenConverterPermanente={handleOpenConverterPermanente}
             onOpenRetornoTrabalho={handleOpenRetornoTrabalho}
             onOpenCancelar={handleOpenCancelar}
             onPrintOccurrence={handlePrintOccurrence}
@@ -931,6 +963,7 @@ export default function App() {
         onOpenProrrogar={handleOpenProrrogar}
         onOpenConcluir={handleOpenConcluir}
         onOpenConverterDefinitiva={handleOpenConverterDefinitiva}
+        onOpenConverterPermanente={handleOpenConverterPermanente}
         onOpenRetornoTrabalho={handleOpenRetornoTrabalho}
         onOpenHistory={occ => setHistoryModalOccurrence(occ)}
         onDeleteOccurrence={handleDeleteOccurrence}
@@ -985,6 +1018,17 @@ export default function App() {
         occurrence={occurrenceToConvert}
         doctors={doctors}
         onConfirm={handleConfirmConverterDefinitiva}
+      />
+
+      <ConverterPermanenteModal
+        isOpen={converterPermanenteModalOpen}
+        onClose={() => {
+          setConverterPermanenteModalOpen(false);
+          setOccurrenceToConvertPermanente(null);
+        }}
+        occurrence={occurrenceToConvertPermanente}
+        doctors={doctors}
+        onConfirm={handleConfirmConverterPermanente}
       />
 
       <RetornoTrabalhoModal

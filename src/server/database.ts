@@ -704,6 +704,9 @@ export class TenantDatabaseScope {
   public converterOccurrenceDefinitiva(...args: any[]) {
     return this.manager.withTenant(this.tenantId, () => (this.manager.converterOccurrenceDefinitiva as any)(...args));
   }
+  public converterOccurrencePermanente(...args: any[]) {
+    return this.manager.withTenant(this.tenantId, () => (this.manager.converterOccurrencePermanente as any)(...args));
+  }
   public cancelarOccurrence(...args: any[]) {
     return this.manager.withTenant(this.tenantId, () => (this.manager.cancelarOccurrence as any)(...args));
   }
@@ -1776,6 +1779,73 @@ class DatabaseManager {
     return occ;
   }
 
+  public converterOccurrencePermanente(
+    id: string,
+    dataConcessao: string,
+    atoConcessao: string,
+    motivo: string,
+    medico: string,
+    crm: string,
+    parecerTecnico: string,
+    actorEmail: string,
+    actorRole: 'admin' | 'operator'
+  ): Occurrence {
+    const occ = this.getOccurrenceById(id);
+    if (!occ) throw new Error('Ocorrência não encontrada.');
+
+    // REGRA DE NEGÓCIO IPME:
+    // "ela será aplicada apenas para os servidores que se encontram de com um READAPTAÇÃO FUNCIONAL em curso, e se tornara dessa forma PERMANENTE"
+    // "A readaptação permanente só será aplicada para que já possui uma readaptação."
+    if (occ.tipo !== 'Readaptação') {
+      throw new Error(`A Readaptação Permanente só pode ser aplicada a servidores com Readaptação Funcional em curso. Tipo atual: ${occ.tipo}.`);
+    }
+
+    if (occ.status !== 'Ativa' && occ.status !== 'Prorrogada') {
+      throw new Error(`Apenas readaptações com status Ativa ou Prorrogada podem ser convertidas em permanente. Status atual: ${occ.status}.`);
+    }
+
+    if (!dataConcessao || !dataConcessao.trim()) {
+      throw new Error('A Data da Concessão é obrigatória para homologar a readaptação permanente.');
+    }
+
+    const now = new Date().toISOString();
+    const oldTipo = occ.tipo;
+    occ.tipo = 'Readaptação Permanente';
+    occ.status = 'Ativa';
+    occ.data_concessao = dataConcessao.trim();
+    occ.ato_concessao = atoConcessao?.trim() || '';
+    occ.motivo_permanente = motivo?.trim() || 'Readaptação funcional definitiva homologada em junta médica pericial do IPME.';
+    occ.data_conversao = now;
+    occ.updated_at = now;
+    if (medico) occ.medico_perito = medico;
+    if (crm) occ.crm = crm;
+
+    const dataHoraBR = new Date().toLocaleDateString('pt-BR');
+    const notaConversao = `\n[Conversão em Readaptação Permanente em ${dataHoraBR} por ${actorEmail}]: Readaptação funcional transformada de "${oldTipo}" para "Readaptação Permanente". Data da Concessão: ${dataConcessao}${occ.ato_concessao ? ` | Ato Concessório: ${occ.ato_concessao}` : ''}. Médico Responsável: ${occ.medico_perito} (${occ.crm}). Parecer Pericial: ${occ.motivo_permanente}${parecerTecnico ? ` | Atribuições / Parecer Conclusivo: ${parecerTecnico}` : ''}`;
+    occ.parecer_tecnico = (occ.parecer_tecnico || '') + notaConversao;
+
+    const index = this.data.occurrences.findIndex(o => o.id === id);
+    this.data.occurrences[index] = occ;
+
+    this.syncEmployeeStatus(occ.matricula);
+
+    this.addAuditLog({
+      entity_type: 'occurrence',
+      entity_id: occ.id,
+      action: 'CONVERTER_PERMANENTE',
+      details: `Ocorrência Nº ${occ.id} do servidor ${occ.employee_nome} homologada como Readaptação Permanente. Data de Concessão: ${dataConcessao}.${occ.ato_concessao ? ` Ato: ${occ.ato_concessao}.` : ''}`,
+      changed_by: actorEmail,
+      user_role: actorRole,
+      diff: {
+        before: { tipo: oldTipo },
+        after: { tipo: 'Readaptação Permanente', data_concessao: dataConcessao, ato_concessao: occ.ato_concessao }
+      }
+    });
+
+    this.saveToDisk(this.data);
+    return occ;
+  }
+
   public cancelarOccurrence(id: string, motivo: string, actorEmail: string, actorRole: 'admin' | 'operator'): Occurrence {
     const occ = this.getOccurrenceById(id);
     if (!occ) throw new Error('Ocorrência não encontrada.');
@@ -1863,8 +1933,8 @@ class DatabaseManager {
 
     let nextStatus: 'Ativo' | 'Licenciado' | 'Readaptado' | 'Aposentado' = 'Ativo';
     if (activeOccurrences.length > 0) {
-      // Prioritize any leave type over Readaptação
-      const hasLicenca = activeOccurrences.some(o => o.tipo !== 'Readaptação');
+      // Prioritize medical licenses over Readaptação / Readaptação Permanente
+      const hasLicenca = activeOccurrences.some(o => o.tipo !== 'Readaptação' && o.tipo !== 'Readaptação Permanente');
       nextStatus = hasLicenca ? 'Licenciado' : 'Readaptado';
     } else if (hasArchivedDefinitiva) {
       nextStatus = 'Aposentado';
@@ -2501,7 +2571,8 @@ class DatabaseManager {
     const totalEmployees = this.data.employees.length;
     const totalAtivos = this.data.employees.filter(e => e.status === 'Ativo').length;
     const totalLicencaSaude = this.data.occurrences.filter(o => o.tipo === 'Licença Saúde').length;
-    const totalReadaptados = this.data.occurrences.filter(o => o.tipo === 'Readaptação').length;
+    const totalReadaptados = this.data.occurrences.filter(o => o.tipo === 'Readaptação' || o.tipo === 'Readaptação Permanente').length;
+    const totalReadaptacaoPermanente = this.data.occurrences.filter(o => o.tipo === 'Readaptação Permanente').length;
     const totalLicencaMaternidade = this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade').length;
     const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
     const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
@@ -2534,7 +2605,7 @@ class DatabaseManager {
         if (secMap[shortSec]) {
           if (occ.tipo === 'Licença Saúde') {
             secMap[shortSec].licencaCount++;
-          } else if (occ.tipo === 'Readaptação') {
+          } else if (occ.tipo === 'Readaptação' || occ.tipo === 'Readaptação Permanente') {
             secMap[shortSec].readaptadoCount++;
           }
         }
@@ -2551,6 +2622,7 @@ class DatabaseManager {
       { name: 'Licença Maternidade', value: this.data.occurrences.filter(o => o.tipo === 'Licença Maternidade' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
       { name: 'Licença Definitiva', value: this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
       { name: 'Readaptação', value: this.data.occurrences.filter(o => o.tipo === 'Readaptação' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
+      { name: 'Readaptação Permanente', value: this.data.occurrences.filter(o => o.tipo === 'Readaptação Permanente' && (o.status === 'Ativa' || o.status === 'Prorrogada')).length },
       { name: 'Concluídas / Históricas', value: this.data.occurrences.filter(o => o.status === 'Concluída' || o.status === 'Cancelada').length },
     ];
 
@@ -2559,6 +2631,7 @@ class DatabaseManager {
       totalAtivos,
       totalLicencaSaude,
       totalReadaptados,
+      totalReadaptacaoPermanente,
       totalLicencaMaternidade,
       totalLicencaDefinitiva,
       totalAposentados,

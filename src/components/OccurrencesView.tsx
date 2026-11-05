@@ -35,6 +35,7 @@ import {
   History,
   FileSpreadsheet,
   FileBadge,
+  ShieldCheck,
   Undo2,
   Archive,
   Pin,
@@ -54,6 +55,7 @@ interface OccurrencesViewProps {
   onOpenConcluir: (occ: Occurrence) => void;
   onOpenCancelar: (occ: Occurrence) => void;
   onOpenConverterDefinitiva: (occ: Occurrence) => void;
+  onOpenConverterPermanente?: (occ: Occurrence) => void;
   onOpenRetornoTrabalho?: (occ: Occurrence) => void;
   onPrintOccurrence: (occ: Occurrence) => void;
   onDeleteOccurrence: (id: string) => void;
@@ -77,6 +79,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
   onOpenConcluir,
   onOpenCancelar,
   onOpenConverterDefinitiva,
+  onOpenConverterPermanente,
   onOpenRetornoTrabalho,
   onPrintOccurrence,
   onDeleteOccurrence,
@@ -615,6 +618,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
               <option value="ALL">Todos os Tipos de Ocorrência</option>
               <option value="Licença Saúde">Licença Saúde</option>
               <option value="Readaptação">Readaptação Funcional</option>
+              <option value="Readaptação Permanente">Readaptação Permanente</option>
               <option value="Licença Definitiva">Licença Definitiva</option>
               <option value="Licença Maternidade">Licença Maternidade</option>
             </select>
@@ -1123,6 +1127,8 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                             ? 'bg-amber-50 text-amber-800 border-amber-200' 
                             : occ.tipo === 'Readaptação'
                             ? 'bg-sky-50 text-sky-800 border-sky-200'
+                            : occ.tipo === 'Readaptação Permanente'
+                            ? 'bg-teal-50 text-teal-800 border-teal-300 font-bold'
                             : occ.tipo === 'Licença Definitiva'
                             ? 'bg-purple-50 text-purple-800 border-purple-200'
                             : 'bg-pink-50 text-pink-800 border-pink-200'
@@ -1156,6 +1162,13 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                           <div className="flex flex-col">
                             <span className="font-bold text-purple-900 text-xs">Definitiva</span>
                             <span className="text-[10px] text-purple-700 font-mono">
+                              Concessão: {formatarDataBR(occ.data_concessao || occ.data_inicio)}
+                            </span>
+                          </div>
+                        ) : occ.tipo === 'Readaptação Permanente' ? (
+                          <div className="flex flex-col">
+                            <span className="font-bold text-teal-900 text-xs">Permanente</span>
+                            <span className="text-[10px] text-teal-700 font-mono">
                               Concessão: {formatarDataBR(occ.data_concessao || occ.data_inicio)}
                             </span>
                           </div>
@@ -1333,8 +1346,8 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                                 )}
                               </button>
 
-                              {/* 3. Tornar Definitiva */}
-                              {occ.tipo !== 'Licença Definitiva' && (
+                              {/* 3. Tornar Definitiva (Apenas Licença Saúde) */}
+                              {occ.tipo === 'Licença Saúde' && (
                                 <button
                                   onClick={() => onOpenConverterDefinitiva(occ)}
                                   className="h-7 px-2.5 text-[11px] font-bold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-md shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
@@ -1342,6 +1355,18 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                                 >
                                   <FileBadge className="w-3.5 h-3.5 text-purple-700 shrink-0" />
                                   <span className="whitespace-nowrap">Tornar Definitiva</span>
+                                </button>
+                              )}
+
+                              {/* 4. Readaptação Permanente (Apenas servidores com Readaptação em curso) */}
+                              {occ.tipo === 'Readaptação' && onOpenConverterPermanente && (
+                                <button
+                                  onClick={() => onOpenConverterPermanente(occ)}
+                                  className="h-7 px-2.5 text-[11px] font-bold text-teal-900 bg-teal-100 hover:bg-teal-200 border border-teal-300 rounded-md shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                  title={`Homologar Readaptação Permanente para ${occ.employee_nome || occ.matricula}`}
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                                  <span className="whitespace-nowrap">Readaptação Permanente</span>
                                 </button>
                               )}
                             </>

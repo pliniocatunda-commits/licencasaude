@@ -218,6 +218,8 @@ export const PrintCertificateModal: React.FC<PrintCertificateModalProps> = ({
                   ? 'LAUDO DE HOMOLOGAÇÃO DE LICENÇA MÉDICA' 
                   : occurrence.tipo === 'Licença Definitiva'
                   ? 'LAUDO PERICIAL DE LICENÇA / APOSENTADORIA DEFINITIVA'
+                  : occurrence.tipo === 'Readaptação Permanente'
+                  ? 'LAUDO PERICIAL DE READAPTAÇÃO FUNCIONAL PERMANENTE'
                   : occurrence.tipo === 'Licença Maternidade'
                   ? 'CERTIFICADO DE CONCESSÃO DE LICENÇA MATERNIDADE'
                   : 'CERTIFICADO DE READAPTAÇÃO FUNCIONAL'}
@@ -288,15 +290,19 @@ export const PrintCertificateModal: React.FC<PrintCertificateModalProps> = ({
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">
-                  {occurrence.tipo === 'Licença Definitiva' ? 'Data da Concessão Definitiva:' : 'Término / Previsão de Retorno:'}
+                  {occurrence.tipo === 'Licença Definitiva' 
+                    ? 'Data da Concessão Definitiva:' 
+                    : occurrence.tipo === 'Readaptação Permanente'
+                    ? 'Data da Concessão Permanente:'
+                    : 'Término / Previsão de Retorno:'}
                 </span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
-                  {occurrence.tipo === 'Licença Definitiva' 
+                  {(occurrence.tipo === 'Licença Definitiva' || occurrence.tipo === 'Readaptação Permanente')
                     ? formatarDataBR(occurrence.data_concessao || occurrence.data_inicio) 
                     : formatarDataBR(occurrence.data_termino)}
                 </span>
-                {occurrence.tipo === 'Licença Definitiva' && occurrence.ato_concessao && (
-                  <span className="text-[10px] text-purple-700 block font-sans">
+                {(occurrence.tipo === 'Licença Definitiva' || occurrence.tipo === 'Readaptação Permanente') && occurrence.ato_concessao && (
+                  <span className={`text-[10px] block font-sans ${occurrence.tipo === 'Readaptação Permanente' ? 'text-teal-700 font-semibold' : 'text-purple-700'}`}>
                     {occurrence.ato_concessao}
                   </span>
                 )}
@@ -408,6 +414,8 @@ export const PrintCertificateModal: React.FC<PrintCertificateModalProps> = ({
                     ? 'Atestamos que o(a) servidor(a) supracitado(a) foi submetido(a) a exame pericial oficial pelo IPME, concluindo-se pela incapacidade temporária para o desempenho de suas atribuições rotineiras durante o período assinalado.'
                     : occurrence.tipo === 'Licença Definitiva'
                     ? 'Atestamos que o(a) servidor(a) supracitado(a) foi submetido(a) a exame pericial minucioso pela Junta Médica Pericial Oficial do IPME, concluindo-se pela incapacidade laborativa permanente e definitiva para o serviço público municipal.'
+                    : occurrence.tipo === 'Readaptação Permanente'
+                    ? 'Atestamos que o(a) servidor(a) supracitado(a) foi avaliado(a) pela Junta Médica Pericial Oficial do IPME, fixando-se a sua readaptação funcional definitiva em caráter permanente para atribuições compatíveis com suas restrições de saúde.'
                     : occurrence.tipo === 'Licença Maternidade'
                     ? 'Homologamos a concessão de Licença Maternidade estatutária à servidora pública municipal pelo período de 180 (cento e oitenta) dias, nos termos da legislação municipal e do Programa Servidora Cidadã.'
                     : 'Atestamos que o(a) servidor(a) supracitado(a) possui aptidão funcional com restrições ergonômicas/físicas específicas, deliberando-se pela sua readaptação funcional temporária para exercício de atividades compatíveis com suas limitações de saúde.'

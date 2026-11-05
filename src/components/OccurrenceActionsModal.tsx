@@ -1038,3 +1038,294 @@ export const RetornoTrabalhoModal: React.FC<RetornoTrabalhoModalProps> = ({
     </div>
   );
 };
+
+// ==========================================
+// MODAL: HOMOLOGAR READAPTAÇÃO PERMANENTE
+// ==========================================
+interface ConverterPermanenteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  occurrence: Occurrence | null;
+  doctors?: Doctor[];
+  onConfirm: (data: {
+    dataConcessao: string;
+    atoConcessao?: string;
+    motivo?: string;
+    medico?: string;
+    crm?: string;
+    parecerTecnico?: string;
+  }) => Promise<void>;
+}
+
+export const ConverterPermanenteModal: React.FC<ConverterPermanenteModalProps> = ({
+  isOpen,
+  onClose,
+  occurrence,
+  doctors = [],
+  onConfirm,
+}) => {
+  const [dataConcessao, setDataConcessao] = useState('');
+  const [atoConcessao, setAtoConcessao] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [medico, setMedico] = useState('');
+  const [crm, setCrm] = useState('');
+  const [parecerTecnico, setParecerTecnico] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (occurrence) {
+      const hoje = new Date().toISOString().split('T')[0];
+      setDataConcessao(hoje);
+      setAtoConcessao('');
+      setMotivo('Junta Médica Oficial do IPME constatou limitações de capacidade física/mental irreversíveis para as atribuições originárias do cargo, recomendando a fixação definitiva de readaptação funcional.');
+      
+      const diretor = doctors.find(d => d.is_diretor && d.ativo);
+      if (diretor) {
+        setMedico(diretor.nome);
+        setCrm(diretor.crm);
+      } else {
+        setMedico(occurrence.medico_perito || '');
+        setCrm(occurrence.crm || '');
+      }
+      setParecerTecnico('Servidor apto para exercício permanente de funções administrativas de suporte, com restrição pericial definitiva para levantamento de cargas pesadas, sobrecarga ergonômica e atividades externas extenuantes.');
+      setError('');
+    }
+  }, [occurrence, doctors, isOpen]);
+
+  if (!isOpen || !occurrence) return null;
+
+  const handleDoctorSelect = (selectedNome: string) => {
+    setMedico(selectedNome);
+    const doc = doctors.find(d => d.nome === selectedNome);
+    if (doc) {
+      setCrm(doc.crm);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dataConcessao) {
+      setError('A Data da Concessão é obrigatória para homologar a readaptação permanente.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await onConfirm({
+        dataConcessao,
+        atoConcessao: atoConcessao.trim() || undefined,
+        motivo: motivo.trim() || undefined,
+        medico: medico.trim() || undefined,
+        crm: crm.trim() || undefined,
+        parecerTecnico: parecerTecnico.trim() || undefined,
+      });
+      onClose();
+    } catch (err) {
+      setError((err as Error).message || 'Erro ao homologar readaptação permanente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        
+        {/* Header */}
+        <div className="px-6 py-4 bg-teal-950 text-white flex items-center justify-between border-b border-teal-900">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-teal-800/80 border border-teal-600/50 flex items-center justify-center text-teal-200">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Homologar Readaptação Permanente
+                </h2>
+                <span className="text-[11px] font-mono font-bold bg-teal-900 text-teal-300 border border-teal-700 px-2 py-0.5 rounded">
+                  Nº {occurrence.id}
+                </span>
+              </div>
+              <p className="text-xs text-teal-300">
+                Conversão de Readaptação Funcional em Caráter Definitivo · IPME
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="text-teal-300 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+              <span className="leading-snug">{error}</span>
+            </div>
+          )}
+
+          {/* Resumo da Readaptação de Origem */}
+          <div className="p-3 bg-teal-50/80 border border-teal-200/90 rounded-xl space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-teal-950 text-xs">
+                {occurrence.employee_nome} ({occurrence.matricula})
+              </span>
+              <span className="text-[10px] font-semibold bg-teal-200/90 text-teal-900 px-2 py-0.5 rounded">
+                Origem: {occurrence.tipo} em curso
+              </span>
+            </div>
+            <div className="text-teal-900 text-[11px] flex flex-wrap items-center gap-2">
+              <span>{occurrence.employee_cargo} · {occurrence.employee_secretaria?.split(' - ')[0]}</span>
+              <span>·</span>
+              <span>Início: <strong>{formatarDataBR(occurrence.data_inicio)}</strong></span>
+              {occurrence.data_termino && (
+                <>
+                  <span>·</span>
+                  <span>Vigência atual até: <strong>{formatarDataBR(occurrence.data_termino)}</strong></span>
+                </>
+              )}
+              <span>·</span>
+              <span>{occurrence.quantidade_dias} dias acumulados</span>
+            </div>
+            <p className="text-[10.5px] text-teal-800 leading-tight pt-1 border-t border-teal-200/60">
+              ℹ️ Ao converter para <strong>Readaptação Permanente</strong>, o servidor continuará ativo no quadro de readaptados, com atribuições compatíveis de caráter definitivo homologadas por Junta Médica.
+            </p>
+          </div>
+
+          {/* Data Concessão & Ato */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Data da Concessão Permanente *
+              </label>
+              <input
+                type="date"
+                required
+                value={dataConcessao}
+                onChange={e => setDataConcessao(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono text-xs"
+              />
+              <span className="text-[10px] text-slate-500 mt-0.5 block">
+                Data oficial de publicação ou efeito do ato.
+              </span>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Ato Concessório / Portaria
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Portaria IPME nº 092/2026"
+                value={atoConcessao}
+                onChange={e => setAtoConcessao(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs"
+              />
+              <span className="text-[10px] text-slate-500 mt-0.5 block">
+                Número do Decreto ou Portaria Oficial.
+              </span>
+            </div>
+          </div>
+
+          {/* Médico Perito & CRM */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block font-semibold text-slate-700 mb-1">
+                Médico Perito Oficial do IPME
+              </label>
+              {doctors && doctors.length > 0 ? (
+                <div className="space-y-1">
+                  <select
+                    value={medico}
+                    onChange={e => handleDoctorSelect(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs"
+                  >
+                    <option value="">Selecione o perito responsável...</option>
+                    {doctors.filter(d => d.ativo).map(doc => (
+                      <option key={doc.id} value={doc.nome}>
+                        {doc.nome} ({doc.crm}) {doc.is_diretor ? '· Diretor(a) Médico' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Nome do médico perito responsável"
+                  value={medico}
+                  onChange={e => setMedico(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs"
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                CRM
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: 12345/CE"
+                value={crm}
+                onChange={e => setCrm(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Justificativa / Parecer da Junta */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Justificativa / Parecer da Junta Médica Pericial *
+            </label>
+            <textarea
+              rows={2}
+              required
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+              placeholder="Fundamentação médica para fixação da readaptação permanente..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs"
+            />
+          </div>
+
+          {/* Novas Atribuições e Restrições Definitivas */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Atribuições Compatíveis e Restrições Funcionais Definitivas
+            </label>
+            <textarea
+              rows={2}
+              value={parecerTecnico}
+              onChange={e => setParecerTecnico(e.target.value)}
+              placeholder="Descreva as funções autorizadas e limitações operacionais permanentes..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 font-bold bg-teal-700 hover:bg-teal-600 text-white rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>{loading ? 'Homologando...' : 'Confirmar Readaptação Permanente'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

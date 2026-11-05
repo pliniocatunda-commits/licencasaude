@@ -431,6 +431,26 @@ class ApiService {
     );
   }
 
+  public async converterOccurrencePermanente(
+    id: string,
+    data: { dataConcessao: string; atoConcessao?: string; motivo?: string; medico?: string; crm?: string; parecerTecnico?: string }
+  ): Promise<Occurrence> {
+    return this.request(
+      `/api/occurrences/${id}/converter-permanente`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...data, actorEmail: this.actorEmail, actorRole: this.actorRole }),
+      },
+      async () => {
+        const updated = clientDb.converterOccurrencePermanente(id, data, this.actorEmail, this.actorRole);
+        firestoreService.saveOccurrence(updated, this.getActiveTenantId()).catch(err => {
+          console.warn('[Firestore] Erro ao converter readaptação permanente na nuvem:', err);
+        });
+        return updated;
+      }
+    );
+  }
+
   public async cancelarOccurrence(id: string, motivo: string): Promise<Occurrence> {
     return this.request(
       `/api/occurrences/${id}/cancelar`,

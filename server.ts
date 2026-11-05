@@ -369,6 +369,40 @@ async function startServer() {
     }
   });
 
+  app.post('/api/occurrences/:id/converter-permanente', (req: Request, res: Response) => {
+    try {
+      const { actorEmail, actorRole } = getActor(req);
+      const { dataConcessao, atoConcessao, motivo, medico, crm, parecerTecnico } = req.body;
+      if (!dataConcessao) {
+        return res.status(400).json({ success: false, message: 'A Data da Concessão é obrigatória para homologar a readaptação permanente.' });
+      }
+      const occ = getTenantDb(req).getOccurrenceById(req.params.id);
+      if (!occ) {
+        return res.status(404).json({ success: false, message: 'Ocorrência não encontrada.' });
+      }
+      if (occ.tipo !== 'Readaptação') {
+        return res.status(400).json({ 
+          success: false, 
+          message: `A readaptação permanente só poderá ser aplicada para servidores com uma Readaptação Funcional em curso (Tipo atual: ${occ.tipo}).` 
+        });
+      }
+      const updated = getTenantDb(req).converterOccurrencePermanente(
+        req.params.id,
+        dataConcessao,
+        atoConcessao,
+        motivo,
+        medico,
+        crm,
+        parecerTecnico,
+        actorEmail,
+        actorRole
+      );
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  });
+
   app.post('/api/occurrences/:id/cancelar', (req: Request, res: Response) => {
     try {
       const { actorEmail, actorRole } = getActor(req);

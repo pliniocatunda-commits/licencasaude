@@ -368,7 +368,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
     const totalDiasIPME = afastamentosTemporarios.reduce((acc, o) => acc + calcularDiasPagos(o.quantidade_dias || 0), 0);
     const totalDiasPrefeitura = totalDiasCorridos - totalDiasIPME;
     const totalLicencaSaude = afastamentosTemporarios.filter(o => o.tipo === 'Licença Saúde').length;
-    const totalReadaptacao = afastamentosTemporarios.filter(o => o.tipo === 'Readaptação').length;
+    const totalReadaptacao = afastamentosTemporarios.filter(o => o.tipo === 'Readaptação' || o.tipo === 'Readaptação Permanente').length;
     const totalLicencaDefinitivaAtiva = afastamentosTemporarios.filter(o => o.tipo === 'Licença Definitiva').length;
     const totalLicencaDefinitiva = filteredOccurrences.filter(o => o.tipo === 'Licença Definitiva').length;
     const totalLicencaMaternidade = afastamentosTemporarios.filter(o => o.tipo === 'Licença Maternidade').length;
@@ -485,7 +485,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
       const subtotalDiasIPME = occList.reduce((acc, o) => acc + calcularDiasPagos(o.quantidade_dias || 0), 0);
       const subtotalDiasPrefeitura = subtotalDiasCorridos - subtotalDiasIPME;
       const subtotalSaude = occList.filter(o => o.tipo === 'Licença Saúde').length;
-      const subtotalReadaptacao = occList.filter(o => o.tipo === 'Readaptação').length;
+      const subtotalReadaptacao = occList.filter(o => o.tipo === 'Readaptação' || o.tipo === 'Readaptação Permanente').length;
       const subtotalDefinitiva = occList.filter(o => o.tipo === 'Licença Definitiva').length;
       const subtotalMaternidade = occList.filter(o => o.tipo === 'Licença Maternidade').length;
 
@@ -1571,6 +1571,8 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                                         ? 'bg-rose-50 text-rose-800 border-rose-200' 
                                         : occ.tipo === 'Readaptação'
                                         ? 'bg-sky-50 text-sky-800 border-sky-200'
+                                        : occ.tipo === 'Readaptação Permanente'
+                                        ? 'bg-teal-50 text-teal-800 border-teal-300 font-bold'
                                         : occ.tipo === 'Licença Definitiva'
                                         ? 'bg-purple-50 text-purple-800 border-purple-200'
                                         : 'bg-pink-50 text-pink-800 border-pink-200'
@@ -1599,6 +1601,14 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                                         title={`Licença Concluída / Servidor Retornou em ${formatarDataBR(occ.data_retorno || occ.data_termino)}`}
                                       >
                                         {formatarDataBR(occ.data_retorno || occ.data_termino)}
+                                      </span>
+                                    ) : occ.tipo === 'Readaptação Permanente' ? (
+                                      <span className="inline-block px-1.5 py-0.5 rounded font-bold text-teal-900 bg-teal-50 border border-teal-300 text-[9.5px]">
+                                        Permanente
+                                      </span>
+                                    ) : occ.tipo === 'Licença Definitiva' ? (
+                                      <span className="inline-block px-1.5 py-0.5 rounded font-bold text-purple-900 bg-purple-50 border border-purple-300 text-[9.5px]">
+                                        Definitiva
                                       </span>
                                     ) : (
                                       <span className="text-slate-800">{formatarDataBR(occ.data_termino)}</span>
