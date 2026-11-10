@@ -405,7 +405,11 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                           </span>
                         )}
                         <span className="text-slate-500 block text-[11px]">
-                          ({occ.quantidade_dias}d totais · <strong className="text-emerald-700 font-mono">{calcularDiasPagos(occ.quantidade_dias)}d pagos IPME</strong>)
+                          ({occ.quantidade_dias}d totais
+                          {occ.tipo === 'Licença Saúde' || occ.tipo === 'Licença Maternidade' ? (
+                            <> · <strong className="text-emerald-700 font-mono">{calcularDiasPagos(occ.quantidade_dias)}d pagos IPME</strong></>
+                          ) : null}
+                          )
                         </span>
                       </div>
 

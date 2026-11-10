@@ -1230,9 +1230,13 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                         )}
                       </td>
 
-                      {/* 8. Dias Pagos */}
+                      {/* 8. Dias Pagos (Aplicável apenas para Licença Saúde e Maternidade) */}
                       <td className="py-3 px-4 whitespace-nowrap text-center">
-                        {occ.quantidade_dias > 15 ? (
+                        {occ.tipo === 'Readaptação' || occ.tipo === 'Readaptação Permanente' || occ.tipo === 'Licença Definitiva' ? (
+                          <span className="font-mono text-slate-400 text-xs" title="Não se aplica cômputo de dias pagos a este ato (aplicável apenas para Licença Saúde e Maternidade)">
+                            —
+                          </span>
+                        ) : occ.quantidade_dias > 15 ? (
                           <div className="inline-flex flex-col items-center">
                             <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-xs tabular-nums shadow-2xs">
                               {calcularDiasPagos(occ.quantidade_dias)} {calcularDiasPagos(occ.quantidade_dias) === 1 ? 'dia' : 'dias'}

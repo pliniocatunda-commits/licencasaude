@@ -594,7 +594,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             Término previsto: {formatarDataBR(occ.data_termino)}
                           </span>
                         )}
-                        <span>({occ.quantidade_dias}d totais · <strong className="text-emerald-700 font-mono">{calcularDiasPagos(occ.quantidade_dias)}d pagos IPME</strong>)</span>
+                        <span>
+                          ({occ.quantidade_dias}d totais
+                          {occ.tipo === 'Licença Saúde' || occ.tipo === 'Licença Maternidade' ? (
+                            <> · <strong className="text-emerald-700 font-mono">{calcularDiasPagos(occ.quantidade_dias)}d pagos IPME</strong></>
+                          ) : null}
+                          )
+                        </span>
                         {occ.cid && (
                           <span className="text-slate-500 font-mono text-[11px]">
                             CID: {occ.cid.split(' - ')[0]}

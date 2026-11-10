@@ -365,10 +365,24 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
     const totalTemporarios = afastamentosTemporarios.length;
     const totalAposentadoriasArquivadas = licencasDefinitivasArquivadas.length;
     const totalDiasCorridos = afastamentosTemporarios.reduce((acc, o) => acc + (o.quantidade_dias || 0), 0);
-    const totalDiasIPME = afastamentosTemporarios.reduce((acc, o) => acc + calcularDiasPagos(o.quantidade_dias || 0), 0);
-    const totalDiasPrefeitura = totalDiasCorridos - totalDiasIPME;
+    // Para o ato Readaptação / Readaptação Permanente / Licença Definitiva: Não é necessário a informação de DIAS PAGOS, sendo aplicável exclusivamente a Licença Saúde e Licença Maternidade
+    const totalDiasIPME = afastamentosTemporarios.reduce((acc, o) => {
+      if (o.tipo === 'Licença Saúde' || o.tipo === 'Licença Maternidade') {
+        return acc + calcularDiasPagos(o.quantidade_dias || 0);
+      }
+      return acc;
+    }, 0);
+    const totalDiasPrefeitura = afastamentosTemporarios.reduce((acc, o) => {
+      if (o.tipo === 'Licença Saúde' || o.tipo === 'Licença Maternidade') {
+        const total = o.quantidade_dias || 0;
+        const pagos = calcularDiasPagos(total);
+        return acc + (total - pagos);
+      }
+      return acc;
+    }, 0);
     const totalLicencaSaude = afastamentosTemporarios.filter(o => o.tipo === 'Licença Saúde').length;
-    const totalReadaptacao = afastamentosTemporarios.filter(o => o.tipo === 'Readaptação' || o.tipo === 'Readaptação Permanente').length;
+    const totalReadaptacao = afastamentosTemporarios.filter(o => o.tipo === 'Readaptação').length;
+    const totalReadaptacaoPermanente = afastamentosTemporarios.filter(o => o.tipo === 'Readaptação Permanente').length;
     const totalLicencaDefinitivaAtiva = afastamentosTemporarios.filter(o => o.tipo === 'Licença Definitiva').length;
     const totalLicencaDefinitiva = filteredOccurrences.filter(o => o.tipo === 'Licença Definitiva').length;
     const totalLicencaMaternidade = afastamentosTemporarios.filter(o => o.tipo === 'Licença Maternidade').length;
@@ -385,6 +399,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
       totalDiasPrefeitura,
       totalLicencaSaude,
       totalReadaptacao,
+      totalReadaptacaoPermanente,
       totalLicencaDefinitivaAtiva,
       totalLicencaDefinitiva,
       totalLicencaMaternidade,
@@ -470,6 +485,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
       subtotalDiasPrefeitura: number;
       subtotalSaude: number;
       subtotalReadaptacao: number;
+      subtotalReadaptacaoPermanente: number;
       subtotalDefinitiva: number;
       subtotalMaternidade: number;
     }[] = [];
@@ -482,10 +498,24 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
       const occList = groupInfo.occurrences;
       const subtotalAtos = occList.length;
       const subtotalDiasCorridos = occList.reduce((acc, o) => acc + (o.quantidade_dias || 0), 0);
-      const subtotalDiasIPME = occList.reduce((acc, o) => acc + calcularDiasPagos(o.quantidade_dias || 0), 0);
-      const subtotalDiasPrefeitura = subtotalDiasCorridos - subtotalDiasIPME;
+      // Dias pagos do IPME aplicam-se apenas a Licença Saúde e Maternidade
+      const subtotalDiasIPME = occList.reduce((acc, o) => {
+        if (o.tipo === 'Licença Saúde' || o.tipo === 'Licença Maternidade') {
+          return acc + calcularDiasPagos(o.quantidade_dias || 0);
+        }
+        return acc;
+      }, 0);
+      const subtotalDiasPrefeitura = occList.reduce((acc, o) => {
+        if (o.tipo === 'Licença Saúde' || o.tipo === 'Licença Maternidade') {
+          const total = o.quantidade_dias || 0;
+          const pagos = calcularDiasPagos(total);
+          return acc + (total - pagos);
+        }
+        return acc;
+      }, 0);
       const subtotalSaude = occList.filter(o => o.tipo === 'Licença Saúde').length;
-      const subtotalReadaptacao = occList.filter(o => o.tipo === 'Readaptação' || o.tipo === 'Readaptação Permanente').length;
+      const subtotalReadaptacao = occList.filter(o => o.tipo === 'Readaptação').length;
+      const subtotalReadaptacaoPermanente = occList.filter(o => o.tipo === 'Readaptação Permanente').length;
       const subtotalDefinitiva = occList.filter(o => o.tipo === 'Licença Definitiva').length;
       const subtotalMaternidade = occList.filter(o => o.tipo === 'Licença Maternidade').length;
 
@@ -499,6 +529,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
         subtotalDiasPrefeitura,
         subtotalSaude,
         subtotalReadaptacao,
+        subtotalReadaptacaoPermanente,
         subtotalDefinitiva,
         subtotalMaternidade,
       });
@@ -979,6 +1010,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                   <option value="all">Todos os Atos</option>
                   <option value="Licença Saúde">Licença Saúde</option>
                   <option value="Readaptação">Readaptação</option>
+                  <option value="Readaptação Permanente">Readaptação Permanente</option>
                   <option value="Licença Definitiva">Licença Definitiva</option>
                   <option value="Licença Maternidade">Licença Maternidade</option>
                 </select>
@@ -1520,7 +1552,11 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                                   <div className="text-[10px] font-normal text-blue-100 flex items-center gap-2 flex-wrap">
                                     <span><strong>{group.subtotalAtos}</strong> ato(s)</span>
                                     <span>·</span>
-                                    <span>Saúde: <strong>{group.subtotalSaude}</strong> | Readaptação: <strong>{group.subtotalReadaptacao}</strong> | Maternidade: <strong>{group.subtotalMaternidade}</strong></span>
+                                    <span>
+                                      Saúde: <strong>{group.subtotalSaude}</strong> | Readaptação: <strong>{group.subtotalReadaptacao}</strong>{group.subtotalReadaptacaoPermanente > 0 ? (
+                                        <> | Readap. Perm: <strong>{group.subtotalReadaptacaoPermanente}</strong></>
+                                      ) : null} | Maternidade: <strong>{group.subtotalMaternidade}</strong>
+                                    </span>
                                     <span>·</span>
                                     <span>Dias: <strong>{group.subtotalDiasCorridos}d</strong></span>
                                     <span>·</span>
@@ -1620,9 +1656,13 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                                     {occ.quantidade_dias}d
                                   </td>
 
-                                  {/* Dias Pagos */}
+                                  {/* Dias Pagos (Apenas Licença Saúde e Maternidade) */}
                                   <td className="py-2 px-1.5 whitespace-nowrap text-center">
-                                    {diasPagos > 0 ? (
+                                    {occ.tipo === 'Readaptação' || occ.tipo === 'Readaptação Permanente' || occ.tipo === 'Licença Definitiva' ? (
+                                      <span className="font-mono text-slate-400 text-[10px]" title="Não se aplica cômputo de dias pagos a este ato (aplicável apenas para Licença Saúde e Maternidade)">
+                                        —
+                                      </span>
+                                    ) : diasPagos > 0 ? (
                                       <span className="font-mono font-bold text-emerald-900 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[9.5px]">
                                         {diasPagos} dias
                                       </span>
@@ -1696,7 +1736,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                               <span>TOTAL PARTE I (AFASTAMENTOS TEMPORÁRIOS): <strong>{totals.totalTemporarios} atos</strong></span>
                               <span className="text-slate-500">·</span>
                               <span className="text-slate-300 text-[11px]">
-                                Saúde: <strong>{totals.totalLicencaSaude}</strong> | Readaptação: <strong>{totals.totalReadaptacao}</strong> | Maternidade: <strong>{totals.totalLicencaMaternidade}</strong>
+                                Saúde: <strong>{totals.totalLicencaSaude}</strong> | Readaptação: <strong>{totals.totalReadaptacao}</strong> | Readap. Perm: <strong>{totals.totalReadaptacaoPermanente}</strong> | Maternidade: <strong>{totals.totalLicencaMaternidade}</strong>
                                 {totals.totalConcluidas > 0 && (
                                   <span className="text-blue-300 ml-1">· ({totals.totalAtivosEmCurso} em curso, {totals.totalConcluidas} concluídas)</span>
                                 )}
@@ -1704,7 +1744,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                             </div>
                           </td>
                           <td colSpan={2} className="py-3 px-3 text-right text-slate-300 font-mono text-[10px] uppercase">
-                            Soma Geral de Dias Temporários:
+                            Soma Dias Previdenciários (Saúde/Maternidade):
                           </td>
                           <td className="py-3 px-3 text-center font-mono font-bold text-white text-xs">
                             {totals.totalDiasCorridos} dias
@@ -1713,7 +1753,7 @@ export const ExecutiveReportLandscapeModal: React.FC<ExecutiveReportLandscapeMod
                             {totals.totalDiasIPME} dias pagos
                           </td>
                           <td colSpan={2} className="py-3 px-3 text-slate-300 text-[10px]">
-                            * {totals.totalDiasPrefeitura} dias na folha patronal da Prefeitura (1º ao 15º dia).
+                            * {totals.totalDiasPrefeitura} dias na folha patronal da Prefeitura (1º ao 15º dia). Dias pagos aplicam-se apenas a Licenças Médicas e Maternidade.
                           </td>
                         </tr>
                       </tfoot>
