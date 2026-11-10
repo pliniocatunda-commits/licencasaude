@@ -2,19 +2,23 @@
  * Utility functions for CPF validation, formatting, dates, and CID data
  */
 
-export function limparCaracteres(valor: string): string {
-  return valor.replace(/\D/g, '');
+export function limparCaracteres(valor?: any): string {
+  if (valor === undefined || valor === null) return '';
+  return String(valor).replace(/\D/g, '');
 }
 
-export function formatarCPF(cpf: string): string {
+export function formatarCPF(cpf?: any): string {
+  if (!cpf) return '-';
   const digits = limparCaracteres(cpf).slice(0, 11);
+  if (!digits) return '-';
   if (digits.length <= 3) return digits;
   if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
   if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
 }
 
-export function validarCPF(cpf: string): boolean {
+export function validarCPF(cpf?: any): boolean {
+  if (!cpf) return false;
   const clean = limparCaracteres(cpf);
   if (clean.length !== 11) return false;
 
@@ -42,7 +46,8 @@ export function validarCPF(cpf: string): boolean {
   return true;
 }
 
-export function formatarTelefone(tel: string): string {
+export function formatarTelefone(tel?: any): string {
+  if (!tel) return '';
   const digits = limparCaracteres(tel).slice(0, 11);
   if (!digits) return '';
   if (digits.length <= 2) return `(${digits}`;

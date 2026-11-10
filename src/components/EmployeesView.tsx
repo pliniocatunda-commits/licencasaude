@@ -91,37 +91,96 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     return SECRETARIAS_MUNICIPAIS;
   }, [secretariasList]);
 
+  // Helper de normalização segura: case-insensitive, sem acentos, resistente a null/undefined/números
+  const safeNormalize = (val: any): string => {
+    if (val === undefined || val === null) return '';
+    return String(val)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  };
+
   // Filtered employees
   const filteredEmployees = useMemo(() => {
+    if (!Array.isArray(employees)) return [];
+
+    const rawSearch = searchTerm.trim();
+    const normSearch = safeNormalize(rawSearch);
+    const cleanDigitsSearch = rawSearch.replace(/\D/g, '');
+    const cleanDigitsSearchNoZeros = cleanDigitsSearch.replace(/^0+/, '');
+
     return employees.filter(emp => {
+      if (!emp) return false;
+
       // Secretaria filter
       if (selectedSecretaria !== 'ALL') {
-        const normEmp = normalizeSecretaria(emp.secretaria, secretariasList);
+        const empSec = String(emp.secretaria || '');
+        const normEmp = normalizeSecretaria(empSec, secretariasList);
         const normSelected = normalizeSecretaria(selectedSecretaria, secretariasList);
         const match =
           normEmp.sigla.toUpperCase() === normSelected.sigla.toUpperCase() ||
           normEmp.canonicalKey.toUpperCase() === normSelected.canonicalKey.toUpperCase() ||
-          emp.secretaria.toLowerCase().includes(selectedSecretaria.toLowerCase());
+          safeNormalize(empSec).includes(safeNormalize(selectedSecretaria)) ||
+          safeNormalize(selectedSecretaria).includes(safeNormalize(empSec));
         if (!match) return false;
       }
+
       // Status filter
       if (selectedStatus !== 'ALL' && emp.status !== selectedStatus) {
         return false;
       }
-      // Search term
-      if (searchTerm.trim()) {
-        const q = searchTerm.trim().toLowerCase();
-        const cleanQ = q.replace(/\D/g, '');
-        const matchMatricula = emp.matricula.toLowerCase().includes(q);
-        const matchNome = emp.nome.toLowerCase().includes(q);
-        const matchCpf = cleanQ && emp.cpf.replace(/\D/g, '').includes(cleanQ);
-        const matchCargo = emp.cargo.toLowerCase().includes(q);
-        const matchSetor = emp.setor ? emp.setor.toLowerCase().includes(q) : false;
-        return matchMatricula || matchNome || matchCpf || matchCargo || matchSetor;
+
+      // Search term (Matrícula, Nome, CPF, Cargo, Setor, Secretaria, Telefone)
+      if (normSearch) {
+        const empMatriculaStr = String(emp.matricula ?? '');
+        const normMatricula = safeNormalize(empMatriculaStr);
+        const cleanEmpMatricula = empMatriculaStr.replace(/\D/g, '');
+        const cleanEmpMatriculaNoZeros = cleanEmpMatricula.replace(/^0+/, '');
+
+        // Matrícula match: tanto pelo texto quanto pelos dígitos (ex: busca por '6' encontra '000006' e vice-versa)
+        const matchMatricula =
+          normMatricula.includes(normSearch) ||
+          (cleanDigitsSearch.length > 0 && cleanEmpMatricula.includes(cleanDigitsSearch)) ||
+          (cleanDigitsSearchNoZeros.length > 0 && cleanEmpMatriculaNoZeros.includes(cleanDigitsSearchNoZeros));
+
+        // Nome match (sem acentos)
+        const matchNome = safeNormalize(emp.nome).includes(normSearch);
+
+        // CPF match: tanto formatado com pontuação quanto apenas dígitos
+        const empCpfStr = String(emp.cpf ?? '');
+        const cleanEmpCpf = empCpfStr.replace(/\D/g, '');
+        const matchCpf =
+          (cleanDigitsSearch.length > 0 && cleanEmpCpf.includes(cleanDigitsSearch)) ||
+          safeNormalize(empCpfStr).includes(normSearch);
+
+        // Cargo match (sem acentos)
+        const matchCargo = safeNormalize(emp.cargo).includes(normSearch);
+
+        // Setor match
+        const matchSetor = safeNormalize(emp.setor).includes(normSearch);
+
+        // Secretaria match
+        const matchSecretaria = safeNormalize(emp.secretaria).includes(normSearch);
+
+        // Telefone match (dígitos do telefone se houver 4+ dígitos digitados)
+        const empTelStr = String(emp.telefone ?? '').replace(/\D/g, '');
+        const matchTelefone = cleanDigitsSearch.length >= 4 && empTelStr.includes(cleanDigitsSearch);
+
+        return (
+          matchMatricula ||
+          matchNome ||
+          matchCpf ||
+          matchCargo ||
+          matchSetor ||
+          matchSecretaria ||
+          matchTelefone
+        );
       }
+
       return true;
     });
-  }, [employees, searchTerm, selectedSecretaria, selectedStatus]);
+  }, [employees, searchTerm, selectedSecretaria, selectedStatus, secretariasList]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredEmployees.length / pageSize) || 1;
@@ -329,18 +388,19 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                paginatedEmployees.map(emp => {
+                paginatedEmployees.map((emp, empIdx) => {
+                  const empKey = emp.matricula ? String(emp.matricula) : `emp-${empIdx}`;
                   return (
-                    <tr key={emp.matricula} className="hover:bg-slate-50/70 transition-colors group">
+                    <tr key={empKey} className="hover:bg-slate-50/70 transition-colors group">
                       {/* Matrícula (PK) */}
                       <td className="py-3 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                        {emp.matricula}
+                        {String(emp.matricula ?? '-')}
                       </td>
 
                       {/* Nome & Contato */}
                       <td className="py-3 px-4">
                         <div className="font-semibold text-slate-900">
-                          {emp.nome}
+                          {emp.nome || 'Servidor Sem Nome'}
                         </div>
                         {emp.telefone && (
                           <div className="text-[11px] text-slate-500 font-mono">
@@ -356,11 +416,11 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
 
                       {/* Secretaria de Lotação */}
                       <td className="py-3 px-4">
-                        <div className="font-medium text-slate-800 truncate max-w-[220px]" title={emp.secretaria}>
-                          {emp.secretaria.split(' - ')[0] || emp.secretaria}
+                        <div className="font-medium text-slate-800 truncate max-w-[220px]" title={String(emp.secretaria || '')}>
+                          {emp.secretaria ? (String(emp.secretaria).split(' - ')[0] || emp.secretaria) : 'N/A'}
                         </div>
                         {emp.setor && emp.setor !== 'Geral' && (
-                          <div className="text-[11px] text-slate-500 truncate max-w-[220px]" title={emp.setor}>
+                          <div className="text-[11px] text-slate-500 truncate max-w-[220px]" title={String(emp.setor)}>
                             {emp.setor}
                           </div>
                         )}
@@ -368,7 +428,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
 
                       {/* Cargo */}
                       <td className="py-3 px-4 text-slate-700 whitespace-nowrap">
-                        {emp.cargo}
+                        {emp.cargo || '-'}
                       </td>
 
                       {/* Status Badge */}
@@ -389,6 +449,17 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-sky-50 text-sky-800 border border-sky-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                             Readaptado
+                          </span>
+                        )}
+                        {emp.status === 'Aposentado' && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-800 border border-purple-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                            Aposentado
+                          </span>
+                        )}
+                        {emp.status !== 'Ativo' && emp.status !== 'Licenciado' && emp.status !== 'Readaptado' && emp.status !== 'Aposentado' && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            {(emp as any).status || 'Ativo'}
                           </span>
                         )}
                       </td>

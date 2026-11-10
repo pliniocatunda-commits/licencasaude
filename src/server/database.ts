@@ -1218,23 +1218,25 @@ class DatabaseManager {
   public getEmployees(search?: string, secretaria?: string, status?: string): Employee[] {
     let list = [...this.data.employees];
     if (secretaria && secretaria !== 'ALL') {
-      list = list.filter(e => e.secretaria.toLowerCase().includes(secretaria.toLowerCase()));
+      const secNorm = secretaria.toLowerCase().trim();
+      list = list.filter(e => e && String(e.secretaria || '').toLowerCase().includes(secNorm));
     }
     if (status && status !== 'ALL') {
-      list = list.filter(e => e.status === status);
+      list = list.filter(e => e && e.status === status);
     }
     if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      const qClean = q.replace(/\D/g, '');
+      const q = search.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const qClean = search.replace(/\D/g, '');
       list = list.filter(e => {
-        const matchMatricula = e.matricula.toLowerCase().includes(q);
-        const matchNome = e.nome.toLowerCase().includes(q);
-        const matchCpf = qClean && e.cpf.replace(/\D/g, '').includes(qClean);
-        const matchCargo = e.cargo.toLowerCase().includes(q);
+        if (!e) return false;
+        const matchMatricula = String(e.matricula || '').toLowerCase().includes(q);
+        const matchNome = String(e.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q);
+        const matchCpf = (qClean.length > 0 && String(e.cpf || '').replace(/\D/g, '').includes(qClean)) || String(e.cpf || '').toLowerCase().includes(q);
+        const matchCargo = String(e.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q);
         return matchMatricula || matchNome || matchCpf || matchCargo;
       });
     }
-    return list.sort((a, b) => a.nome.localeCompare(b.nome));
+    return list.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || '')));
   }
 
   public getEmployeeByMatricula(matricula: string): Employee | undefined {

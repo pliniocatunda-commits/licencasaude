@@ -147,23 +147,30 @@ export const OccurrenceModal: React.FC<OccurrenceModalProps> = ({
     }
   }, [dataInicio, dataTermino]);
 
-  // Dynamic filter for employees by matrícula, nome, cargo or secretaria
+  // Dynamic filter for employees by matrícula, nome, cargo, secretaria or CPF
   const filteredEmployees = useMemo(() => {
+    if (!Array.isArray(employees)) return [];
     const rawTerm = employeeSearchTerm.trim().toLowerCase();
     if (!rawTerm) {
       return employees.slice(0, 30);
     }
     const cleanTerm = rawTerm.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cleanDigits = rawTerm.replace(/\D/g, '');
     return employees.filter(emp => {
-      const mat = (emp.matricula || '').toLowerCase();
-      const nome = (emp.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const cargo = (emp.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const sec = (emp.secretaria || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (!emp) return false;
+      const mat = String(emp.matricula || '').toLowerCase();
+      const matDigits = mat.replace(/\D/g, '');
+      const nome = String(emp.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cargo = String(emp.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const sec = String(emp.secretaria || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cpfDigits = String(emp.cpf || '').replace(/\D/g, '');
       return (
         mat.includes(cleanTerm) ||
+        (cleanDigits.length > 0 && matDigits.includes(cleanDigits)) ||
         nome.includes(cleanTerm) ||
         cargo.includes(cleanTerm) ||
-        sec.includes(cleanTerm)
+        sec.includes(cleanTerm) ||
+        (cleanDigits.length > 0 && cpfDigits.includes(cleanDigits))
       );
     }).slice(0, 25);
   }, [employees, employeeSearchTerm]);

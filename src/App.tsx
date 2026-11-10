@@ -39,6 +39,7 @@ import { LoginModal } from './components/LoginModal.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 import { ChangePasswordModal } from './components/ChangePasswordModal.tsx';
 import { CloudDatabaseModal } from './components/CloudDatabaseModal.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { useAppTheme } from './context/ThemeContext.tsx';
 import { CheckCircle2, AlertCircle, Info, X, Cloud, CloudUpload } from 'lucide-react';
 
@@ -821,23 +822,25 @@ export default function App() {
         )}
 
         {activeTab === 'employees' && (
-          <EmployeesView
-            employees={employees}
-            userRole={currentUser.role}
-            onRefresh={loadAllData}
-            onOpenEmployeeModal={handleOpenEditEmployee}
-            onViewEmployeeDetail={handleViewEmployeeDetail}
-            onOpenNewOccurrenceForEmployee={matricula => handleOpenNewOccurrence(matricula)}
-            onDeleteEmployee={handleDeleteEmployee}
-            onOpenImportCsv={() => setImportCsvModalOpen(true)}
-            secretariasList={secretarias}
-            initialSecretariaFilter={initialSecretariaFilterForEmployees}
-            initialStatusFilter={initialStatusFilterForEmployees}
-            onClearSecretariaFilter={() => {
-              setInitialSecretariaFilterForEmployees(undefined);
-              setInitialStatusFilterForEmployees(undefined);
-            }}
-          />
+          <ErrorBoundary fallbackTitle="Erro ao carregar o Cadastro de Servidores" onReset={loadAllData}>
+            <EmployeesView
+              employees={employees}
+              userRole={currentUser.role}
+              onRefresh={loadAllData}
+              onOpenEmployeeModal={handleOpenEditEmployee}
+              onViewEmployeeDetail={handleViewEmployeeDetail}
+              onOpenNewOccurrenceForEmployee={matricula => handleOpenNewOccurrence(matricula)}
+              onDeleteEmployee={handleDeleteEmployee}
+              onOpenImportCsv={() => setImportCsvModalOpen(true)}
+              secretariasList={secretarias}
+              initialSecretariaFilter={initialSecretariaFilterForEmployees}
+              initialStatusFilter={initialStatusFilterForEmployees}
+              onClearSecretariaFilter={() => {
+                setInitialSecretariaFilterForEmployees(undefined);
+                setInitialStatusFilterForEmployees(undefined);
+              }}
+            />
+          </ErrorBoundary>
         )}
 
         {activeTab === 'secretarias' && (

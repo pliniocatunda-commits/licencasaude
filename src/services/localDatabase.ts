@@ -612,18 +612,34 @@ export class ClientDatabase {
 
   // --- Employees ---
   public getEmployees(search?: string, secretaria?: string, status?: string): Employee[] {
-    let result = [...this.data.employees];
-    if (search) {
-      const s = search.toLowerCase();
-      result = result.filter(
-        e => e.nome.toLowerCase().includes(s) || e.matricula.includes(s) || e.cpf.includes(s) || e.cargo.toLowerCase().includes(s)
-      );
+    let result = Array.isArray(this.data.employees) ? [...this.data.employees] : [];
+    if (search && search.trim()) {
+      const s = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const sDigits = search.replace(/\D/g, '');
+      result = result.filter(e => {
+        if (!e) return false;
+        const nome = String(e.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const cargo = String(e.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const mat = String(e.matricula || '').toLowerCase();
+        const matDigits = mat.replace(/\D/g, '');
+        const cpf = String(e.cpf || '');
+        const cpfDigits = cpf.replace(/\D/g, '');
+        return (
+          nome.includes(s) ||
+          mat.includes(s) ||
+          (sDigits.length > 0 && matDigits.includes(sDigits)) ||
+          cpf.includes(s) ||
+          (sDigits.length > 0 && cpfDigits.includes(sDigits)) ||
+          cargo.includes(s)
+        );
+      });
     }
-    if (secretaria) {
-      result = result.filter(e => e.secretaria.toLowerCase().includes(secretaria.toLowerCase()));
+    if (secretaria && secretaria !== 'ALL') {
+      const secNorm = secretaria.toLowerCase().trim();
+      result = result.filter(e => e && String(e.secretaria || '').toLowerCase().includes(secNorm));
     }
-    if (status) {
-      result = result.filter(e => e.status === status);
+    if (status && status !== 'ALL') {
+      result = result.filter(e => e && e.status === status);
     }
     return result;
   }
