@@ -2599,7 +2599,15 @@ class DatabaseManager {
 
     // Expiring soon: within next 30 days
     const todayStr = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgoStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const next30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const totalLicencaSaudeConcluida30d = this.data.occurrences.filter(o => {
+      if (o.tipo !== 'Licença Saúde' || o.status !== 'Concluída') return false;
+      const d = (o.data_retorno || o.updated_at || o.data_termino || '').split('T')[0];
+      return d >= thirtyDaysAgoStr && d <= todayStr;
+    }).length;
+
     const expiringSoon = this.data.occurrences
       .filter(o => (o.status === 'Ativa' || o.status === 'Prorrogada') && o.data_termino >= todayStr && o.data_termino <= next30Days)
       .sort((a, b) => a.data_termino.localeCompare(b.data_termino));
@@ -2651,6 +2659,7 @@ class DatabaseManager {
       totalReadaptacaoPermanente,
       totalLicencaMaternidade,
       totalLicencaDefinitiva,
+      totalLicencaSaudeConcluida30d,
       totalAposentados,
       recentOccurrences,
       expiringSoon,

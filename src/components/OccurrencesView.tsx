@@ -399,10 +399,22 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
     ).length;
   }, [occurrences]);
 
+  // Total de licenças saúde concluídas nos últimos 30 dias
+  const totalSaudeConcluidas30d = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgoStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return occurrences.filter(occ => {
+      if (occ.tipo !== 'Licença Saúde' || occ.status !== 'Concluída') return false;
+      const d = (occ.data_retorno || occ.updated_at || occ.data_termino || '').split('T')[0];
+      return d >= thirtyDaysAgoStr && d <= todayStr;
+    }).length;
+  }, [occurrences]);
+
   // Filter and sort occurrences - Ordenação Automática Interativa com Padrão Código ID crescente
   const filteredOccurrences = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const next30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const thirtyDaysAgoStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const list = occurrences.filter(occ => {
       // Tipo
@@ -415,6 +427,10 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
         const isExpiring = (occ.status === 'Ativa' || occ.status === 'Prorrogada') &&
           occ.data_termino >= todayStr && occ.data_termino <= next30Days;
         if (!isExpiring) return false;
+      } else if (selectedStatus === 'CONCLUIDAS_30_DIAS') {
+        const d = (occ.data_retorno || occ.updated_at || occ.data_termino || '').split('T')[0];
+        const isRecent = d >= thirtyDaysAgoStr && d <= todayStr;
+        if (occ.status !== 'Concluída' || !isRecent) return false;
       } else if (selectedStatus !== 'ALL' && occ.status !== selectedStatus) {
         return false;
       }
@@ -637,6 +653,8 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
                   ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold'
                   : selectedStatus === 'VENCENDO_30_DIAS'
                   ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold'
+                  : selectedStatus === 'CONCLUIDAS_30_DIAS'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-800 font-bold'
                   : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}
             >
@@ -647,6 +665,7 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
               {totalEmAtraso > 0 && (
                 <option value="EM_ATRASO">⚠️ Em Atraso ({totalEmAtraso})</option>
               )}
+              <option value="CONCLUIDAS_30_DIAS">✅ Concluídas nos últimos 30 dias {totalSaudeConcluidas30d > 0 ? `(${totalSaudeConcluidas30d})` : ''}</option>
               <option value="Ativa">Ativa</option>
               <option value="Prorrogada">Ativa Prorrogada</option>
               <option value="Arquivado">Arquivado (Aposentado)</option>
@@ -810,6 +829,24 @@ export const OccurrencesView: React.FC<OccurrencesViewProps> = ({
               >
                 <AlertCircle className={`w-3.5 h-3.5 ${selectedStatus === 'EM_ATRASO' ? 'text-white' : 'text-rose-600'} shrink-0`} />
                 <span className="whitespace-nowrap">{totalEmAtraso} em Atraso</span>
+              </button>
+            )}
+            {totalSaudeConcluidas30d > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStatus(selectedStatus === 'CONCLUIDAS_30_DIAS' ? 'ALL' : 'CONCLUIDAS_30_DIAS');
+                  setCurrentPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  selectedStatus === 'CONCLUIDAS_30_DIAS'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100'
+                }`}
+                title="Clique para filtrar apenas as licenças saúde concluídas nos últimos 30 dias"
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${selectedStatus === 'CONCLUIDAS_30_DIAS' ? 'text-white' : 'text-indigo-600'} shrink-0`} />
+                <span className="whitespace-nowrap">{totalSaudeConcluidas30d} Concluídas (30d)</span>
               </button>
             )}
             <span className="inline-flex items-center gap-1 whitespace-nowrap">

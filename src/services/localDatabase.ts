@@ -530,10 +530,20 @@ export class ClientDatabase {
     const totalLicencaDefinitiva = this.data.occurrences.filter(o => o.tipo === 'Licença Definitiva').length;
     const totalAposentados = this.data.employees.filter(e => e.status === 'Aposentado').length;
 
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const todayStr = now.toISOString().split('T')[0];
+
+    const totalLicencaSaudeConcluida30d = this.data.occurrences.filter(o => {
+      if (o.tipo !== 'Licença Saúde' || o.status !== 'Concluída') return false;
+      const d = (o.data_retorno || o.updated_at || o.data_termino || '').split('T')[0];
+      return d >= thirtyDaysAgoStr && d <= todayStr;
+    }).length;
+
     const totalDiasAfastamentoAcumulados = activeOccurrences.reduce((acc, curr) => acc + (curr.quantidade_dias || 0), 0);
     const totalDiasPagosPeloMunicipio = activeOccurrences.reduce((acc, curr) => acc + calcularDiasPagos(curr.quantidade_dias || 0), 0);
 
-    const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const expiringSoon = activeOccurrences.filter(o => {
@@ -602,6 +612,7 @@ export class ClientDatabase {
       totalReadaptacaoPermanente,
       totalLicencaMaternidade,
       totalLicencaDefinitiva,
+      totalLicencaSaudeConcluida30d,
       totalAposentados,
       secretariaBreakdown,
       leaveTypeBreakdown,

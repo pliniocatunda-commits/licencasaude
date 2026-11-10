@@ -112,12 +112,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { total, ativas: total };
   }, [occurrences, metrics]);
 
+  // Licenças saúde concluídas nos últimos 30 dias (altas periciais / retornos homologados)
+  const statsSaudeConcluidas30d = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const todayStr = now.toISOString().split('T')[0];
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+    const isLast30d = (d?: string) => {
+      if (!d) return false;
+      const clean = d.split('T')[0];
+      return clean >= thirtyDaysAgoStr && clean <= todayStr;
+    };
+
+    if (occurrences && occurrences.length > 0) {
+      const all = occurrences.filter(o => {
+        if (o.tipo !== 'Licença Saúde') return false;
+        if (o.status !== 'Concluída') return false;
+        return isLast30d(o.data_retorno) || isLast30d(o.updated_at) || isLast30d(o.data_termino);
+      });
+      return { total: all.length, list: all };
+    }
+    const total = metrics?.totalLicencaSaudeConcluida30d ?? 0;
+    return { total, list: [] };
+  }, [occurrences, metrics]);
+
   if (loading || !metrics) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-          {[1, 2, 3, 4, 5, 6, 7].map(i => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
             <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
           ))}
         </div>
@@ -177,17 +202,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Primary Metrics Strip (7 Indicadores Oficiais com Preenchimento Degradê) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-3.5">
+      {/* Primary Metrics Strip (Distribuído em 2 linhas de 4 painéis: 4 acima e 4 abaixo) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        {/* LINHA 1 - CARDS 1 a 4 */}
+
         {/* Card 1: Total Servidores (Azul Institucional) */}
         <div 
           onClick={() => onNavigateTab('employees', { employeeStatus: 'ALL' })}
-          className="bg-gradient-to-br from-[#1E426D]/15 via-blue-50/80 to-white rounded-xl p-4 border border-blue-200 shadow-xs hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-[#1E426D]/15 via-blue-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-blue-200 shadow-xs hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para abrir e filtrar o Quadro Geral de Servidores"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-[#1E426D] uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-[#1E426D] uppercase tracking-wider">
                 Quadro Geral
               </span>
               <div className="w-8 h-8 rounded-lg bg-blue-100/90 border border-blue-200/80 flex items-center justify-center text-[#1E426D] shadow-2xs group-hover:scale-105 transition-transform shrink-0">
@@ -208,7 +235,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               e.stopPropagation();
               onNavigateTab('employees', { employeeStatus: 'Ativo' });
             }}
-            className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center justify-between text-[10.5px] text-slate-600 hover:text-blue-900 transition-colors"
+            className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center justify-between text-[11px] text-slate-600 hover:text-blue-900 transition-colors"
             title="Clique para filtrar apenas servidores em exercício ativo"
           >
             <span>Em exercício:</span>
@@ -221,12 +248,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 2: Licenças Médicas Ativas (Âmbar / Laranja) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Saúde', status: 'ALL' })}
-          className="bg-gradient-to-br from-amber-500/15 via-amber-50/80 to-white rounded-xl p-4 border border-amber-300 shadow-xs hover:shadow-md hover:border-amber-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-amber-500/15 via-amber-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-amber-300 shadow-xs hover:shadow-md hover:border-amber-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para filtrar ocorrências de Licença Saúde"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-amber-900 uppercase tracking-wider">
                 Licença Saúde
               </span>
               <div className="w-8 h-8 rounded-lg bg-amber-100/90 border border-amber-200 flex items-center justify-center text-amber-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
@@ -247,7 +274,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               e.stopPropagation();
               onNavigateTab('occurrences', { tipo: 'Licença Saúde', status: 'Ativa' });
             }}
-            className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[10.5px] text-amber-900/80 hover:text-amber-950 transition-colors"
+            className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[11px] text-amber-900/80 hover:text-amber-950 transition-colors"
             title="Clique para filtrar licenças saúde vigentes em gozo"
           >
             <span>Em gozo ativo:</span>
@@ -260,12 +287,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 3: Licença Definitiva / Aposentadorias (Purple / Roxo - Próxima à Licença Saúde) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Definitiva', status: 'ALL' })}
-          className="bg-gradient-to-br from-purple-500/15 via-purple-50/80 to-white rounded-xl p-4 border border-purple-300 shadow-xs hover:shadow-md hover:border-purple-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-purple-500/15 via-purple-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-purple-300 shadow-xs hover:shadow-md hover:border-purple-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para filtrar Licenças Definitivas e Aposentadorias"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-purple-900 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-purple-900 uppercase tracking-wider">
                 Licença Definitiva
               </span>
               <div className="w-8 h-8 rounded-lg bg-purple-100/90 border border-purple-200 flex items-center justify-center text-purple-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
@@ -286,7 +313,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               e.stopPropagation();
               onNavigateTab('occurrences', { tipo: 'Licença Definitiva', status: 'ALL' });
             }}
-            className="mt-3 pt-2.5 border-t border-purple-200/60 flex items-center justify-between text-[10.5px] text-purple-900/80 hover:text-purple-950 transition-colors"
+            className="mt-3 pt-2.5 border-t border-purple-200/60 flex items-center justify-between text-[11px] text-purple-900/80 hover:text-purple-950 transition-colors"
             title="Clique para filtrar ocorrências definitivas"
           >
             <span>Vigentes / Arq:</span>
@@ -296,15 +323,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Readaptações Funcionais em Curso (Sky / Ciano) */}
+        {/* Card 4: Licenças Saúde Concluídas nos últimos 30 dias (Índigo / Conclusão & Retorno) */}
+        <div 
+          onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Saúde', status: 'CONCLUIDAS_30_DIAS' })}
+          className="bg-gradient-to-br from-indigo-500/15 via-indigo-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-indigo-300 shadow-xs hover:shadow-md hover:border-indigo-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          title="Clique para filtrar Licenças Saúde Concluídas nos últimos 30 dias (Altas periciais / Retornos)"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-indigo-900 uppercase tracking-wider">
+                Saúde Concluída
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-indigo-100/90 border border-indigo-200 flex items-center justify-center text-indigo-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-2xl lg:text-3xl font-extrabold font-mono text-indigo-950 tabular-nums tracking-tight">
+                {statsSaudeConcluidas30d.total}
+              </div>
+              <div className="text-[11px] font-semibold text-indigo-900/80 mt-0.5">
+                Concluídas últimos 30d
+              </div>
+            </div>
+          </div>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateTab('occurrences', { tipo: 'Licença Saúde', status: 'CONCLUIDAS_30_DIAS' });
+            }}
+            className="mt-3 pt-2.5 border-t border-indigo-200/60 flex items-center justify-between text-[11px] text-indigo-900/80 hover:text-indigo-950 transition-colors"
+            title="Clique para listar todas as conclusões dos últimos 30 dias"
+          >
+            <span>Altas / Retornos:</span>
+            <span className="font-bold font-mono tabular-nums text-indigo-950">
+              Últimos 30 dias
+            </span>
+          </div>
+        </div>
+
+        {/* LINHA 2 - CARDS 5 a 8 */}
+
+        {/* Card 5: Readaptações Funcionais em Curso (Sky / Ciano) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'ALL' })}
-          className="bg-gradient-to-br from-sky-500/15 via-sky-50/80 to-white rounded-xl p-4 border border-sky-300 shadow-xs hover:shadow-md hover:border-sky-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-sky-500/15 via-sky-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-sky-300 shadow-xs hover:shadow-md hover:border-sky-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para filtrar servidores em Readaptação Funcional"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-sky-900 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-sky-900 uppercase tracking-wider">
                 Readaptação
               </span>
               <div className="w-8 h-8 rounded-lg bg-sky-100/90 border border-sky-200 flex items-center justify-center text-sky-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
@@ -325,7 +393,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               e.stopPropagation();
               onNavigateTab('occurrences', { tipo: 'Readaptação', status: 'Ativa' });
             }}
-            className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[10.5px] text-sky-900/80 hover:text-sky-950 transition-colors"
+            className="mt-3 pt-2.5 border-t border-sky-200/60 flex items-center justify-between text-[11px] text-sky-900/80 hover:text-sky-950 transition-colors"
             title="Clique para filtrar servidores readaptados ativos"
           >
             <span>Em exercício:</span>
@@ -335,16 +403,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 5: Readaptação Permanente (Teal / Esmeralda Petróleo - Próxima à Readaptação) */}
+        {/* Card 6: Readaptação Permanente (Teal / Esmeralda Petróleo - Próxima à Readaptação) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'Readaptação Permanente', status: 'ALL' })}
-          className="bg-gradient-to-br from-teal-500/15 via-teal-50/80 to-white rounded-xl p-4 border border-teal-300 shadow-xs hover:shadow-md hover:border-teal-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-teal-500/15 via-teal-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-teal-300 shadow-xs hover:shadow-md hover:border-teal-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para filtrar servidores em Readaptação Permanente homologada"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-teal-900 uppercase tracking-wider truncate">
-                Readaptação Perm.
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-teal-900 uppercase tracking-wider">
+                Readaptação Permanente
               </span>
               <div className="w-8 h-8 rounded-lg bg-teal-100/90 border border-teal-200 flex items-center justify-center text-teal-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
                 <ShieldCheck className="w-4 h-4" />
@@ -364,7 +432,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               e.stopPropagation();
               onNavigateTab('occurrences', { tipo: 'Readaptação Permanente', status: 'Ativa' });
             }}
-            className="mt-3 pt-2.5 border-t border-teal-200/60 flex items-center justify-between text-[10.5px] text-teal-900/80 hover:text-teal-950 transition-colors"
+            className="mt-3 pt-2.5 border-t border-teal-200/60 flex items-center justify-between text-[11px] text-teal-900/80 hover:text-teal-950 transition-colors"
             title="Clique para filtrar servidores em readaptação permanente ativa"
           >
             <span>Em exercício perm.:</span>
@@ -374,16 +442,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 6: Licença Maternidade (Rose / Rosa) */}
+        {/* Card 7: Licença Maternidade (Rose / Rosa) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'ALL' })}
-          className="bg-gradient-to-br from-rose-500/15 via-rose-50/80 to-white rounded-xl p-4 border border-rose-300 shadow-xs hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-rose-500/15 via-rose-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-rose-300 shadow-xs hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para filtrar apenas Licenças Maternidade"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-rose-900 uppercase tracking-wider truncate">
-                Maternidade
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-rose-900 uppercase tracking-wider">
+                Licença Maternidade
               </span>
               <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center text-rose-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
                 <Baby className="w-4 h-4" />
@@ -403,7 +471,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               e.stopPropagation();
               onNavigateTab('occurrences', { tipo: 'Licença Maternidade', status: 'Ativa' });
             }}
-            className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[10.5px] text-rose-900/80 hover:text-rose-950 transition-colors"
+            className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[11px] text-rose-900/80 hover:text-rose-950 transition-colors"
             title="Clique para filtrar licenças maternidade vigentes em gozo"
           >
             <span>Em gozo ativo:</span>
@@ -413,15 +481,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 7: Reavaliação Pericial / Prazos a Vencer (Emerald / Verde) */}
+        {/* Card 8: Reavaliação Pericial / Prazos a Vencer (Emerald / Verde) */}
         <div 
           onClick={() => onNavigateTab('occurrences', { tipo: 'ALL', status: 'VENCENDO_30_DIAS' })}
-          className="bg-gradient-to-br from-emerald-500/15 via-emerald-50/80 to-white rounded-xl p-4 border border-emerald-300 shadow-xs hover:shadow-md hover:border-emerald-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          className="bg-gradient-to-br from-emerald-500/15 via-emerald-50/80 to-white rounded-xl p-4 sm:p-4.5 border border-emerald-300 shadow-xs hover:shadow-md hover:border-emerald-400 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           title="Clique para filtrar perícias com vencimento nos próximos 30 dias"
         >
           <div>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] sm:text-xs font-extrabold text-emerald-900 uppercase tracking-wider">
                 Reavaliação Pericial
               </span>
               <div className="w-8 h-8 rounded-lg bg-emerald-100/90 border border-emerald-200 flex items-center justify-center text-emerald-700 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
@@ -437,7 +505,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[10.5px] text-emerald-900/80">
+          <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[11px] text-emerald-900/80">
             <span>Previsão de retorno:</span>
             <span className="font-bold text-emerald-900">
               Próximos 30d

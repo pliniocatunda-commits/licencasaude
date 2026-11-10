@@ -166,6 +166,7 @@ export interface DashboardMetrics {
   totalReadaptacaoPermanente?: number;
   totalLicencaMaternidade?: number;
   totalLicencaDefinitiva?: number;
+  totalLicencaSaudeConcluida30d?: number;
   totalAposentados?: number;
   recentOccurrences: Occurrence[];
   expiringSoon: Occurrence[];
