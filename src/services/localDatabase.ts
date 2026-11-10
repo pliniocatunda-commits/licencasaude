@@ -1,5 +1,5 @@
 import { Employee, Occurrence, Secretaria, Doctor, AuditLog, AppUser, DashboardMetrics } from '../types/index.ts';
-import { calcularDiasPagos, normalizeSecretaria } from '../utils/validation.ts';
+import { calcularDiasPagos, normalizeSecretaria, formatarMatricula, limparCaracteres, formatarCPF } from '../utils/validation.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
 import eusebioOfficialData from '../data/tenants/ipme_eusebio.json';
 import sandboxOfficialData from '../data/tenants/studio_sandbox.json';
@@ -649,7 +649,13 @@ export class ClientDatabase {
   }
 
   public saveEmployee(empData: Partial<Employee>, actorEmail: string, actorRole: 'admin' | 'operator'): Employee {
-    const existingIndex = this.data.employees.findIndex(e => e.matricula === empData.matricula);
+    const rawMatricula = String(empData.matricula || '').trim().toUpperCase();
+    const cleanMatricula = formatarMatricula(rawMatricula);
+    const cleanCpf = limparCaracteres(empData.cpf || '');
+
+    const existingIndex = this.data.employees.findIndex(
+      e => formatarMatricula(e.matricula) === cleanMatricula
+    );
     const now = new Date().toISOString();
     const normalizedSec = empData.secretaria
       ? normalizeSecretaria(empData.secretaria, this.data.secretarias).canonicalKey
@@ -660,6 +666,8 @@ export class ClientDatabase {
       const updated: Employee = {
         ...old,
         ...empData,
+        matricula: cleanMatricula,
+        cpf: empData.cpf ? formatarCPF(empData.cpf) : old.cpf,
         secretaria: normalizedSec,
         updated_at: now,
       } as Employee;
@@ -667,7 +675,7 @@ export class ClientDatabase {
 
       // Sincroniza também as ocorrências do servidor com a secretaria canônica
       for (const occ of this.data.occurrences) {
-        if (occ.matricula === updated.matricula) {
+        if (formatarMatricula(occ.matricula) === cleanMatricula) {
           occ.employee_secretaria = normalizedSec;
         }
       }
@@ -683,10 +691,18 @@ export class ClientDatabase {
       this.saveToStorage(this.data);
       return updated;
     } else {
+      // Regra de integridade: Matrícula exclusiva
+      const existingSameMatricula = this.data.employees.find(
+        e => formatarMatricula(e.matricula) === cleanMatricula
+      );
+      if (existingSameMatricula) {
+        throw new Error(`A Matrícula ${cleanMatricula} já está vinculada ao servidor ${existingSameMatricula.nome}. A matrícula deve ser exclusiva.`);
+      }
+
       const newEmp: Employee = {
-        matricula: empData.matricula || String(Date.now()).slice(-4),
+        matricula: cleanMatricula || String(Date.now()).slice(-6).padStart(6, '0'),
         nome: empData.nome || '',
-        cpf: empData.cpf || '',
+        cpf: empData.cpf ? formatarCPF(empData.cpf) : '',
         telefone: empData.telefone || '',
         secretaria: normalizedSec,
         setor: empData.setor || '',

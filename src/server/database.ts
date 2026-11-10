@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { Employee, Occurrence, OccurrenceType, AuditLog, AppUser, DashboardMetrics, Secretaria, Doctor, DoctorVinculo, TenantInfo, TenantEnvironment } from '../types/index.ts';
 import { parseServidoresCSV } from '../utils/csvImporter.ts';
-import { normalizeSecretaria } from '../utils/validation.ts';
+import { normalizeSecretaria, formatarMatricula, limparCaracteres, formatarCPF } from '../utils/validation.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1244,7 +1244,13 @@ class DatabaseManager {
   }
 
   public saveEmployee(employee: Partial<Employee> & { matricula: string; nome: string; cpf: string }, actorEmail: string, actorRole: 'admin' | 'operator'): Employee {
-    const existingIndex = this.data.employees.findIndex(e => e.matricula.toUpperCase() === employee.matricula.toUpperCase());
+    const rawMatricula = String(employee.matricula || '').trim().toUpperCase();
+    const cleanMatricula = formatarMatricula(rawMatricula);
+    const cleanCpf = limparCaracteres(employee.cpf || '');
+
+    const existingIndex = this.data.employees.findIndex(
+      e => formatarMatricula(e.matricula) === cleanMatricula
+    );
     const now = new Date().toISOString();
     const normalizedSec = employee.secretaria
       ? normalizeSecretaria(employee.secretaria, this.data.secretarias).canonicalKey
@@ -1256,14 +1262,15 @@ class DatabaseManager {
         ...existing,
         ...employee,
         secretaria: normalizedSec,
-        matricula: existing.matricula, // immutable PK
+        matricula: cleanMatricula,
+        cpf: employee.cpf ? formatarCPF(employee.cpf) : existing.cpf,
         updated_at: now,
       };
       this.data.employees[existingIndex] = updated;
 
       // Sincroniza também ocorrências do servidor
       for (const occ of this.data.occurrences) {
-        if (occ.matricula.toUpperCase() === updated.matricula.toUpperCase()) {
+        if (formatarMatricula(occ.matricula) === cleanMatricula) {
           occ.employee_secretaria = normalizedSec;
         }
       }
@@ -1280,10 +1287,18 @@ class DatabaseManager {
       this.saveToDisk(this.data);
       return updated;
     } else {
+      // Regra de integridade: Matrícula exclusiva
+      const existingSameMatricula = this.data.employees.find(
+        e => formatarMatricula(e.matricula) === cleanMatricula
+      );
+      if (existingSameMatricula) {
+        throw new Error(`A Matrícula ${cleanMatricula} já está vinculada ao servidor ${existingSameMatricula.nome}. A matrícula deve ser exclusiva.`);
+      }
+
       const created: Employee = {
-        matricula: employee.matricula.trim().toUpperCase(),
+        matricula: cleanMatricula,
         nome: employee.nome.trim(),
-        cpf: employee.cpf.trim(),
+        cpf: employee.cpf ? formatarCPF(employee.cpf) : '',
         telefone: employee.telefone || '',
         secretaria: normalizedSec,
         setor: employee.setor || 'Geral',

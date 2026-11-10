@@ -58,6 +58,20 @@ export function formatarTelefone(tel?: any): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
+/**
+ * Formata a matrícula funcional (chave primária):
+ * Mínimo 6 caracteres. Caso seja menos que 6, preenche com zero à esquerda (ex: 152 -> 000152).
+ */
+export function formatarMatricula(matricula?: any): string {
+  if (matricula === undefined || matricula === null) return '';
+  const trimmed = String(matricula).trim().toUpperCase();
+  if (!trimmed) return '';
+  if (trimmed.length < 6) {
+    return trimmed.padStart(6, '0');
+  }
+  return trimmed;
+}
+
 export function calcularQuantidadeDias(dataInicio: string, dataTermino: string): number {
   if (!dataInicio || !dataTermino) return 0;
   const inicio = new Date(dataInicio + 'T00:00:00');

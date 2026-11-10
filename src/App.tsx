@@ -943,6 +943,7 @@ export default function App() {
         onClose={() => setEmployeeModalOpen(false)}
         onSave={handleSaveEmployee}
         initialEmployee={selectedEmployeeForEdit}
+        existingEmployees={employees}
         secretariasList={secretarias}
         onQuickCreateSecretaria={handleOpenNewSecretaria}
       />
